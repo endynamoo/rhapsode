@@ -231,6 +231,11 @@ Notes:
 
 ## 4. Chapter film pipeline
 
+The internal names still say *film* — `film.py`, `film_api.py`, `/api/film/*` — but
+what the pipeline produces is stills: one generated image per beat, played against
+the narration. The MP4 is those stills assembled with dissolves and subtitles. No
+motion is synthesized, and no video model is loaded.
+
 ```mermaid
 sequenceDiagram
     actor Reader

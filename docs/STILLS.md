@@ -1,18 +1,20 @@
-# Manga view and chapter films
+# Manga stills and chapter stills
 
-The **Manga** view turns narration into monochrome manga key images. Each 60–90
-seconds of narration gets one still (about 4–8 images for a typical chapter), shown
-with a calm crossfade and a constant slow zoom. **Create chapter film** renders the
-same beats to a 1920×1080 MP4 with 1.2-second dissolves and subtitles.
+Rhapsode does not generate motion. The **Manga** view turns narration into
+monochrome manga key images: each beat of the chapter gets one still, painted
+locally, shown with a calm crossfade and a constant slow zoom. **Create chapter
+film** assembles those same stills against the narration into a 1920×1080 MP4 with
+1.2-second dissolves and subtitles — a stills cut, not an animated sequence. No
+video model runs anywhere in the app.
 
-- **Key images, not every sentence.** The planner groups 3–20 sentences into one
-  representative beat, so a 7-minute chapter is a handful of images instead of
+- **Stills, not every sentence.** The planner groups 3–20 sentences into one
+  representative beat, so a 7-minute chapter is a handful of stills instead of
   dozens. Subtitles still follow every spoken sentence.
 - **Painted ahead, then served.** A background worker renders key stills into
   `film/<doc>/scenes/` inside the data directory. The Manga view serves cached
   frames and shows a "Painting scene…" pill otherwise.
 - **A cast per book.** The prompt writer extracts the recurring cast once; each
-  character gets a clean full-body portrait on white. The film anchors to the
+  character gets a clean full-body portrait on white. The stills cut anchors to the
   portrait of the character named in the beat, using the previous frame only
   between anchors so faces and costumes do not drift.
 - **Shot variety.** Framing rotates through establishing wide, medium two-shot,
@@ -28,19 +30,19 @@ same beats to a 1920×1080 MP4 with 1.2-second dissolves and subtitles.
 - **Steady motion.** No alternating Ken Burns direction or panning. Each image zooms
   1.00 → 1.04 at the centre, rendered at 2560×1440/30 and downsampled to
   1920×1080/30. Beats dissolve into each other over 1.2 s.
-- **Background film queue.** **Create chapter film** queues the job and returns
+- **Background queue.** **Create chapter film** queues the job and returns
   immediately. You can keep reading, watch Manga, or queue another chapter; each job
   shows Painting → Narrating → Encoding → Ready with its own Download, Cancel and
   Dismiss controls.
 - **Watch while painting.** Manga playback starts narration immediately instead of
   waiting for the whole chapter to be painted. The current scene loads on demand and
   the next two scenes are prefetched.
-- **Cached re-films.** A chapter film is reused instantly when its plan, images,
+- **Cached re-cuts.** A chapter is reused instantly when its plan, images,
   voice, quality, and render settings are unchanged. Changing one still re-renders
   only that chapter.
-- **Encoding.** Film export uses the system `ffmpeg` (`brew install ffmpeg`). If that
+- **Encoding.** The MP4 export uses the system `ffmpeg` (`brew install ffmpeg`). If that
   build includes libass, karaoke subtitles are burned in; otherwise they are attached
-  as a soft `mov_text` track so the film still plays. H.264 + AAC, hardware encoded
+  as a soft `mov_text` track so the cut still plays. H.264 + AAC, hardware encoded
   where possible.
 
 ## Install the high-quality engine once
@@ -58,7 +60,7 @@ unchanged chapter is instant.
 
 ## GPU support
 
-| Platform | Films |
+| Platform | Stills |
 |---|---|
 | macOS Apple Silicon | MPS + MLX, full quality |
 | macOS Intel | CPU only, opt-in |
@@ -68,7 +70,7 @@ unchanged chapter is instant.
 
 ## Murmur engine sidecar
 
-The film pipeline can run as a standalone local service, separate from the Rhapsode
+The stills pipeline can run as a standalone local service, separate from the Rhapsode
 window:
 
 ```bash
@@ -76,7 +78,7 @@ window:
 # or: MURMUR_ENGINE_PORT=8931 .venv/bin/python -m murmur.engine_api
 ```
 
-It exposes the same film contract as the app:
+It exposes the same contract as the app (the routes are still named `film`):
 
 - `GET /health`, `GET /version`
 - `GET /api/film/plan`, `GET /api/film/images`

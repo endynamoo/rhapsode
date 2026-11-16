@@ -113,7 +113,7 @@ def main() -> None:
     tag_font = font("segoeui.ttf", 31 * S)
     draw.text(
         (text_x, rule_y + int(20 * S)),
-        "Read-aloud and manga films, entirely on your own machine",
+        "Read-aloud and manga stills, entirely on your own machine",
         font=tag_font,
         fill=BODY,
     )

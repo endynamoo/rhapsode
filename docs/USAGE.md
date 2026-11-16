@@ -1,7 +1,7 @@
 # Using Rhapsode
 
 Everything on this page is day-to-day use. Install instructions are in
-[../AGENTS.md](../AGENTS.md); films are in [FILMS.md](FILMS.md); internals are in
+[../AGENTS.md](../AGENTS.md); manga stills are in [STILLS.md](STILLS.md); internals are in
 [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Keyboard and mouse

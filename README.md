@@ -1,6 +1,6 @@
-<img src="branding/banner.png" alt="Rhapsode — read-aloud and manga films, entirely on your own machine" width="100%">
+<img src="branding/banner.png" alt="Rhapsode — read-aloud and manga stills, entirely on your own machine" width="100%">
 
-A read-aloud and manga-film app that runs entirely on your own machine. Drop in a
+A read-aloud app that paints manga stills, entirely on your own machine. Drop in a
 book, a PDF, a scanned page or a screenshot and it reads to you in a local voice —
 no account, no cloud, no per-word billing.
 
@@ -17,8 +17,11 @@ no account, no cloud, no per-word billing.
   macOS, Tesseract on Windows and Linux.
 - **On-device translation** — read a foreign book in your own language, or in the
   foreign voice with the translation shown under the player.
-- **Manga and chapter films** — each beat of the book gets a locally generated
-  still, animated and subtitled, or exported as a 1080p MP4.
+- **Manga stills** — the narration is planned into beats and each beat gets one
+  locally generated still. Chapter view plays those stills against the voice with
+  a slow drift and a dissolve, and a chapter can be assembled into a 1080p MP4 cut
+  to the narration. Nothing is animated: the pictures stay still, and no video
+  model is involved.
 - **Quick Read** — one hotkey reads whatever is selected in any app; with no
   selection it OCRs the clipboard image.
 - 54 voices · 9 languages · 0.75–3× speed · 20 themes · your place remembered per
@@ -56,7 +59,7 @@ verification checklist live in **[AGENTS.md](AGENTS.md)**.
 | Doc | Contents |
 |---|---|
 | [docs/USAGE.md](docs/USAGE.md) | Keyboard map, Quick Read, translation, OCR knobs, remote access, where your data lives, troubleshooting |
-| [docs/FILMS.md](docs/FILMS.md) | Manga view, chapter films, the Murmur engine sidecar |
+| [docs/STILLS.md](docs/STILLS.md) | Manga stills, chapter stills, the Murmur engine sidecar |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module map, pipelines, API surface, security model, UML |
 | [docs/PLATFORMS.md](docs/PLATFORMS.md) | Windows and Linux port, GPU backend plan, packaging |
 | [AGENTS.md](AGENTS.md) | The install and build guide, written to be followed by an agent |
@@ -64,14 +67,14 @@ verification checklist live in **[AGENTS.md](AGENTS.md)**.
 
 ## Platform status
 
-| Platform | Read / TTS / highlight | Chapter films | Native bundle |
+| Platform | Read / TTS / highlight | Chapter stills → MP4 | Native bundle |
 |---|---|---|---|
 | macOS 13+ (Apple Silicon) | supported | supported (MPS + MLX) | `.app` |
 | macOS Intel | supported | CPU only, opt-in | `.app` |
 | Windows 10/11 x64 | preview, source install | NVIDIA CUDA; CPU opt-in | community PyInstaller build |
 | Linux x64 | preview, source install | NVIDIA CUDA; CPU opt-in | not yet |
 
-AMD DirectML/ROCm and Intel OpenVINO are planned, not wired into the film
+AMD DirectML/ROCm and Intel OpenVINO are planned, not wired into the still
 pipeline yet — see [docs/PLATFORMS.md](docs/PLATFORMS.md).
 
 ## How this was built
