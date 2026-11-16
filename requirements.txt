@@ -1,0 +1,30 @@
+# Murmur — local read-aloud for macOS
+# TTS: Kokoro-82M via ONNX Runtime (same weights as hexgrad/Kokoro, no PyTorch needed)
+kokoro-onnx>=0.6.1
+soundfile>=0.13.1
+numpy>=2.0
+misaki[ja,zh]>=0.9
+pyopenjtalk>=0.3
+
+# Server
+fastapi>=0.115
+uvicorn[standard]>=0.34
+python-multipart>=0.0.20
+httpx>=0.28
+
+# Document extraction (permissive: PDFium BSD/Apache, MIT/BSD parsers)
+pypdfium2>=4.30
+python-docx>=1.1
+trafilatura>=2.0
+beautifulsoup4>=4.12
+
+# Images, page rendering and the placeholder backend
+pillow>=10.4
+# HEIC/HEIF decoding where macOS `sips` is not available
+pillow-heif>=0.20; sys_platform != "darwin"
+
+# OCR (macOS Vision framework — on-device, no models to download)
+pyobjc-framework-Vision>=10.3; sys_platform == "darwin"
+
+# Cinema stills (optional; install with `uv pip install -r requirements-film.txt`)
+# -r requirements-film.txt

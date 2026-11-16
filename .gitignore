@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+*.wav
+*.part
+.DS_Store
+build/
+dist/
+build_assets/
+bin/
+packaging/Murmur.icns
+
+# local build/debug noise
+*.log
+*_err.txt
+selftest_out.txt

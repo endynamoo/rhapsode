@@ -1,0 +1,15 @@
+* text=auto
+
+# scripts that must keep LF in the working tree
+*.sh text eol=lf
+
+# Windows-native files
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.iss text eol=crlf
+
+# binaries
+*.ico binary
+*.png binary
+*.jpg binary
+*.wav binary

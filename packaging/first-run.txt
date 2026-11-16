@@ -1,0 +1,15 @@
+Rhapsode — read-aloud and manga-film, entirely on this PC.
+
+What the installer does
+  * Copies the app to %LOCALAPPDATA%\Programs\Rhapsode (no admin needed).
+  * Adds a Start Menu shortcut. Desktop shortcut is optional (unchecked by default).
+  * Does NOT download models. On first launch Rhapsode fetches the Kokoro-82M
+    voice model (~340 MB) once, into %LOCALAPPDATA%\Rhapsode\models.
+
+Good to know
+  * The app listens on http://127.0.0.1:8765 — local only, nothing leaves the PC.
+  * The native window uses WebView2, which ships with Windows 10/11.
+  * Your books, playback positions and generated audio live in
+    %LOCALAPPDATA%\Rhapsode and survive uninstall.
+
+Uninstall from Settings > Apps, or the Start Menu entry.
