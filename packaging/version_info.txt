@@ -18,12 +18,12 @@ VSVersionInfo(
           [
             StringStruct("CompanyName", "Anthony Cortez"),
             StringStruct("FileDescription", "Rhapsode - read-aloud and manga-film"),
-            StringStruct("FileVersion", "1.0.0.0"),
+            StringStruct("FileVersion", "0.1.0.0"),
             StringStruct("InternalName", "Rhapsode"),
             StringStruct("LegalCopyright", "Copyright (C) 2026 Anthony Cortez"),
             StringStruct("OriginalFilename", "Rhapsode.exe"),
             StringStruct("ProductName", "Rhapsode"),
-            StringStruct("ProductVersion", "1.0.0"),
+            StringStruct("ProductVersion", "0.1.0-alpha"),
           ],
         )
       ]

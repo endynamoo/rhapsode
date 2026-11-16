@@ -5,6 +5,7 @@ Scanned PDFs and image files go through on-device OCR (Apple Vision or Tesseract
 from __future__ import annotations
 
 import ipaddress
+import os
 import posixpath
 import re
 import socket
@@ -584,7 +585,14 @@ def extract_url(url: str) -> tuple[str, str, dict]:
 
 def extract_upload(filename: str, data: bytes) -> tuple[str, str, dict]:
     suffix = Path(filename).suffix.lower()
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp:
-        tmp.write(data)
-        tmp.flush()
-        return extract_file(Path(tmp.name), fallback_title=Path(filename).stem)
+    # Windows refuses to open a file that NamedTemporaryFile still holds with
+    # delete-on-close sharing, so the handle is released before anything reads
+    # the path, and the file is removed once extraction is done with it.
+    handle, name = tempfile.mkstemp(prefix="rhapsode-upload-", suffix=suffix)
+    os.close(handle)
+    path = Path(name)
+    try:
+        path.write_bytes(data)
+        return extract_file(path, fallback_title=Path(filename).stem)
+    finally:
+        path.unlink(missing_ok=True)

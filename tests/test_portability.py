@@ -130,5 +130,35 @@ class ImageConversionTests(unittest.TestCase):
                 self.assertEqual(image.mode, "RGBA")
 
 
+class UploadTempFileTests(unittest.TestCase):
+    """Windows will not open a temp file that another handle still holds open."""
+
+    def test_pdf_upload_reaches_pdfium(self) -> None:
+        import pypdfium2 as pdfium
+
+        from murmur import extract
+
+        with tempfile.TemporaryDirectory() as folder:
+            sample = Path(folder) / "blank.pdf"
+            document = pdfium.PdfDocument.new()
+            document.new_page(200, 200)
+            document.save(str(sample))
+            data = sample.read_bytes()
+
+        # A blank page carries no text, so extraction has to fail cleanly *after*
+        # the file opened. A PdfiumError here means the upload was unreadable.
+        with self.assertRaises((extract.ExtractError, ocr.OCRUnavailable)):
+            extract.extract_upload("blank.pdf", data)
+
+    def test_upload_leaves_no_temp_file_behind(self) -> None:
+        from murmur import extract
+
+        before = set(Path(tempfile.gettempdir()).glob("rhapsode-upload-*"))
+        with self.assertRaises(extract.ExtractError):
+            extract.extract_upload("notes.xyz", b"unsupported")
+        after = set(Path(tempfile.gettempdir()).glob("rhapsode-upload-*"))
+        self.assertEqual(before, after)
+
+
 if __name__ == "__main__":
     unittest.main()

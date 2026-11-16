@@ -116,7 +116,7 @@ app = BUNDLE(
     info_plist={
         "CFBundleName": "Rhapsode",
         "CFBundleDisplayName": "Rhapsode",
-        "CFBundleShortVersionString": "1.0.0",
+        "CFBundleShortVersionString": "0.1.0-alpha",
         "CFBundleVersion": "1",
         "LSMinimumSystemVersion": "13.0",
         "NSHighResolutionCapable": True,

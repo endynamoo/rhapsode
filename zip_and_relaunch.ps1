@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 $dist = 'C:\Apps\Rhapsode\dist\Rhapsode'
-$zip = 'C:\Apps\Rhapsode\dist\Rhapsode-1.0.0-win-x64.zip'
+$zip = 'C:\Apps\Rhapsode\dist\Rhapsode-0.1.0-alpha-win-x64.zip'
 
 Stop-Process -Name Rhapsode -Force -EA SilentlyContinue
 Start-Sleep 3
