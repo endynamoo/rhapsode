@@ -77,7 +77,7 @@ pipeline yet — see [docs/PLATFORMS.md](docs/PLATFORMS.md).
 ## How this was built
 
 Rhapsode is AI-assisted software with a human director. Most of the code was
-written by AI models — **DeepSeek V4.1 Flash** and **Qwen3** — working in long
+written by AI models — **DeepSeek V4.1 Flash** and **Qwen 3.8 Flash** — working in long
 supervised sessions. Architecture, standards, and the decision about what ships
 stayed with one person, who keeps that director's role in every program here.
 

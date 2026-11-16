@@ -74,6 +74,11 @@ def tracked(draw: ImageDraw.ImageDraw, xy, text: str, font, fill, tracking: floa
     return x - tracking
 
 
+def tracked_length(draw: ImageDraw.ImageDraw, text: str, font, tracking: float) -> float:
+    """Width the tracked text will occupy, so it can be set flush right."""
+    return sum(draw.textlength(ch, font=font) for ch in text) + tracking * (len(text) - 1)
+
+
 def font(name: str, size: int) -> ImageFont.FreeTypeFont:
     return ImageFont.truetype(str(FONT_DIR / name), size)
 
@@ -122,6 +127,19 @@ def main() -> None:
         spec_font,
         SPEC,
         2.6 * S,
+    )
+
+    # Imprint, flush right on the same baseline: the maker's mark.
+    imprint = "ENDYNAMOO  ·  TO EMPOWER"
+    imprint_tracking = 2.6 * S
+    width = tracked_length(draw, imprint, spec_font, imprint_tracking)
+    tracked(
+        draw,
+        (W * S - int(74 * S) - width, rule_y + int(78 * S)),
+        imprint,
+        spec_font,
+        INK,
+        imprint_tracking,
     )
 
     canvas.resize((W, H), Image.LANCZOS).save(OUT, optimize=True)
