@@ -1,10 +1,10 @@
-# Rhapsode
+<img src="branding/banner.png" alt="Rhapsode — read-aloud and manga films, entirely on your own machine" width="100%">
 
 A read-aloud and manga-film app that runs entirely on your own machine. Drop in a
 book, a PDF, a scanned page or a screenshot and it reads to you in a local voice —
 no account, no cloud, no per-word billing.
 
-![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![licence](https://img.shields.io/badge/licence-MIT-green) ![status](https://img.shields.io/badge/version-1.0.0-blue)
+![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![licence](https://img.shields.io/badge/licence-MIT-green) ![status](https://img.shields.io/badge/version-1.0.0-blue) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f)
 
 ## What it does
 
@@ -73,6 +73,23 @@ verification checklist live in **[AGENTS.md](AGENTS.md)**.
 
 AMD DirectML/ROCm and Intel OpenVINO are planned, not wired into the film
 pipeline yet — see [docs/PLATFORMS.md](docs/PLATFORMS.md).
+
+## How this was built
+
+Rhapsode is AI-assisted software with a human director. Most of the code was
+written by AI models — **DeepSeek V4.1 Flash** and **Qwen3** — working in long
+supervised sessions. Architecture, standards, and the decision about what ships
+stayed with one person, who keeps that director's role in every program here.
+
+That director reviewed the work as thoroughly as they could, and the repo is built
+so the claims are checkable rather than taken on faith: 39 tests in `tests/`, the
+end-to-end checklist in [AGENTS.md](AGENTS.md) §6, and an architecture document
+that spells out the API surface and the security model.
+
+None of that makes it authority. This is AI-written code with a human editor —
+read it before you depend on it, and look hardest at the parts that handle other
+people's files and the network: document extraction, OCR input, and the
+remote-access token.
 
 ## Licence
 
