@@ -213,7 +213,17 @@ Notes:
 
 - Speed is applied in the browser, so changing playback speed does not
   re-synthesize audio.
-- TTS cache keys include model version, voice, and prepared text.
+- TTS cache keys include model version, voice, and prepared text. Clips are keyed by
+  `sha1(model version + voice + text)`, written atomically to the cache directory,
+  and evicted LRU-style at 2 GB (`MURMUR_CACHE_MB`).
+- **Sentence units.** Text is split on real sentence boundaries with abbreviation,
+  initial and decimal protection. Tiny fragments (headings, `"Yes."`) are merged into
+  a neighbour because Kokoro sounds worse on very short inputs, and overly long
+  sentences are split at clause punctuation.
+- **Timing.** `kokoro-onnx` exposes per-phoneme start/end times. Phonemes are folded
+  into word groups (the phonemizer emits a space phoneme between words) and mapped
+  onto the original tokens — exact for normal prose, proportionally interpolated for
+  numbers and dates that expand into several spoken words.
 - `state.wordIdx` drives highlight in all Book renditions: reader spans, EPUB
   iframe spans, and the PDF page overlay.
 
