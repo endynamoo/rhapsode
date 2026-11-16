@@ -8,7 +8,7 @@ import subprocess
 import threading
 from pathlib import Path
 
-from . import config
+from . import config, proc
 
 
 class PromptUnavailable(Exception):
@@ -35,7 +35,7 @@ class PromptWriter:
     def _start(self) -> None:
         if not self.available():
             raise PromptUnavailable("The prompt writer is not installed.")
-        self._process = subprocess.Popen(
+        self._process = proc.popen(
             [str(self.binary)],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,

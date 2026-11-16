@@ -15,7 +15,7 @@ import zipfile
 from pathlib import Path
 from urllib.parse import unquote, urljoin, urlsplit
 
-from . import config, ocr
+from . import config, ocr, proc
 from .text import clean_markdown, normalize, split_units
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp", ".heic", ".heif"}
@@ -407,7 +407,7 @@ def _html_string(html: str) -> tuple[str, str]:
 
 def _rtf(path: Path) -> str:
     try:
-        out = subprocess.run(
+        out = proc.run(
             ["textutil", "-convert", "txt", "-stdout", str(path)],
             capture_output=True, text=True, timeout=30, check=True,
         )

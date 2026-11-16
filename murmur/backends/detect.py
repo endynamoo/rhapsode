@@ -13,6 +13,7 @@ import sys
 import threading
 from pathlib import Path
 
+from .. import proc
 from . import tts
 
 _cache: dict | None = None
@@ -33,18 +34,56 @@ def _vendor(name: str) -> str:
     return "unknown"
 
 
+def _windows_vram() -> list[tuple[str, float]]:
+    """Adapter sizes from the display-adapter class key.
+
+    WMI reports AdapterRAM as a uint32, so anything above 4 GB comes back as
+    4 GB (or 0). The registry keeps the real figure as a QWORD, in bytes.
+    """
+    try:
+        import winreg
+    except ImportError:
+        return []
+    class_key = r"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}"
+    found: list[tuple[str, float]] = []
+    try:
+        root = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, class_key)
+    except OSError:
+        return []
+    with root:
+        for index in range(16):
+            try:
+                sub = winreg.OpenKey(root, f"{index:04d}")
+            except OSError:
+                continue
+            with sub:
+                try:
+                    desc = str(winreg.QueryValueEx(sub, "DriverDesc")[0])
+                    size, _kind = winreg.QueryValueEx(sub, "HardwareInformation.qwMemorySize")
+                except OSError:
+                    continue
+                if isinstance(size, bytes) and len(size) >= 8:
+                    size = int.from_bytes(size[:8], "little")
+                try:
+                    total = float(size)
+                except (TypeError, ValueError):
+                    continue
+                if total > 0:
+                    found.append((desc, round(total / (1024 ** 3), 1)))
+    return found
+
+
 def _windows_gpu() -> tuple[str, str, float | None]:
     script = (
         "Get-CimInstance Win32_VideoController | "
         "Select-Object Name,AdapterRAM | ConvertTo-Json -Compress"
     )
     try:
-        result = subprocess.run(
+        result = proc.run(
             ["powershell", "-NoProfile", "-Command", script],
             capture_output=True,
             text=True,
             timeout=10,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             check=False,
         )
         if result.returncode != 0:
@@ -54,6 +93,7 @@ def _windows_gpu() -> tuple[str, str, float | None]:
         return "", "", None
     if isinstance(data, dict):
         data = [data]
+    registry = {name.lower(): size for name, size in _windows_vram()}
     for item in data:
         name = str(item.get("Name") or "").strip()
         vendor = _vendor(name)
@@ -61,6 +101,11 @@ def _windows_gpu() -> tuple[str, str, float | None]:
             continue
         ram = item.get("AdapterRAM")
         vram = round(float(ram) / (1024**3), 1) if ram else None
+        # WMI's uint32 cannot express a card larger than 4 GB.
+        if vram is None or vram < 4.05:
+            exact = registry.get(name.lower())
+            if exact and exact > (vram or 0):
+                vram = exact
         return name, vendor, vram
     return "", "", None
 

@@ -6,12 +6,13 @@ import re
 import socket
 import subprocess
 
+from . import proc
 _TAILSCALE_RE = re.compile(r"inet (100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+)")
 
 
 def _run(command: list[str], timeout: float = 2.0) -> str:
     try:
-        result = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
+        result = proc.run(command, capture_output=True, text=True, timeout=timeout)
         return result.stdout if result.returncode == 0 else ""
     except (OSError, subprocess.SubprocessError):
         return ""

@@ -16,7 +16,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import config, engine, imaging, ocr, prompts, speak, store
+from . import config, engine, imaging, ocr, proc, prompts, speak, store
 
 SCENE_SECONDS = 75.0
 SCENE_MAX_UNITS = 20
@@ -1294,7 +1294,7 @@ def _narrate(doc: dict, chapter: int, voice: str, job: dict | None = None) -> tu
 # ── video ───────────────────────────────────────────────────────────────────
 
 def _run(command: list[str]) -> None:
-    result = subprocess.run(command, capture_output=True, text=True)
+    result = proc.run(command, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError((result.stderr or result.stdout or "ffmpeg failed")[-1500:])
 
@@ -1320,7 +1320,7 @@ def _h264_encoder(ffmpeg: str) -> str:
     global _H264_ENCODER
     if _H264_ENCODER is None:
         try:
-            result = subprocess.run(
+            result = proc.run(
                 [ffmpeg, "-hide_banner", "-encoders"],
                 capture_output=True, text=True, timeout=15,
             )
@@ -1335,7 +1335,7 @@ def _has_libass(ffmpeg: str) -> bool:
     global _ASS_SUPPORT
     if _ASS_SUPPORT is None:
         try:
-            result = subprocess.run(
+            result = proc.run(
                 [ffmpeg, "-hide_banner", "-filters"],
                 capture_output=True, text=True, timeout=10,
             )

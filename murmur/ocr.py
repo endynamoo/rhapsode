@@ -11,7 +11,7 @@ import re
 import subprocess
 import sys
 
-from . import config
+from . import config, proc
 
 # Languages are auto-detected by Vision; set MURMUR_OCR_LANGS="en-US,fr-FR" to
 # force a list (disables auto-detection).
@@ -141,7 +141,7 @@ class TesseractBackend(OcrBackend):
         if not exe:
             raise OCRUnavailable("Tesseract is not installed.")
         try:
-            result = subprocess.run(
+            result = proc.run(
                 [exe, "stdin", "stdout", *args],
                 input=data,
                 capture_output=True,

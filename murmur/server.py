@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import config, extract, film, fonts, imaging, netinfo, ocr, speak, store, translate
+from . import config, extract, film, fonts, imaging, netinfo, ocr, proc, speak, store, translate
 from .backends import detect
 from .engine import cache_stats, engine, prune_cache
 from .film_api import router as film_router
@@ -883,7 +883,7 @@ def _export_worker(job_id: str, doc: dict, voice: str) -> None:
 
         ffmpeg = config.find_tool("ffmpeg")
         if ffmpeg:
-            subprocess.run(
+            proc.run(
                 [ffmpeg, "-y", "-loglevel", "error", "-i", str(wav_path),
                  "-codec:a", "libmp3lame", "-q:a", "4", str(mp3_path)],
                 check=True,

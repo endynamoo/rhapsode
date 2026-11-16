@@ -8,7 +8,7 @@ import subprocess
 import threading
 from pathlib import Path
 
-from . import config
+from . import config, proc
 
 
 class TranslateUnavailable(Exception):
@@ -38,7 +38,7 @@ class Translator:
             raise TranslateUnavailable(
                 "Translation is unavailable — the murmur-translate helper is missing."
             )
-        self._process = subprocess.Popen(
+        self._process = proc.popen(
             [str(self.binary)],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,

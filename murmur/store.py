@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from . import config, text as textmod
+from . import proc
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS docs (

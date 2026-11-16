@@ -12,7 +12,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import config
+from . import config, proc
 
 CACHE_PATH = config.HOME / "fonts.json"
 CACHE_SECONDS = 7 * 24 * 60 * 60
@@ -88,7 +88,7 @@ def _windows() -> list[str]:
 
 def _fc_list() -> list[str]:
     try:
-        result = subprocess.run(
+        result = proc.run(
             ["fc-list", "--format", "%{family}\\n"],
             capture_output=True,
             text=True,

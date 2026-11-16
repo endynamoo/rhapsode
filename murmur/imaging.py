@@ -11,7 +11,7 @@ import subprocess
 import threading
 from pathlib import Path
 
-from . import config
+from . import config, proc
 
 MODELS = {
     "sana-600m": {
@@ -289,7 +289,7 @@ class FluxKleinBackend(ImageBackend):
         env.setdefault("HF_HOME", str(config.HOME / "models" / "hf"))
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.unlink(missing_ok=True)
-        result = subprocess.run(
+        result = proc.run(
             cmd, capture_output=True, text=True, timeout=900, env=env,
             errors="replace",
         )
