@@ -152,6 +152,6 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 - The generated changelog block no longer repeats the "Changelog" heading above it.
 - `AGENTS.md` is plain UTF-8 text again, so its arrows and dashes render as arrows and dashes.
 
-*...and 24 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 25 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->

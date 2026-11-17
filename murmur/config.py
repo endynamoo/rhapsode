@@ -68,10 +68,18 @@ FLUX_WEIGHTS = os.environ.get("MURMUR_FLUX_MODEL", "black-forest-labs/FLUX.2-kle
 FLUX_VENV = HOME / "image-venv"
 FLUX_GENERATE = FLUX_VENV / "bin" / "mflux-generate-flux2"
 FLUX_EDIT = FLUX_VENV / "bin" / "mflux-generate-flux2-edit"
-IMAGE_PYTHON = Path(
-    os.environ.get("MURMUR_IMAGE_PYTHON")
-    or FLUX_VENV / ("Scripts/python.exe" if os.name == "nt" else "bin" / "python")
-)
+def _venv_python(venv: Path, windows: bool | None = None) -> Path:
+    """The interpreter inside a virtualenv, named the way this platform does.
+
+    ``windows`` is only there so the tests can exercise both layouts without
+    re-importing this module under a different ``os.name``.
+    """
+    if windows is None:
+        windows = os.name == "nt"
+    return (venv / "Scripts" / "python.exe") if windows else (venv / "bin" / "python")
+
+
+IMAGE_PYTHON = Path(os.environ.get("MURMUR_IMAGE_PYTHON") or _venv_python(FLUX_VENV))
 
 if FROZEN:
     TRANSLATE_BIN = ASSET_ROOT / "bin" / "murmur-translate"

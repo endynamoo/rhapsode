@@ -38,6 +38,22 @@ class DataHomeTests(unittest.TestCase):
             )
 
 
+class ImageInterpreterTests(unittest.TestCase):
+    """The image runtime is a venv, and every platform names its interpreter differently."""
+
+    def test_posix_uses_bin_python(self) -> None:
+        self.assertEqual(
+            config._venv_python(Path("/data/image-venv"), windows=False),
+            Path("/data/image-venv/bin/python"),
+        )
+
+    def test_windows_uses_scripts_python_exe(self) -> None:
+        self.assertEqual(
+            config._venv_python(Path("/data/image-venv"), windows=True),
+            Path("/data/image-venv/Scripts/python.exe"),
+        )
+
+
 class OcrBackendTests(unittest.TestCase):
     def test_vision_is_preferred(self) -> None:
         with mock.patch.object(ocr, "_backend", None), mock.patch.object(

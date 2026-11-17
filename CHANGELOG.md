@@ -35,6 +35,7 @@ fails when that copy is stale.
 - A still that is already painted is never repainted on a later session.
 - Both halves of the app log to file, because the window and the server have each died silently.
 - The engine switch posts JSON — the shared api helper sets no content type.
+- The image-runtime interpreter is built the same way on every platform, so a macOS or Linux install starts instead of failing with a `TypeError` while importing `config`.
 
 ## [0.2.0-alpha] - 2026-11-17
 
