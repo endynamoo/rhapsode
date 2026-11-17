@@ -2941,10 +2941,14 @@ async function refreshEngine() {
 
 async function setEngineProfile(name) {
   try {
-    await api('/api/engine/profile', { method: 'POST', body: JSON.stringify({ profile: name }) });
+    await api('/api/engine/profile', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ profile: name }),
+    });
     toast(`Engine switched to ${name}`);
   } catch (err) {
-    toast(`Could not switch engine: ${err.message}`, 'error');
+    toast(`Could not switch engine: ${String(err && err.message || err)}`, 'error');
   }
   refreshEngine();
 }
