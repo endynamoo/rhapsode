@@ -43,7 +43,12 @@ jobs:
           - runner: macos-15-intel
             arch: x86_64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swiftc --version
 
       - name: Install uv
         run: |

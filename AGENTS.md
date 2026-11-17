@@ -146,7 +146,8 @@ open dist/Rhapsode.app
 `scripts/make_dmg.sh` wraps the built app with an `Applications` symlink.
 `.github/workflows/macos.yml` runs the same steps on `macos-latest` (arm64) and
 `macos-15-intel` (x86_64), self-tests each bundle, and attaches both DMGs to a
-`v*` release.
+`v*` release. Apple translation and prompt writing need the macOS 26 SDK; an
+older toolchain warns and builds the app without those helpers.
 
 Expected selftest line:
 

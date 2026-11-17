@@ -16,9 +16,9 @@ no account, no cloud, no per-word billing.
 - **OCR built in** — scanned pages and screenshots, on-device: Apple Vision on
   macOS, Windows.Media.Ocr on Windows, Tesseract on Linux.
 - **On-device translation** — read a foreign book in your own language, or in the
-  foreign voice with the translation shown under the player. Apple's framework on
-  macOS; a local OpenAI-compatible server everywhere else, configured or
-  discovered on the usual ports.
+  foreign voice with the translation shown under the player. Apple's Translation
+  framework on macOS 26 and later; a local OpenAI-compatible server everywhere
+  else, configured or discovered on the usual ports.
 - **Polish pass** — each still is re-drawn once from itself so the ink settles and
   faces tighten; a face/person detector decides whether a frame needs it at all.
   Optional, and toggleable in Settings.

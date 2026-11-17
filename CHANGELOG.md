@@ -25,7 +25,7 @@ fails when that copy is stale.
 
 - The Windows installer and the macOS `.app` read their version from `murmur.__version__`, so a version bump is one line instead of three files.
 - The macOS bundle identifier is `com.endynamoo.rhapsode`, not `local.rhapsode`.
-- The prompt helper is optional at build time: a toolchain without Foundation Models still produces a working app.
+- The prompt helper and the translation helper are optional at build time: a toolchain without Foundation Models or the macOS 26 Translation SDK still produces a working app, without that helper.
 - The front page, the third-party notices and the app's copyright string say "license", not "licence".
 - Opening or resuming a book now records reading activity, so recent-only search can tell a book you read last week from one you imported and never touched.
 - The README front page states what actually ships: the per-user Windows installer, ROCm stills, and the real test count.
