@@ -127,14 +127,27 @@ RX 9070 XT, 1080p High takes about two minutes per still including model load, a
 
 ## GPU support
 
-| Card | What runs | Peak VRAM |
-|---|---|---|
-| 20 GB+ | bf16 transformer and text encoder | ~16 GB |
-| 12–16 GB | bf16 with CPU offload, or q4 when `MURMUR_FLUX_PRECISION=q4` | ~9 GB |
-| **8 GB (5060/4060/9060 class)** | **q4 transformer, text encoder on the CPU** | **~5 GB** |
-| 6 GB | q4, text encoder on the CPU, Fast preset | ~5 GB |
-| Any, CPU | opt-in (`MURMUR_ALLOW_CPU_FILM=1`), hours per still | — |
-| No GPU torch | placeholder painter, clearly labelled in the UI | — |
+| Card | Profile | What runs | Peak VRAM |
+|---|---|---|---|
+| 24 GB+ | `max` | bf16 transformer and text encoder | ~16 GB |
+| **12–22 GB** | **`balanced`** | q4 transformer, text encoder on the GPU | ~13 GB |
+| **6–10 GB (5060/4060/9060)** | **`lite`** | q4 transformer, text encoder on the CPU | **~5 GB** |
+| no usable GPU | `cpu` | placeholder painter, reader unaffected | — |
+
+The profile is a file, not a heuristic baked into the code:
+`%LOCALAPPDATA%\Rhapsode\engine.json`, written by `scripts\setup.ps1` from the card
+it finds and editable afterwards. `scripts\setup.ps1 -Profile lite` is the switch;
+`/api/health` reports the active one under `profile`.
+
+```json
+{ "profile": "lite", "precision": "q4", "text_device": "cpu",
+  "reserve_mib": 2000, "quality": "fast", "polish": false }
+```
+
+`reserve_mib` is headroom the painter refuses to touch. `balanced` on a 16 GB card
+keeps 2.5 GB back and measures ~13 GB resident — which is why `lite` is the right
+choice when the machine is shared (a remote-desktop encoder, another agent on the
+same GPU): it costs ~10 s per prompt and buys 8 GB of headroom.
 
 Precision is chosen from free VRAM at load time, not from the model name: the q4
 transformer (2.4 GB on disk, ~2.6 GiB resident) plus the VAE is enough that an 8 GB

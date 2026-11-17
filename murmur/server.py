@@ -170,6 +170,10 @@ def health() -> dict:
         "ocr": ocr.available(),
         "ocrBackend": ocr.backend_name(),
         "translate": translate.translator.available(),
+        "profile": {
+            "name": config.PROFILE.get("profile"),
+            "summary": __import__("murmur.profile", fromlist=["describe"]).describe(config.PROFILE),
+        },
         "polish": polish.status(),
         "painter": imaging.painter_info(),
         "caches": {

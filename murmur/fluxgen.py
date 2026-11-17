@@ -109,8 +109,12 @@ def _plan(torch, device: str) -> dict:
     reserve = _reserve_mib(torch)
     free, total = _vram(torch)
     requested = (os.environ.get("MURMUR_FLUX_PRECISION") or "").strip().lower()
+    text_device = (os.environ.get("MURMUR_FLUX_TEXT_DEVICE") or "").strip().lower()
     gguf = _gguf_path()
     offload = os.environ.get("MURMUR_FLUX_OFFLOAD") == "1"
+
+    if requested == "cpu":
+        raise SystemExit("the engine profile is cpu: stills fall back to the placeholder")
 
     if device != "cuda":
         return {"precision": "bf16", "offload": offload, "text_device": device, "why": "non-cuda device"}
@@ -136,9 +140,12 @@ def _plan(torch, device: str) -> dict:
                 f"only {free:.0f} MiB free and no q4 transformer on disk; "
                 "run scripts\\setup_image.ps1 to fetch it."
             )
-        if free >= 11_500 + reserve:
+        if text_device == "cpu":
+            if free >= 3_500 + reserve:
+                return q4(False)
+        elif free >= 11_500 + reserve:
             return q4(True)
-        if free >= 3_500 + reserve:
+        elif free >= 3_500 + reserve:
             return q4(False)
         raise SystemExit(
             f"refusing to paint: {free:.0f} MiB of {total:.0f} MiB free, "
