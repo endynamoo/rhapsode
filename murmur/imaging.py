@@ -326,6 +326,8 @@ class FluxPythonBackend(ImageBackend):
             command += ["--reference", job["reference"]]
         if job.get("mask"):
             command += ["--mask", job["mask"]]
+        if job.get("strength") is not None:
+            command += ["--strength", str(job["strength"])]
         out_path = Path(job["out"])
         try:
             result = proc.run(

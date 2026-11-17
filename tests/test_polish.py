@@ -125,6 +125,24 @@ class PolishRunTests(unittest.TestCase):
 
 
 class HandRepairTests(unittest.TestCase):
+    def test_job_carries_the_mask_and_strength(self) -> None:
+        def fake_paint(job, timeout=None):
+            _noise(Path(job["out"]), (120, 160))
+
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
+            polish.imaging, "paint_job", side_effect=fake_paint
+        ) as paint:
+            path = _still(Path(tmp))
+            result = polish._repair_hands(
+                path, {"hands": [(10, 10, 40, 40)]}, 120, 160, 7
+            )
+            self.assertEqual("repaired", result["action"])
+            job = paint.call_args.args[0]
+            self.assertTrue(job["mask"].endswith(".hands-mask.png"))
+            self.assertEqual(polish.HAND_STRENGTH, job["strength"])
+            self.assertEqual(polish.HAND_STEPS, job["steps"])
+            self.assertEqual(str(path), job["reference"])
+
     def test_mask_covers_the_hand_boxes_and_fades(self) -> None:
         from PIL import Image
 

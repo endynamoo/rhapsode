@@ -57,6 +57,27 @@ def _reserve_mib(torch) -> float:
         return 2500.0
 
 
+def _cast_inputs(forward, dtype):
+    """Wrap a forward so floating tensors arrive in the quantized model's dtype."""
+
+    def wrapped(*args, **kwargs):
+        args = tuple(
+            value.to(dtype) if hasattr(value, "to") and getattr(value, "is_floating_point", lambda: False)() else value
+            for value in args
+        )
+        kwargs = {
+            key: (
+                value.to(dtype)
+                if hasattr(value, "to") and getattr(value, "is_floating_point", lambda: False)()
+                else value
+            )
+            for key, value in kwargs.items()
+        }
+        return forward(*args, **kwargs)
+
+    return wrapped
+
+
 def _gguf_path() -> Path | None:
     """The q4 transformer, if the machine has one downloaded."""
     explicit = os.environ.get("MURMUR_FLUX_GGUF")
@@ -152,6 +173,10 @@ def _load(torch, device: str, plan: dict):
         pipe = Flux2KleinPipeline.from_pretrained(
             MODEL_ID, transformer=transformer, torch_dtype=torch.bfloat16
         )
+        # A quantized transformer cannot cast itself, and image conditioning hands
+        # it float32 latents ("expected mat1 and mat2 to have the same dtype").
+        # Cast floating inputs at the boundary instead.
+        pipe.transformer.forward = _cast_inputs(pipe.transformer.forward, torch.bfloat16)
     else:
         pipe = Flux2KleinPipeline.from_pretrained(MODEL_ID, torch_dtype=torch.bfloat16)
 
@@ -197,7 +222,7 @@ def _paint(pipe, torch, device: str, job: dict, cache: dict | None = None) -> Pa
             "prompt": job["prompt"],
             "image": image,
             "mask_image": mask,
-            "strength": float(job.get("strength", 0.75)),
+            "strength": float(job.get("strength") or 0.75),
             "num_inference_steps": int(job.get("steps", 2)),
             "guidance_scale": float(job.get("guidance", 1.0)),
             "generator": torch.Generator(device=device).manual_seed(int(job.get("seed", 1))),
