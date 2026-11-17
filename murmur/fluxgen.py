@@ -247,6 +247,7 @@ def generate(
     reference: Path | None = None,
     strength: float | None = None,
     guidance: float = 1.0,
+    mask: Path | None = None,
 ) -> None:
     """One-shot paint: load, paint, exit."""
     import torch
@@ -271,6 +272,7 @@ def generate(
             "prompt": prompt, "out": str(out_path), "width": width, "height": height,
             "seed": seed, "steps": steps, "guidance": guidance,
             "reference": str(reference) if reference else None, "strength": strength,
+            "mask": str(mask) if mask else None,
         },
     )
 
@@ -406,6 +408,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--guidance", type=float, default=1.0)
     parser.add_argument("--reference", type=Path, default=None)
     parser.add_argument("--strength", type=float, default=None)
+    parser.add_argument("--mask", type=Path, default=None)
     args = parser.parse_args(argv)
 
     if args.serve:
@@ -416,7 +419,7 @@ def main(argv: list[str] | None = None) -> int:
     generate(
         args.prompt, args.out, args.width, args.height, args.seed,
         steps=args.steps, reference=args.reference, strength=args.strength,
-        guidance=args.guidance,
+        guidance=args.guidance, mask=args.mask,
     )
     return 0
 

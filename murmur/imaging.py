@@ -113,6 +113,9 @@ class PlaceholderBackend(ImageBackend):
         image.save(out_path, format="PNG")
 
 
+_SHARED_WORKER: "FluxWorker | None" = None
+
+
 class FluxWorker:
     """A resident `fluxgen --serve` painter: one model load per app session.
 
@@ -321,6 +324,8 @@ class FluxPythonBackend(ImageBackend):
         ]
         if job.get("reference"):
             command += ["--reference", job["reference"]]
+        if job.get("mask"):
+            command += ["--mask", job["mask"]]
         out_path = Path(job["out"])
         try:
             result = proc.run(
@@ -338,11 +343,17 @@ class FluxPythonBackend(ImageBackend):
             raise ImageError(tail.strip())
 
     def worker(self) -> "FluxWorker":
-        """One resident painter per process, keyed to this interpreter."""
+        """The process-wide painter.
+
+        FilmImages and the polish pass both ask for it, and a second FluxWorker
+        would try to load the weights again — or sit waiting for a lock it can
+        never get — so the instance is shared rather than per-backend.
+        """
+        global _SHARED_WORKER
         with self._probe_lock:
-            if self._worker is None:
-                self._worker = FluxWorker(self.python, self.script)
-            return self._worker
+            if _SHARED_WORKER is None:
+                _SHARED_WORKER = FluxWorker(self.python, self.script)
+            return _SHARED_WORKER
 
 
 def painter_info() -> dict:
