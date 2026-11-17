@@ -1,10 +1,3 @@
-# Cinema stills: local text-to-image with Sana on Apple Metal.
-# Optional and large (PyTorch is ~2.5 GB installed). Murmur runs fine without it;
-# Cinema falls back to the placeholder painter when these are missing.
-torch>=2.6
-diffusers>=0.32
-transformers>=4.49
-accelerate>=1.3
-safetensors>=0.5
-huggingface_hub>=0.28
-tokenizers>=0.21
+# Cinema stills: local text-to-image with FLUX.2 [klein] 4B via diffusers.
+# Optional and large (PyTorch is ~2.5 GB installed). Rhapsode runs fine without it;
+# stills fall back to the placeholder painter when these are missing.

@@ -103,10 +103,10 @@ def _seed(doc_id: str, chapter: int, index: int) -> int:
 
 
 def film_model() -> tuple[str, int, int]:
-    """Quality preset: model key, width, height."""
+    """Quality preset: model key, width, height. Both tiers are FLUX.2 klein."""
     quality = store.get_settings().get("filmQuality", "high")
     if quality == "fast":
-        return "sana-600m", 1280, 720
+        return "flux2-klein-4b-fast", 1280, 720
     return "flux2-klein-4b", 1920, 1080
 
 

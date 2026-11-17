@@ -504,7 +504,7 @@ sidecar is the same binary with `--engine`.
 ## 12. Extension points
 
 - **Image backends** implement `ImageBackend.generate(...)`; `FilmImages.backend()`
-  selects Sana, FLUX.2, or the placeholder. Add a backend in `imaging.py` and
+  selects FLUX.2 (mflux or diffusers), or the placeholder. Add a backend in `imaging.py` and
   expose it through `film_model()`.
 - **OCR** is isolated in `ocr.py`; a Windows/Linux implementation can implement
   `available()` and `recognize_bytes()`.

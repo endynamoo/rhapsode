@@ -51,12 +51,19 @@ FILM_STYLE = os.environ.get(
 FILM_WIDTH = 1920
 FILM_HEIGHT = 1080
 
-# High-quality image backend: FLUX.2 klein 4B through mflux (Apple MLX).
+# High-quality image backend: FLUX.2 [klein] 4B.
+# macOS runs the MLX build through mflux; everything else runs the same weights
+# through diffusers inside image-venv (see scripts/setup_image.ps1 / setup_flux.sh).
 FLUX_MODEL_ID = "mflux-community/flux2-klein-4b-mflux-q4"
 FLUX_BASE_MODEL = "flux2-klein-4b"
+FLUX_WEIGHTS = os.environ.get("MURMUR_FLUX_MODEL", "black-forest-labs/FLUX.2-klein-4B")
 FLUX_VENV = HOME / "image-venv"
 FLUX_GENERATE = FLUX_VENV / "bin" / "mflux-generate-flux2"
 FLUX_EDIT = FLUX_VENV / "bin" / "mflux-generate-flux2-edit"
+IMAGE_PYTHON = Path(
+    os.environ.get("MURMUR_IMAGE_PYTHON")
+    or FLUX_VENV / ("Scripts/python.exe" if os.name == "nt" else "bin" / "python")
+)
 
 if FROZEN:
     TRANSLATE_BIN = ASSET_ROOT / "bin" / "murmur-translate"

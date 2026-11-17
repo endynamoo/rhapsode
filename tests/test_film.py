@@ -61,8 +61,29 @@ class PlannerTests(unittest.TestCase):
         store.set_settings({"filmQuality": "high"})
         try:
             self.assertEqual(film.film_model()[0], "flux2-klein-4b")
+            self.assertEqual(film.film_model()[1:], (1920, 1080))
         finally:
             store.set_settings({"filmQuality": old or "high"})
+
+    def test_fast_quality_is_the_same_model_at_720p(self) -> None:
+        from murmur import imaging, store
+        old = store.get_settings().get("filmQuality")
+        store.set_settings({"filmQuality": "fast"})
+        try:
+            key, width, height = film.film_model()
+            self.assertEqual(key, "flux2-klein-4b-fast")
+            self.assertEqual((width, height), (1280, 720))
+            self.assertIn(key, imaging.MODELS)
+            self.assertLess(imaging.MODELS[key]["steps"], imaging.MODELS["flux2-klein-4b"]["steps"])
+        finally:
+            store.set_settings({"filmQuality": old or "high"})
+
+    def test_only_flux_models_are_offered(self) -> None:
+        from murmur import imaging
+        for key, spec in imaging.MODELS.items():
+            self.assertTrue(key.startswith("flux2-klein"), key)
+            self.assertIn("FLUX.2", spec["id"], key)
+        self.assertEqual(imaging.DEFAULT_MODEL, "flux2-klein-4b")
 
 
 class CacheTests(unittest.TestCase):

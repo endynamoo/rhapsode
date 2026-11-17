@@ -11,9 +11,11 @@ This is a plan plus the architecture it requires.
 
 - Platform data directories: macOS keeps `~/.murmur`; Windows uses
   `%LOCALAPPDATA%\Rhapsode`; Linux uses `$XDG_DATA_HOME/rhapsode`.
-- OCR backend facade: Apple Vision on macOS, Tesseract on Windows/Linux.
+- OCR backend facade: Apple Vision on macOS, Windows.Media.Ocr on Windows,
+  Tesseract on Linux.
 - TTS provider selection through `MURMUR_TTS_PROVIDER` / `ONNX_PROVIDER`.
-- Device-agnostic Sana backend (MPS, CUDA, CPU with explicit opt-in).
+- One stills engine: FLUX.2 [klein] 4B, through mflux on Apple MLX or diffusers
+  in `image-venv` on CUDA/ROCm (CPU painting behind an explicit opt-in).
 - Capability probe exposed through `/api/health`.
 - Pillow-based TIFF/BMP/WebP conversion with a `sips` fallback; HEIC uses
   `pillow-heif` when installed.
@@ -27,15 +29,15 @@ backends, WebView2/GTK desktop builds, and installers.
 
 | Tier | Platform | Window | TTS | OCR | Films (High) | Films (Fast) | Package |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| A (current) | macOS 13+, Apple Silicon | WKWebView | Kokoro ONNX (CPU/CoreML) | Vision | FLUX.2 klein via MLX | Sana 1024 (MPS) | `.app` + DMG |
-| A | macOS Intel | WKWebView | Kokoro ONNX CPU | Vision | CPU Sana only | Sana 512 CPU | `.app` + DMG |
-| B | Windows 11, NVIDIA | WebView2 | Kokoro ONNX (CUDA provider) | Windows OCR / Tesseract | FLUX.2 klein via diffusers (≥12 GB VRAM) | Sana 1024 CUDA | MSIX or NSIS |
-| B | Windows 11, AMD | WebView2 | Kokoro ONNX (DirectML) | Windows OCR / Tesseract | Sana 1024 DirectML (FLUX CPU only) | Sana 512 DirectML | MSIX or NSIS |
-| B | Windows 11, Intel | WebView2 | Kokoro ONNX (DirectML/OpenVINO) | Windows OCR | Sana 1024 DirectML/OpenVINO | Sana 512 | MSIX or NSIS |
-| B | Linux, NVIDIA | GTK/WebKitGTK | Kokoro ONNX (CUDA) | Tesseract | FLUX.2 via diffusers CUDA | Sana 1024 CUDA | AppImage + deb |
-| C | Linux, AMD | GTK/WebKitGTK | Kokoro ONNX (ROCm) | Tesseract | Sana 1024 ROCm | Sana 512 ROCm | AppImage + deb |
-| C | Linux, Intel | GTK/WebKitGTK | Kokoro ONNX (OpenVINO) | Tesseract | Sana 1024 OpenVINO/oneAPI | Sana 512 | AppImage + deb |
-| C | Any, no GPU | any | Kokoro ONNX CPU | OS/Tesseract | Sana 512 CPU (slow) | Sana 512 CPU | same |
+| A (current) | macOS 13+, Apple Silicon | WKWebView | Kokoro ONNX (CPU/CoreML) | Vision | FLUX.2 klein via MLX | FLUX.2 klein 720p (MLX) | `.app` + DMG |
+| A | macOS Intel | WKWebView | Kokoro ONNX CPU | Vision | CPU painting, opt-in | CPU painting, opt-in | `.app` + DMG |
+| B | Windows 11, NVIDIA | WebView2 | Kokoro ONNX (CUDA provider) | Windows OCR | FLUX.2 klein via diffusers CUDA (≥12 GB) | FLUX.2 klein 720p CUDA | MSIX or NSIS |
+| B | Windows 11, AMD (ROCm) | WebView2 | Kokoro ONNX (CPU or DirectML) | Windows OCR | FLUX.2 klein via diffusers ROCm (≥12 GB) | FLUX.2 klein 720p ROCm | MSIX or NSIS |
+| B | Windows 11, Intel | WebView2 | Kokoro ONNX (DirectML/OpenVINO) | Windows OCR | placeholder (no FLUX path yet) | placeholder | MSIX or NSIS |
+| B | Linux, NVIDIA | GTK/WebKitGTK | Kokoro ONNX (CUDA) | Tesseract | FLUX.2 klein diffusers CUDA | FLUX.2 klein 720p CUDA | AppImage + deb |
+| C | Linux, AMD | GTK/WebKitGTK | Kokoro ONNX (ROCm) | Tesseract | FLUX.2 klein diffusers ROCm | FLUX.2 klein 720p ROCm | AppImage + deb |
+| C | Linux, Intel | GTK/WebKitGTK | Kokoro ONNX (OpenVINO) | Tesseract | placeholder | placeholder | AppImage + deb |
+| C | Any, no GPU | any | Kokoro ONNX CPU | OS/Tesseract | CPU painting, opt-in (hours) | CPU painting, opt-in | same |
 
 Definitions:
 
@@ -59,7 +61,7 @@ Definitions:
 | PDF | `pypdfium2` | portable (wheels per OS/arch) |
 | EPUB | stdlib `zipfile` + BeautifulSoup | portable |
 | OCR | Apple Vision (`ocr.py`) | **macOS only**; needs backend interface |
-| Image gen | `imaging.py`: mflux FLUX.2 (MLX) + diffusers Sana (MPS) | **Apple-centric**; needs CUDA/DirectML/ROCm backends |
+| Image gen | `imaging.py`: FLUX.2 [klein] via mflux (MLX) or diffusers (CUDA/ROCm) in `image-venv` | portable; one model family, two transports |
 | Video | ffmpeg + libass | portable if bundled |
 | Image conversion | macOS `sips` for TIFF/BMP/HEIC | replace with Pillow + `pillow-heif` |
 | Icon | `.icns` from `branding/` | needs `.ico` + Linux PNGs |
@@ -103,7 +105,7 @@ classDiagram
     class DiffusersDirectMLBackend
     class DiffusersRocmBackend
     class OpenVinoBackend
-    class CpuSanaBackend
+    class CpuFluxBackend
     class PlaceholderBackend
 
     class OcrBackend {
@@ -121,7 +123,7 @@ classDiagram
     ImageBackend <|-- DiffusersDirectMLBackend
     ImageBackend <|-- DiffusersRocmBackend
     ImageBackend <|-- OpenVinoBackend
-    ImageBackend <|-- CpuSanaBackend
+    ImageBackend <|-- CpuFluxBackend
     ImageBackend <|-- PlaceholderBackend
     OcrBackend <|-- VisionOcr
     OcrBackend <|-- WindowsOcr
@@ -147,8 +149,9 @@ murmur/backends/
    - Windows → `torch.cuda.is_available()` (NVIDIA); else `torch_directml`
      (AMD/Intel); else CPU.
    - Linux → CUDA; else ROCm (`torch.version.hip`); else OpenVINO/IPEX; else CPU.
-3. For image generation, require a minimum VRAM for FLUX (≈12 GB); otherwise
-   select Sana 1024, then Sana 512, then placeholder/CPU.
+3. For image generation, require a GPU with enough VRAM for FLUX.2 [klein]
+   (12 GB is comfortable at 1080p); below that, keep the placeholder painter and
+   say so in Settings.
 4. TTS: prefer GPU providers in order CUDA → CoreML → DirectML → CPU.
 5. OCR: native OS OCR → Tesseract → disabled (show a settings note, keep
    text-based PDFs working).
@@ -195,11 +198,10 @@ explanation when FLUX is not viable.
    `onnxruntime-gpu` and `torch` wheels matching the driver.
 2. `detect.py` runs `nvidia-smi` and `torch.cuda` probe.
 3. TTS uses `CUDAExecutionProvider`; falls back to CPU per request.
-4. Images:
-   - ≥12 GB VRAM: FLUX.2 klein through `diffusers` (or a quantized variant) for
-     **High**.
-   - 6–12 GB: Sana 1024 CUDA for **Fast**; High disabled.
-   - <6 GB: Sana 512.
+4. Images: FLUX.2 klein through `diffusers` in `image-venv`.
+   - ≥12 GB VRAM: **High** (1080p, four steps) and **Fast** (720p, two steps).
+   - <12 GB: **Fast** only, or set `MURMUR_FLUX_OFFLOAD=1`.
+   - No GPU torch: placeholder painter.
 5. Model weights download on first film build into `%LOCALAPPDATA%\Rhapsode\models\hf`.
 
 ### 4.3 AMD
@@ -207,8 +209,8 @@ explanation when FLUX is not viable.
 1. Windows has no official ROCm PyTorch; use **DirectML**:
    `torch-directml` (`torch_directml.device()`), and `onnxruntime-directml`.
 2. TTS via DirectML provider; if unavailable, CPU (Kokoro is fast enough).
-3. Images: Sana 1024/512 through diffusers on the DirectML device. FLUX is not
-   practical without CUDA; “High” falls back to Sana with a note.
+3. Images: FLUX.2 klein through diffusers on **ROCm** (`torch.version.hip`).
+   DirectML has no FLUX path; without ROCm the placeholder painter is used.
 4. Detect with `torch_directml.device_count()` and WMI (`Win32_VideoController`)
    for the adapter name/VRAM.
 5. Known limits: some ops fall back to CPU; first-run shader compilation is
@@ -218,8 +220,8 @@ explanation when FLUX is not viable.
 
 1. Prefer **OpenVINO** for TTS/OCR where available, otherwise DirectML, else
    CPU.
-2. Images: Sana 512/1024 on DirectML or OpenVINO; Arc discrete GPUs can use
-   ≥8 GB; integrated GPUs default to Sana 512 or CPU.
+2. Images: no FLUX.2 path on OpenVINO/DirectML yet — placeholder painter, with
+   the reason shown in Settings.
 3. Same UI capability reporting as AMD.
 
 ### 4.5 Windows packaging
@@ -247,20 +249,20 @@ explanation when FLUX is not viable.
 ### 5.2 NVIDIA
 
 - CUDA PyTorch wheels; `onnxruntime-gpu`; same selection as Windows NVIDIA.
-- High: FLUX.2 via diffusers if VRAM allows; Fast: Sana.
+- FLUX.2 klein via diffusers; High at 1080p, Fast at 720p.
 
 ### 5.3 AMD
 
 - ROCm PyTorch (`torch.version.hip`) on supported GPUs/drivers; otherwise CPU.
 - `onnxruntime-rocm` if available; else CPU TTS.
-- Sana via ROCm; FLUX only on ≥16 GB and supported architectures.
+- FLUX.2 klein via ROCm on supported cards and ≥12 GB; otherwise placeholder.
 - Detection must distinguish “ROCm installed but device unsupported” and fall
   back cleanly.
 
 ### 5.4 Intel
 
 - Intel Extension for PyTorch (IPEX) or OpenVINO; oneAPI runtime.
-- Sana 512/1024 via IPEX; TTS via OpenVINO.
+- No FLUX.2 path via IPEX yet; TTS via OpenVINO, stills stay placeholder.
 - Integrated GPUs: Fast/CPU only.
 
 ### 5.5 Linux packaging
@@ -287,7 +289,7 @@ Base (all platforms)
   Python runtime, FastAPI, pypdfium2, Pillow, ffmpeg, web UI
   kokoro-onnx + voices + Kokoro model    (CPU works everywhere)
   Tesseract or native OCR bridge
-  Sana 512 CPU-capable diffusers stack?  (optional; large)
+  optional FLUX.2 [klein] image-venv  (downloaded on demand; ~16 GB weights)
 
 Accelerator packs
   macos-arm64: mlx + mflux + FLUX.2 weights
@@ -369,12 +371,12 @@ Ordered by dependency:
 | Risk | Mitigation |
 | --- | --- |
 | GPU wheels are huge and brittle | base install + optional packs; pin driver-compatible versions |
-| AMD Windows has no CUDA/ROCm | DirectML path; keep Fast quality; clearly label High as unavailable |
-| Intel integrated GPUs are slow | default to Sana 512/CPU; disable film queue parallelism |
+| AMD Windows ROCm coverage is card-specific | detect `torch.cuda.is_available()`; placeholder painter with the reason in Settings |
+| Intel GPUs have no FLUX path | placeholder painter; disable the stills queue |
 | ROCm support varies by distro/GPU | detect and fall back to CPU; document supported cards |
 | WebView2/WebKitGTK missing | bootstrap/install prompt; browser fallback |
 | Code signing cost/complexity | plan certificates early; unsigned builds for dev |
-| Model licenses differ | verify FLUX/Sana/Kokoro licenses per distribution; keep weights out of installers |
+| Model licenses differ | FLUX.2 and Kokoro are both Apache-2.0; keep the ~16 GB weights out of installers |
 | Path differences break caches | centralize in `config`, migration on first run |
 
 ---

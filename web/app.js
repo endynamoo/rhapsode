@@ -337,8 +337,8 @@ function bindUI() {
       applySettings();
       resetCinemaQuality();
       toast(quality === 'high'
-        ? 'Manga quality: High — 1080p FLUX.2 manga'
-        : 'Manga quality: Fast — quicker Sana frames');
+        ? 'Manga quality: High - 1080p FLUX.2 [klein], four steps'
+        : 'Manga quality: Fast - 720p FLUX.2 [klein], two steps');
     })
   );
   $('#setAutoScroll').addEventListener('click', () => {

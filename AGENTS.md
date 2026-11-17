@@ -14,7 +14,7 @@ Repository root = the directory containing this file.
 | --- | --- | --- | --- | --- |
 | macOS 13+, Apple Silicon | supported | supported (MPS + MLX) | supported (`.app`) | Section A |
 | macOS Intel | supported | CPU only, opt-in | supported (`.app`) | Section A |
-| Windows 10/11 x64 | **preview** (source install) | NVIDIA CUDA (Sana); CPU opt-in | **preview** (`Rhapsode-win.spec`, community build) | Section B |
+| Windows 10/11 x64 | **preview** (source install) | FLUX.2 [klein] via diffusers (CUDA or ROCm); CPU opt-in | **preview** (`Rhapsode-win.spec`, community build) | Section B |
 | Linux x64 | **preview** (source install) | NVIDIA CUDA / CPU opt-in | **not yet** | Section C |
 
 Rules:
@@ -159,8 +159,8 @@ curl -s http://127.0.0.1:8765/api/network
 
 ### A4. GPU notes
 
-- Apple Silicon: MPS for Sana, MLX/mflux for FLUX.2. Nothing extra to install.
-- Intel Mac: CPU only. CPU Sana requires an explicit opt-in (see 8.3).
+- Apple Silicon: FLUX.2 [klein] through mflux/MLX. Nothing extra to install.
+- Intel Mac: CPU only. Painting on the CPU requires an explicit opt-in (see 8.3).
 
 ---
 
@@ -246,7 +246,7 @@ Current preview status:
   - Install a CUDA `onnxruntime-gpu` build and a matching CUDA `torch` wheel
     from `https://download.pytorch.org/whl/cu###`.
   - Set `MURMUR_TTS_PROVIDER=CUDAExecutionProvider` before starting.
-  - Films use Sana through diffusers on CUDA when `torch.cuda.is_available()`.
+  - Stills use FLUX.2 [klein] through diffusers when `torch.cuda.is_available()` (CUDA or ROCm). Run `scripts\setup_image.ps1` to build the image interpreter.
     FLUX.2/mflux is Apple-only and is not used on Windows.
 - **AMD**
   - DirectML (`torch-directml`, `onnxruntime-directml`) is **planned**, not
@@ -387,7 +387,7 @@ still loading.
 | `Could not render that page` | PDF source missing | re-upload the document |
 | Films stuck on placeholder | no supported image backend | install film requirements; on CPU set `MURMUR_ALLOW_CPU_FILM=1` |
 | `ONNX_PROVIDER ... not available` | provider mismatch | unset `MURMUR_TTS_PROVIDER` or install the matching onnxruntime build |
-| CUDA out of memory | model too large for VRAM | use Fast/Sana quality, close other GPU apps |
+| CUDA out of memory | model too large for VRAM | use Fast quality, close other GPU apps, or set `MURMUR_FLUX_OFFLOAD=1` |
 | `Permission denied` writing data | sandboxed install | set `MURMUR_HOME` to a writable directory |
 | Remote URL asks for token | remote access enabled | use the link with `?token=…` from Settings → Remote access |
 

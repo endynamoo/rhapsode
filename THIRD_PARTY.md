@@ -28,8 +28,8 @@ repository.
 | `Pillow` | Image drawing and page images | MIT-CMU |
 | `pyobjc-framework-Vision` | On-device OCR | MIT |
 | `pywebview` | Native macOS window | BSD-3-Clause |
-| `diffusers` | Sana image pipeline | Apache-2.0 |
-| `transformers` | Sana text encoder | Apache-2.0 |
+| `diffusers` | FLUX.2 image pipeline | Apache-2.0 |
+| `transformers` | FLUX.2 text encoder | Apache-2.0 |
 | `accelerate` | Model loading | Apache-2.0 |
 | `safetensors` | Weight loading | Apache-2.0 |
 | `huggingface_hub` | Weight downloads | Apache-2.0 |
@@ -37,16 +37,19 @@ repository.
 | `torch` | Metal tensor backend | BSD-3-Clause |
 | `PyInstaller` (build only) | `.app` bundling | GPL-2.0 with bootloader exception |
 
-### Optional High image engine (macOS)
+### Stills engine (optional, all platforms)
 
-Installed on demand by `./scripts/setup_flux.sh` into `~/.murmur/image-venv`;
-weights are downloaded separately and are not bundled.
+Installed on demand into `image-venv` inside the data directory; weights are
+downloaded separately and are not bundled.
 
 | Component | Used for | Licence |
 | --- | --- | --- |
-| mflux | FLUX inference on Apple MLX | MIT |
-| FLUX.2 [klein] 4B weights | High-quality image generation | Apache-2.0 |
-| Qwen3-4B text encoder | FLUX.2 conditioner | Apache-2.0 |
+| mflux | FLUX.2 inference on Apple MLX (macOS) | MIT |
+| diffusers | FLUX.2 inference on CUDA/ROCm (Windows, Linux) | Apache-2.0 |
+| FLUX.2 [klein] 4B weights | Stills at both quality presets | Apache-2.0 |
+| Qwen3 text encoder | FLUX.2 conditioner | Apache-2.0 |
+
+Setup: `./scripts/setup_flux.sh` on macOS, `scripts\setup_image.ps1` on Windows.
 
 ## Copyleft runtime components
 
@@ -77,10 +80,8 @@ Weights are downloaded at runtime and are **not** part of this repository.
 | Model | Licence | Notes |
 | --- | --- | --- |
 | Kokoro-82M (`kokoro-v1.0.onnx`, `voices-v1.0.bin`) | Apache-2.0 | Voice styles from the Kokoro model card. |
-| Sana 0.6B / 1.6B | NVIDIA Open Model License | Sana code is Apache-2.0; the released weights use NVIDIA's open model terms. Review them before redistributing the weights. |
-| Gemma text encoder used by Sana | Gemma Terms of Use | Downloaded with the Sana pipeline. |
-| Sana Sprint 0.6B | NVIDIA Open Model License | Optional fast preset. |
-| FLUX.2 [klein] 4B | Apache-2.0 | Optional High image engine; downloaded by `scripts/setup_flux.sh`. |
+| FLUX.2 [klein] 4B | Apache-2.0 | The stills engine, both quality presets. Downloaded by `scripts/setup_flux.sh` (macOS) or `scripts/setup_image.ps1` (Windows/Linux). |
+| Qwen3 text encoder used by FLUX.2 | Apache-2.0 | Downloaded with the FLUX.2 pipeline. |
 
 Murmur downloads these weights on demand into `~/.murmur/models/hf`. It does not
 ship them inside the source tree. If you redistribute a bundle that includes the

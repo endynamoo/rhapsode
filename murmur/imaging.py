@@ -1,53 +1,39 @@
-"""Local text-to-image backends for the Film extension.
+"""Local text-to-image for the stills pipeline: FLUX.2 [klein] 4B only.
 
-The pipeline is deliberately pluggable: the rest of the film code only asks for
-"an image at this path for this prompt". The default backend uses Sana (small,
-fast, Apache-licensed code) through diffusers on Apple's Metal backend.
+One model family, two presets — High paints 1920x1080 in four distilled steps,
+Fast paints 1280x720 in two. Two ways to run it: mflux on Apple Silicon (the
+MLX build), and diffusers in a separate interpreter (`image-venv`) everywhere
+else, so the reader never imports torch. The rest of the code only asks for "an
+image at this path for this prompt".
 """
 from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import threading
 from pathlib import Path
 
 from . import config, proc
 
 MODELS = {
-    "sana-600m": {
-        "id": "Efficient-Large-Model/Sana_600M_512px_diffusers",
-        "steps": 20,
-        "guidance": 4.5,
-        "native": 512,
+    "flux2-klein-4b": {
+        "id": config.FLUX_WEIGHTS,
+        "steps": 4,
+        "width": 1920,
+        "height": 1080,
+        "label": "FLUX.2 [klein] 4B — High",
     },
-    "sana-1600m": {
-        "id": "Efficient-Large-Model/Sana_1600M_1024px_diffusers",
-        "steps": 24,
-        "guidance": 4.5,
-        "native": 1024,
-    },
-    "sd-turbo": {
-        "id": "stabilityai/sd-turbo",
+    "flux2-klein-4b-fast": {
+        "id": config.FLUX_WEIGHTS,
         "steps": 2,
-        "guidance": 0.0,
-        "native": 512,
-    },
-    "sana-sprint-600m": {
-        "id": "Efficient-Large-Model/Sana_Sprint_0.6B_1024px_diffusers",
-        "steps": 2,
-        "guidance": 4.5,
-        "native": 1024,
-        "sprint": True,
+        "width": 1280,
+        "height": 720,
+        "label": "FLUX.2 [klein] 4B — Fast",
     },
 }
 
-DEFAULT_MODEL = "sana-600m"
-
-# Keep captions/watermarks and mushy detail out of the frames.
-NEGATIVE_PROMPT = (
-    "text, letters, watermark, signature, logo, caption, subtitle, "
-    "blurry, low quality, low resolution, deformed, extra limbs"
-)
+DEFAULT_MODEL = "flux2-klein-4b"
 
 
 class ImageError(Exception):
@@ -120,165 +106,84 @@ class PlaceholderBackend(ImageBackend):
         image.save(out_path, format="PNG")
 
 
-class DiffusersBackend(ImageBackend):
-    """Sana / SD-Turbo through diffusers on MPS, CUDA, or CPU."""
+class FluxPythonBackend(ImageBackend):
+    """FLUX.2 [klein] through diffusers, in the image interpreter.
 
-    name = "diffusers"
+    The whole run happens in a child process (`python -m murmur.fluxgen`) so the
+    server never imports torch: an 8 GB model load cannot take the reader down,
+    and the GPU stack lives in image-venv where it can be replaced.
+    """
+
+    name = "flux2-klein-diffusers"
+
+    _probe: bool | None = None
+    _probe_lock = threading.Lock()
 
     def __init__(self, model_key: str = DEFAULT_MODEL) -> None:
         self.model_key = model_key if model_key in MODELS else DEFAULT_MODEL
-        self._pipeline = None
-        self._img2img = None
-        self._lock = threading.Lock()
 
-    @staticmethod
-    def _device() -> str:
-        import torch
-
-        mps = getattr(torch.backends, "mps", None)
-        if mps is not None and mps.is_available():
-            return "mps"
-        if torch.cuda.is_available():
-            return "cuda"
-        return "cpu"
+    @property
+    def python(self) -> Path:
+        return config.IMAGE_PYTHON
 
     def available(self) -> bool:
-        try:
-            import diffusers  # noqa: F401
-            import torch  # noqa: F401
-
-            device = self._device()
-        except Exception:
+        if not self.python.exists():
             return False
-        # CPU Sana is useful but extremely slow; require an explicit opt-in so a
-        # first film build does not spend an hour per frame on a laptop.
-        if device == "cpu" and not os.environ.get("MURMUR_ALLOW_CPU_FILM"):
-            return False
-        return True
-
-    def _load(self):
-        if self._pipeline is not None:
-            return self._pipeline
-        with self._lock:
-            if self._pipeline is not None:
-                return self._pipeline
-
-            import torch
-            from diffusers import SanaPipeline, SanaSprintPipeline, StableDiffusionPipeline
-
-            spec = MODELS[self.model_key]
-            device = self._device()
-            dtype = torch.float32 if device == "cpu" else torch.float16
-            model_id = spec["id"]
-
-            if spec.get("sprint"):
-                pipe = SanaSprintPipeline.from_pretrained(model_id, torch_dtype=dtype)
-            elif model_id.startswith("Efficient-Large-Model/Sana"):
-                pipe = SanaPipeline.from_pretrained(model_id, torch_dtype=dtype)
-            else:
-                pipe = StableDiffusionPipeline.from_pretrained(
-                    model_id, torch_dtype=dtype, safety_checker=None
+        if self._probe is not None:
+            return self._probe
+        with self._probe_lock:
+            if self._probe is not None:
+                return self._probe
+            try:
+                result = proc.run(
+                    [str(self.python), "-c", "import torch, diffusers"],
+                    capture_output=True, text=True, timeout=180,
                 )
-            pipe = pipe.to(device)
-            pipe.set_progress_bar_config(disable=True)
-            self._pipeline = pipe
-            return pipe
-
-    def _load_img2img(self):
-        if self._img2img is not None:
-            return self._img2img
-        with self._lock:
-            if self._img2img is not None:
-                return self._img2img
-            from diffusers import SanaSprintImg2ImgPipeline
-
-            pipe = self._load()
-            self._img2img = SanaSprintImg2ImgPipeline.from_pipe(pipe)
-            self._img2img.set_progress_bar_config(disable=True)
-            return self._img2img
-
-    def unload(self) -> None:
-        """Release the pipelines before loading a different quality preset."""
-        self._pipeline = None
-        self._img2img = None
-        try:
-            import gc
-
-            import torch
-
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            mps = getattr(torch.backends, "mps", None)
-            if mps is not None and mps.is_available():
-                torch.mps.empty_cache()
-        except Exception:
-            pass
+                self._probe = result.returncode == 0
+            except Exception:
+                self._probe = False
+            return bool(self._probe)
 
     def generate(self, prompt: str, width: int, height: int, seed: int, out_path: Path,
                  init_image: Path | None = None, strength: float = 0.5,
                  reference_image: Path | None = None) -> None:
-        import torch
-        from PIL import Image, ImageOps
-
         spec = MODELS[self.model_key]
-
-        # Sana expects multiples of 32. Generate the nearest valid size, then
-        # crop to the requested 16:9 frame so the film is not stretched.
-        gen_width = max(256, int(round(width / 32)) * 32)
-        gen_height = max(256, int(round(height / 32)) * 32)
-
-        generator = torch.Generator(device=self._device()).manual_seed(int(seed))
-        reference = None
-        if init_image and Path(init_image).exists():
-            try:
-                reference = Image.open(init_image).convert("RGB").resize((gen_width, gen_height))
-            except Exception:
-                reference = None
-
-        if reference is not None and spec.get("sprint"):
-            pipe = self._load_img2img()
-            image = pipe(
-                prompt=prompt,
-                image=reference,
-                strength=float(strength),
-                num_inference_steps=spec["steps"],
-                guidance_scale=spec["guidance"],
-                negative_prompt=NEGATIVE_PROMPT,
-                height=gen_height,
-                width=gen_width,
-                generator=generator,
-            ).images[0]
-        else:
-            pipe = self._load()
-            image = pipe(
-                prompt=prompt,
-                num_inference_steps=spec["steps"],
-                guidance_scale=spec["guidance"],
-                negative_prompt=NEGATIVE_PROMPT,
-                height=gen_height,
-                width=gen_width,
-                generator=generator,
-            ).images[0]
-
-        if image.size != (width, height):
-            image = ImageOps.fit(image, (width, height), Image.LANCZOS, centering=(0.5, 0.5))
-
-        # Carry the previous shot's palette into every frame, including txt2img.
-        if reference is not None:
-            try:
-                image = _match_color(image, reference, 0.4)
-            except Exception:
-                pass
+        env = dict(os.environ)
+        env["PYTHONPATH"] = str(config.APP_ROOT)
+        env.setdefault("HF_HOME", str(config.HOME / "models" / "hf"))
+        command = [
+            str(self.python), "-m", "murmur.fluxgen",
+            "--prompt", prompt,
+            "--width", str(width), "--height", str(height),
+            "--seed", str(int(seed)),
+            "--steps", str(spec["steps"]),
+            "--out", str(out_path),
+        ]
+        source = reference_image if reference_image and Path(reference_image).exists() else init_image
+        if source is not None and Path(source).exists():
+            command += ["--reference", str(source), "--strength", str(float(strength))]
 
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        image.save(out_path)
+        out_path.unlink(missing_ok=True)
+        try:
+            result = proc.run(
+                command, capture_output=True, text=True, timeout=1800,
+                cwd=str(config.APP_ROOT), env=env, errors="replace",
+            )
+        except subprocess.SubprocessError as exc:
+            raise ImageError(f"FLUX run failed to start: {exc}") from exc
+        if result.returncode != 0 or not out_path.exists():
+            tail = (result.stderr or result.stdout or "FLUX generation failed")[-900:]
+            raise ImageError(tail.strip())
 
 
 class FluxKleinBackend(ImageBackend):
-    """FLUX.2 klein 4B, 4-step distilled, through mflux on Apple MLX."""
+    """FLUX.2 [klein] 4B through mflux on Apple MLX (the macOS build)."""
 
-    name = "flux2-klein-4b"
+    name = "flux2-klein-mlx"
+
+    def __init__(self, model_key: str = DEFAULT_MODEL) -> None:
+        self.model_key = model_key if model_key in MODELS else DEFAULT_MODEL
 
     def available(self) -> bool:
         return config.FLUX_GENERATE.exists()
@@ -290,7 +195,7 @@ class FluxKleinBackend(ImageBackend):
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.unlink(missing_ok=True)
         result = proc.run(
-            cmd, capture_output=True, text=True, timeout=900, env=env,
+            cmd, capture_output=True, text=True, timeout=1800, env=env,
             errors="replace",
         )
         if result.returncode != 0 or not out_path.exists():
@@ -300,6 +205,7 @@ class FluxKleinBackend(ImageBackend):
     def generate(self, prompt: str, width: int, height: int, seed: int, out_path: Path,
                  init_image: Path | None = None, strength: float = 0.5,
                  reference_image: Path | None = None) -> None:
+        steps = str(MODELS[self.model_key]["steps"])
         if reference_image is not None and Path(reference_image).exists():
             cmd = [
                 str(config.FLUX_EDIT),
@@ -307,7 +213,7 @@ class FluxKleinBackend(ImageBackend):
                 "--base-model", config.FLUX_BASE_MODEL,
                 "--image-paths", str(reference_image),
                 "--prompt", prompt,
-                "--steps", "4",
+                "--steps", steps,
                 "--width", str(width), "--height", str(height),
                 "--seed", str(int(seed)),
                 "--output", str(out_path),
@@ -318,7 +224,7 @@ class FluxKleinBackend(ImageBackend):
                 "--model", config.FLUX_MODEL_ID,
                 "--base-model", config.FLUX_BASE_MODEL,
                 "--prompt", prompt,
-                "--steps", "4",
+                "--steps", steps,
                 "--width", str(width), "--height", str(height),
                 "--seed", str(int(seed)),
                 "--output", str(out_path),
@@ -339,20 +245,19 @@ class FilmImages:
 
     def backend(self, model_key: str | None = None) -> ImageBackend:
         key = model_key or DEFAULT_MODEL
+        if key not in MODELS:
+            key = DEFAULT_MODEL
         with self._backend_lock:
             if self._backend is not None and self._model_key == key:
                 return self._backend
 
-            candidate = (
-                FluxKleinBackend() if key.startswith("flux")
-                else DiffusersBackend(key)
-            )
-            if not candidate.available() and key.startswith("flux"):
-                candidate = DiffusersBackend("sana-1600m")
-            if candidate.available():
-                self._backend = candidate
-                self._model_key = key
-            elif self._backend is None:
+            # mflux on Apple Silicon, diffusers in image-venv everywhere else.
+            for candidate in (FluxKleinBackend(key), FluxPythonBackend(key)):
+                if candidate.available():
+                    self._backend = candidate
+                    self._model_key = key
+                    return self._backend
+            if self._backend is None:
                 self._backend = PlaceholderBackend()
                 self._model_key = key
             return self._backend
