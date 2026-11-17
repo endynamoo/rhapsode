@@ -20,9 +20,18 @@ class PlanTests(unittest.TestCase):
         self.assertIn("system memory", str(caught.exception))
 
     def test_refuses_when_the_card_has_no_room(self) -> None:
-        with self.assertRaises(SystemExit) as caught:
-            self._plan(vram=(2500.0, 16304.0))
+        # With a q4 transformer available the refusal is about VRAM.
+        with mock.patch.object(fluxgen, "_gguf_path", return_value=__file__):
+            with self.assertRaises(SystemExit) as caught:
+                self._plan(vram=(2500.0, 16304.0))
         self.assertIn("refusing", str(caught.exception))
+
+    def test_refuses_when_there_is_no_q4_transformer_and_no_room(self) -> None:
+        # Without one, the message points at the setup script instead.
+        with mock.patch.object(fluxgen, "_gguf_path", return_value=None):
+            with self.assertRaises(SystemExit) as caught:
+                self._plan(vram=(2500.0, 16304.0))
+        self.assertIn("no q4 transformer", str(caught.exception))
 
     def test_balanced_picks_q4_with_the_encoder_on_the_gpu(self) -> None:
         with mock.patch.object(fluxgen, "_gguf_path", return_value=__file__):
