@@ -1,6 +1,7 @@
 """Post every supported file type to the running app and report what it says."""
 import io
 import sys
+from pathlib import Path
 
 import httpx
 
