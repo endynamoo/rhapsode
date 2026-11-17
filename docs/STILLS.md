@@ -57,11 +57,12 @@ an RTMDet person check decide that), and each still records the outcome in a
 `*.polish.json` sidecar keyed to the output hash, so a repaint polishes again and
 an unchanged still never does.
 
-- **Cost**: ~10 s per polished still once the painter is warm — the model loads
-  once per session, not per image. The first still in a session pays ~75 s for the
-  15 GiB transfer and the ROCm warm-up. Turn it off in **Settings → Polish stills**
-  to skip the pass. Speed comes from one painter, not more: a single image's steps
-  are a chain, so extra workers only time-slice the card.
+- **Cost** (measured on an RX 9070 XT, 1280×720, two steps): **41 s for the first
+  still, 2.7 s each after** with the q4 transformer — the first call pages the 8 GiB
+  text encoder off disk, everything after is small. bf16 measures 75 s and 10.4 s
+  for the same pair. The model loads once per session, not per image: a single
+  image's steps are a chain, so extra painters only time-slice the card.
+  Turn it off in **Settings → Polish stills** to skip the pass.
   the time.
 - **What it does not fix on its own**: hands. The one-step global pass tidies ink
   and contrast but leaves an ambiguous pen-hand a blob, so a second, masked pass
