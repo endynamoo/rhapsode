@@ -224,6 +224,11 @@ def prune_cache(limit: int | None = None) -> int:
     return removed
 
 
+def clip_cache_stats() -> dict:
+    """Hit rate of the in-memory clip-metadata cache."""
+    return _CLIP_META.stats()
+
+
 def cache_stats() -> dict:
     files = list(config.CACHE_DIR.glob("*.wav"))
     size = sum(f.stat().st_size for f in files if f.exists())

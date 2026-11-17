@@ -209,6 +209,16 @@ class ImportFlowTests(unittest.TestCase):
             else:
                 self.assertIn(response.status_code, (400, 503), response.text[:400])
 
+    def test_health_reports_painter_caches_and_polish(self) -> None:
+        with temp_home():
+            client = TestClient(server.app)
+            body = client.get("/api/health").json()
+            self.assertTrue(body["ok"])
+            for key in ("painter", "polish", "caches"):
+                self.assertIn(key, body)
+            self.assertIn("translations", body["caches"])
+            self.assertIn("hot", body["caches"]["clips"])
+
     def test_rejected_upload_does_not_report_a_server_error(self) -> None:
         with temp_home():
             client = TestClient(server.app)

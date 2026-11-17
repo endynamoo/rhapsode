@@ -134,6 +134,7 @@ class FluxWorker:
         self._lock = threading.Lock()
         self._counter = 0
         self.ready_info: dict = {}
+        self.last_job: dict = {}
         atexit.register(self.stop)
 
     def _env(self) -> dict:
@@ -366,6 +367,13 @@ def painter_info() -> dict:
     info = dict(worker.ready_info)
     info["running"] = worker.alive
     info["python"] = str(config.IMAGE_PYTHON)
+    if worker.last_job:
+        info["last_job"] = {
+            key: worker.last_job.get(key)
+            for key in ("mode", "seconds", "width", "height", "steps",
+                        "peak_gib", "resident_gib", "free_gib")
+            if key in worker.last_job
+        }
     return info
 
 

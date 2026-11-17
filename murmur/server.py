@@ -26,7 +26,7 @@ from pydantic import BaseModel
 
 from . import config, extract, film, fonts, imaging, netinfo, ocr, polish, proc, speak, store, translate
 from .backends import detect
-from .engine import cache_stats, engine, prune_cache
+from .engine import cache_stats, clip_cache_stats, engine, prune_cache
 from .film_api import router as film_router
 from .voices import DEFAULT_VOICE, VOICES, voice_groups
 
@@ -172,6 +172,10 @@ def health() -> dict:
         "translate": translate.translator.available(),
         "polish": polish.status(),
         "painter": imaging.painter_info(),
+        "caches": {
+            "clips": {**cache_stats(), "hot": clip_cache_stats()},
+            "translations": store._translations.stats(),
+        },
         "platform": detect.snapshot(),
         "cache": cache_stats(),
     }

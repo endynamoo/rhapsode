@@ -21,6 +21,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 MODEL_ID = os.environ.get("MURMUR_FLUX_MODEL", "black-forest-labs/FLUX.2-klein-4B")
@@ -205,10 +206,37 @@ def _inpaint_pipeline(pipe, torch, device: str, cache: dict):
     return cache["inpaint"]
 
 
-def _paint(pipe, torch, device: str, job: dict, cache: dict | None = None) -> Path:
+def _stats(torch, device: str, started: float, mode: str, width: int, height: int,
+           steps: int) -> dict:
+    """What one job cost: wall clock and the card it needed."""
+    out = {
+        "mode": mode,
+        "seconds": round(time.time() - started, 2),
+        "width": width,
+        "height": height,
+        "steps": steps,
+    }
+    if device == "cuda":
+        try:
+            out["peak_gib"] = round(torch.cuda.max_memory_allocated() / 2**30, 2)
+            out["resident_gib"] = round(torch.cuda.memory_allocated() / 2**30, 2)
+            free, _total = torch.cuda.mem_get_info()
+            out["free_gib"] = round(free / 2**30, 2)
+        except Exception:
+            pass
+    return out
+
+
+def _paint(pipe, torch, device: str, job: dict, cache: dict | None = None):
     from PIL import Image
 
     cache = cache if cache is not None else {}
+    started = time.time()
+    if device == "cuda":
+        try:
+            torch.cuda.reset_peak_memory_stats()
+        except Exception:
+            pass
     width = max(256, int(round(int(job.get("width", 1280)) / 16)) * 16)
     height = max(256, int(round(int(job.get("height", 720)) / 16)) * 16)
     out_path = Path(job["out"])
@@ -236,7 +264,8 @@ def _paint(pipe, torch, device: str, job: dict, cache: dict | None = None) -> Pa
                 result = pipeline(**kwargs).images[0]
             out_path.parent.mkdir(parents=True, exist_ok=True)
             result.save(out_path, format="PNG")
-            return out_path
+            return out_path, _stats(torch, device, started, "inpaint", width, height,
+                                    int(job.get("steps", 2)))
         except Exception as exc:  # noqa: BLE001
             # A quantized transformer cannot be re-dtyped into the inpaint
             # pipeline. Edit mode plus the caller's masked blend does the same job:
@@ -265,7 +294,9 @@ def _paint(pipe, torch, device: str, job: dict, cache: dict | None = None) -> Pa
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     image.save(out_path, format="PNG")
-    return out_path
+    return out_path, _stats(torch, device, started,
+                             "edit" if kwargs.get("image") is not None else "text2img",
+                             width, height, int(job.get("steps", 2)))
 
 
 def generate(
@@ -420,8 +451,8 @@ def _serve_loop(torch, device: str) -> int:
         if job.get("op") == "quit":
             break
         try:
-            _paint(pipe, torch, device, job, cache)
-            print(json.dumps({"id": job.get("id"), "ok": True}), flush=True)
+            _path, stats = _paint(pipe, torch, device, job, cache)
+            print(json.dumps({"id": job.get("id"), "ok": True, **stats}), flush=True)
         except Exception as exc:  # noqa: BLE001 - reported, never fatal
             print(json.dumps({"id": job.get("id"), "ok": False, "error": str(exc)[-500:]}), flush=True)
     return 0
