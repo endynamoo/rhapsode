@@ -157,11 +157,15 @@ def _db():
     conn = sqlite3.connect(path, timeout=15, check_same_thread=False)
     try:
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA busy_timeout=15000")
         if key not in _ready:
             with _db_lock:
                 if key not in _ready:
+                    # WAL is persistent in the file: set it when the database is
+                    # created, never on every connection. Re-issuing the pragma
+                    # while another connection is mid-write can fail with
+                    # "database is locked" even with a busy timeout.
+                    conn.execute("PRAGMA journal_mode=WAL")
                     conn.executescript(SCHEMA)
                     _ready.add(key)
         yield conn
@@ -683,6 +687,23 @@ def stop(timeout: float = 5.0) -> None:
         _queued.clear()
 
 
+def _scan(force: bool) -> list[dict]:
+    """Targets for one pass, retrying a database another writer is holding."""
+    last: Exception | None = None
+    for attempt in range(4):
+        try:
+            with _db() as conn:
+                _prune(conn)
+                return _targets(conn, force)
+        except sqlite3.OperationalError as exc:
+            last = exc
+            text = str(exc).lower()
+            if "lock" not in text and "busy" not in text:
+                raise
+            time.sleep(0.25 * (attempt + 1))
+    raise last  # type: ignore[misc]
+
+
 def _run(delay: float = 0.0) -> None:
     """Index everything that needs it, then backfill embeddings.
 
@@ -698,9 +719,7 @@ def _run(delay: float = 0.0) -> None:
         while not _stop.is_set():
             with _work_lock:
                 force = _force_all and not forced
-            with _db() as conn:
-                _prune(conn)
-                targets = _targets(conn, force)
+            targets = _scan(force)
             with _work_lock:
                 _work["total"] = max(_work["total"], processed + len(targets) + len(_queued))
             cursor = 0
