@@ -1,7 +1,7 @@
 # Murmur — local read-aloud for macOS
 # TTS: Kokoro-82M via ONNX Runtime (same weights as hexgrad/Kokoro, no PyTorch needed)
 kokoro-onnx>=0.6.1
-soundfile>=0.13.1
+soundfile>=0.14.0
 numpy>=2.0
 misaki[ja,zh]>=0.9
 pyopenjtalk>=0.3
