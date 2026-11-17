@@ -14,24 +14,28 @@ Repository root = the directory containing this file.
 | --- | --- | --- | --- | --- |
 | macOS 13+, Apple Silicon | supported | supported (MPS + MLX) | supported (`.app`) | Section A |
 | macOS Intel | supported | CPU only, opt-in | supported (`.app`) | Section A |
-| Windows 10/11 x64 | **preview** (source install) | FLUX.2 [klein] via diffusers (CUDA or ROCm); CPU opt-in | **preview** (`Rhapsode-win.spec`, community build) | Section B |
-| Linux x64 | **preview** (source install) | NVIDIA CUDA / CPU opt-in | **not yet** | Section C |
+| Windows 10/11 x64 | **preview** (installer or source) | FLUX.2 [klein] via diffusers (CUDA or ROCm); CPU opt-in | **preview** (Inno Setup installer) | Section B |
+| Linux x64 | **preview** (source install) | NVIDIA CUDA / AMD ROCm / CPU opt-in | **not yet** | Section C |
 
 Rules:
 
-- Do **not** claim a Windows or Linux native installer exists. Only macOS has a
-  packaged `.app` today.
+- Windows has a **preview installer**: `scripts\build_installer.ps1` builds
+  `packaging\Rhapsode-win.spec`, then Inno Setup 7 compiles
+  `packaging\Rhapsode-setup.iss` into `dist\Rhapsode-<version>-Setup.exe`. It
+  installs per-user without admin, and `.github/workflows/installer.yml` installs
+  it clean, starts it and waits for `/api/health`. Linux has no package yet.
 - `./build_app.sh` is **macOS only** (it uses `sips`, `.icns`, and macOS
   PyInstaller settings). Do not run it on Windows or Linux.
-- The Windows/Linux source install is the supported preview path. Reading,
-  highlighting, audio export, and the UI must work; films may use CPU or the
-  placeholder until a GPU backend is configured.
-- `packaging/Rhapsode-win.spec` (community Windows build, 2026-11-16): from the repo
-  root with `.venv` on PATH run `.venv\Scripts\pyinstaller.exe --noconfirm packaging\Rhapsode-win.spec`
-  â†’ `dist\Rhapsode\Rhapsode.exe` (one-folder). Then robocopy `web` into
-  `dist\Rhapsode\_internal\web` (spec embeds web/ at Analysis time). Linux remains source-install only.
+- Windows and Linux source installs remain supported; on Windows the installer
+  is the shorter path. Reading, highlighting, audio export, and the UI must
+  work; films may use CPU or the placeholder until a GPU backend is configured.
+- `packaging/Rhapsode-win.spec` (Windows PyInstaller build): from the repo root
+  with `.venv` on PATH run `.venv\Scripts\pyinstaller.exe --noconfirm packaging\Rhapsode-win.spec`
+  → `dist\Rhapsode\Rhapsode.exe` (one-folder). Then robocopy `web` into
+  `dist\Rhapsode\_internal\web` (spec embeds web/ at Analysis time).
+  `scripts\build_installer.ps1` does both and refuses a version mismatch.
 - Remote access must stay **off** unless the user explicitly asks to enable it
-  (Settings â†’ Remote access). Never bind `0.0.0.0` by default.
+  (Settings → Remote access). Never bind `0.0.0.0` by default.
 
 ---
 
@@ -88,7 +92,7 @@ Classify the GPU vendor from the name: `NVIDIA`, `AMD/Radeon`, `Intel`,
 - **OCR**: on-device on every platform, nothing to download. macOS uses Apple
   Vision (PyObjC), Windows uses `Windows.Media.Ocr` (installed with
   `requirements.txt` through `winsdk`, reading whatever language packs Windows
-  already has), Linux uses Tesseract â€” install `tesseract-ocr`, the only backend
+  already has), Linux uses Tesseract — install `tesseract-ocr`, the only backend
   that needs a separate binary.
 - **Translation**: macOS uses Apple's Translation framework (add packs in System
   Settings). Windows and Linux use any local OpenAI-compatible server: set
@@ -97,7 +101,7 @@ Classify the GPU vendor from the name: `NVIDIA`, `AMD/Radeon`, `Intel`,
   1234 and 11434 are probed for `/v1/models`, so a lane that is already running is
   used as-is. Without either, `health.translate` is false and foreign voices read
   the original text with an accent.
-- **Disk**: ~1â€“2 GB base; +2.5 GB for film dependencies; image models download
+- **Disk**: ~1–2 GB base; +2.5 GB for film dependencies; image models download
   separately on first film build.
 - **Data directory** (database, models, cache, films):
   - macOS: `~/.murmur` (kept for compatibility)
@@ -109,7 +113,7 @@ Classify the GPU vendor from the name: `NVIDIA`, `AMD/Radeon`, `Intel`,
 
 ---
 
-## 3. Section A â€” macOS
+## 3. Section A — macOS
 
 ### A1. Development install (fastest)
 
@@ -143,7 +147,7 @@ Expected selftest line:
 ok http://127.0.0.1:<port> (bind 127.0.0.1)
 ```
 
-The bundle is ad-hoc signed, not notarized. On another Mac, right-click â†’ Open
+The bundle is ad-hoc signed, not notarized. On another Mac, right-click → Open
 the first time.
 
 ### A3. Verify
@@ -164,7 +168,7 @@ curl -s http://127.0.0.1:8765/api/network
 
 ---
 
-## 4. Section B â€” Windows (preview, source install)
+## 4. Section B — Windows (preview; installer or source install)
 
 ### B1. Install prerequisites (PowerShell)
 
@@ -217,7 +221,7 @@ It prints the data directory. Expected:
 `run.ps1` creates the venv, installs dependencies, downloads the voice model, and
 starts the server hidden. It only reports success when `/api/health` answers, and
 writes each attempt to `server-<timestamp>.log` / `server-<timestamp>.err.log` in
-the data directory â€” if it says the app did not start, those files hold the
+the data directory — if it says the app did not start, those files hold the
 reason. `-Desktop` opens the pywebview window instead of a browser tab.
 
 Browser/server mode by hand:
@@ -249,8 +253,11 @@ Current preview status:
   - Stills use FLUX.2 [klein] through diffusers when `torch.cuda.is_available()` (CUDA or ROCm). Run `scripts\setup_image.ps1` to build the image interpreter.
     FLUX.2/mflux is Apple-only and is not used on Windows.
 - **AMD**
+  - ROCm is wired through diffusers: `scripts\setup_image.ps1` reuses an
+    interpreter where `torch.cuda.is_available()` is true, which is what a ROCm
+    torch wheel reports. Measured on an RX 9070 XT; numbers in `docs\STILLS.md`.
   - DirectML (`torch-directml`, `onnxruntime-directml`) is **planned**, not
-    wired into the image pipeline yet. Treat as CPU-only preview.
+    wired in. Without a ROCm torch, treat AMD as CPU-only preview.
 - **Intel**
   - OpenVINO/DirectML is **planned**. Treat as CPU-only preview.
 - CPU film generation is intentionally disabled unless the user opts in:
@@ -273,7 +280,7 @@ highlight moves with the voice.
 
 ---
 
-## 5. Section C â€” Linux (preview, source install)
+## 5. Section C — Linux (preview, source install)
 
 ### C1. Packages (Ubuntu/Debian; adapt for Fedora/Arch)
 
@@ -311,7 +318,9 @@ uv pip install --python .venv/bin/python --index-url https://download.pytorch.or
 export MURMUR_TTS_PROVIDER=CUDAExecutionProvider
 ```
 
-AMD ROCm is **planned** for the image pipeline; use CPU preview for now.
+AMD ROCm uses the same diffusers path as CUDA: install a ROCm `torch` wheel
+matching the driver into the stills interpreter. The reader does not need it,
+and without one film generation is CPU preview only.
 
 Download the model:
 
@@ -350,7 +359,7 @@ install `tesseract-ocr`.
 ## 6. End-to-end verification (all platforms)
 
 1. Open the UI. Book is the default view.
-2. Add a text document (Add document â†’ Paste text) and press play.
+2. Add a text document (Add document → Paste text) and press play.
 3. Confirm the current word highlights and advances.
 4. Open Settings:
    - 20 themes are listed and changing one recolors the app.
@@ -367,7 +376,7 @@ curl -s -X POST http://127.0.0.1:8765/api/tts \
 Expect JSON with `url` and `duration`. A `503` means the model is missing or
 still loading.
 
-7. Optional film smoke test: open a document â†’ Manga â†’ Review scenes. If the
+7. Optional film smoke test: open a document → Manga → Review scenes. If the
    image backend is unavailable, frames stay as placeholders; that is expected
    on unsupported GPUs.
 
@@ -380,7 +389,7 @@ still loading.
 | Port 8765 in use | another Rhapsode/dev server | stop it, or accept the random port the desktop app picks |
 | `modelReady: false` forever | Kokoro weights missing | run `python -m murmur.bootstrap` |
 | `ocr: false` on Linux | Tesseract missing | install `tesseract-ocr` |
-| `ocr: false` on Windows | no language pack for `Windows.Media.Ocr`, or `winsdk` missing | add a language in Settings â†’ Time & language, or `uv pip install winsdk` |
+| `ocr: false` on Windows | no language pack for `Windows.Media.Ocr`, or `winsdk` missing | add a language in Settings → Time & language, or `uv pip install winsdk` |
 | `translate: false` on Windows/Linux | `MURMUR_TRANSLATE_URL` unset | point it at a local OpenAI-compatible server, then restart |
 | No desktop window on Linux | WebKitGTK missing | install `libwebkit2gtk-4.1-0` or use browser mode |
 | No desktop window on Windows | WebView2 missing | install the Evergreen runtime |
@@ -389,7 +398,7 @@ still loading.
 | `ONNX_PROVIDER ... not available` | provider mismatch | unset `MURMUR_TTS_PROVIDER` or install the matching onnxruntime build |
 | CUDA out of memory | model too large for VRAM | use Fast quality, close other GPU apps, or set `MURMUR_FLUX_OFFLOAD=1` |
 | `Permission denied` writing data | sandboxed install | set `MURMUR_HOME` to a writable directory |
-| Remote URL asks for token | remote access enabled | use the link with `?token=â€¦` from Settings â†’ Remote access |
+| Remote URL asks for token | remote access enabled | use the link with `?token=…` from Settings → Remote access |
 
 Logs go to the terminal that started the server. The desktop app writes to
 stdout; run it from a terminal to see errors.
@@ -405,21 +414,21 @@ stdout; run it from a terminal to see errors.
 3. **Do not use the system Python**; always use the project `.venv`.
 4. **Do not run as root** on Linux. Use a normal user and `sudo` only for
    system packages.
-5. **Do not delete** the data directory to â€œfixâ€ an install; back it up first.
+5. **Do not delete** the data directory to “fix” an install; back it up first.
    The library and settings live there.
 6. **Do not run `build_app.sh`** outside macOS.
-7. **Do not claim GPU support** that the preview does not have: NVIDIA CUDA and
-   Apple Silicon are live; AMD DirectML/ROCm and Intel OpenVINO are roadmap
-   items in `docs/PLATFORMS.md`.
+7. **Do not claim GPU support** that the preview does not have: NVIDIA CUDA,
+   AMD ROCm and Apple Silicon are live; AMD DirectML and Intel OpenVINO are
+   roadmap items in `docs/PLATFORMS.md`.
 8. **Verify before reporting success**: run the checks in Section 6.
 
 ---
 
 ## 9. Where to read more
 
-- `docs/ARCHITECTURE.md` â€” modules, UML diagrams, API, security model.
-- `docs/PLATFORMS.md` â€” Windows/Linux/GPU plan, backend interfaces, packaging.
-- `README.md` â€” feature overview and developer quick start.
+- `docs/ARCHITECTURE.md` — modules, UML diagrams, API, security model.
+- `docs/PLATFORMS.md` — Windows/Linux/GPU plan, backend interfaces, packaging.
+- `README.md` — feature overview and developer quick start.
 
 ---
 

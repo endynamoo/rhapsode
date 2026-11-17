@@ -44,7 +44,14 @@ are local files. Nothing is uploaded.
 ./build_app.sh        # optional: a real .app bundle
 ```
 
-**Windows 10/11** (preview; needs `uv` and `ffmpeg`, Python 3.12):
+**Windows 10/11** (preview). The installer is per-user — no admin prompt — and
+can set up the stills engine during the wizard:
+
+```powershell
+.\scripts\build_installer.ps1   # needs Inno Setup 7; writes dist\Rhapsode-<version>-Setup.exe
+```
+
+From source (needs `uv` and `ffmpeg`, Python 3.12):
 
 ```powershell
 .\scripts\setup.ps1        # reader + stills engine + profile, auto-detected from the card
@@ -72,7 +79,9 @@ verification checklist live in **[AGENTS.md](AGENTS.md)**.
 | [docs/STILLS.md](docs/STILLS.md) | Manga stills, chapter stills, the Murmur engine sidecar |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | VRAM and RAM guards, where the logs are, failure modes already fixed |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module map, pipelines, API surface, security model, UML |
-| [docs/PLATFORMS.md](docs/PLATFORMS.md) | Windows and Linux port, GPU backend plan, packaging |
+| [docs/PLATFORMS.md](docs/PLATFORMS.md) | Windows and Linux port, GPU backends, packaging |
+| [docs/CONCURRENCY.md](docs/CONCURRENCY.md) | Several agents, one repository: worktrees, pushes, cleanup |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Branches, commits, pull requests and releases |
 | [AGENTS.md](AGENTS.md) | The install and build guide, written to be followed by an agent |
 | [THIRD_PARTY.md](THIRD_PARTY.md) | Dependency, model and licence inventory |
 
@@ -82,11 +91,12 @@ verification checklist live in **[AGENTS.md](AGENTS.md)**.
 |---|---|---|---|
 | macOS 13+ (Apple Silicon) | supported | supported (MPS + MLX) | `.app` |
 | macOS Intel | supported | CPU only, opt-in | `.app` |
-| Windows 10/11 x64 | preview, source install | NVIDIA CUDA; CPU opt-in | community PyInstaller build |
-| Linux x64 | preview, source install | NVIDIA CUDA; CPU opt-in | not yet |
+| Windows 10/11 x64 | preview, installer or source | NVIDIA CUDA or AMD ROCm; CPU opt-in | Inno Setup installer (preview) |
+| Linux x64 | preview, source install | NVIDIA CUDA or AMD ROCm; CPU opt-in | not yet |
 
-AMD DirectML/ROCm and Intel OpenVINO are planned, not wired into the still
-pipeline yet — see [docs/PLATFORMS.md](docs/PLATFORMS.md).
+AMD ROCm is wired into the stills engine through diffusers — measured on an
+RX 9070 XT — while DirectML and Intel OpenVINO are still planned. Details in
+[docs/PLATFORMS.md](docs/PLATFORMS.md).
 
 ## How this was built
 
@@ -96,7 +106,7 @@ supervised sessions. Architecture, standards, and the decision about what ships
 stayed with one person, who keeps that director's role in every program here.
 
 That director reviewed the work as thoroughly as they could, and the repo is built
-so the claims are checkable rather than taken on faith: 39 tests in `tests/`, the
+so the claims are checkable rather than taken on faith: 120 tests in `tests/`, the
 end-to-end checklist in [AGENTS.md](AGENTS.md) §6, and an architecture document
 that spells out the API surface and the security model.
 
@@ -116,7 +126,6 @@ is in [THIRD_PARTY.md](THIRD_PARTY.md).
 ## Changelog
 
 <!-- CHANGELOG:BEGIN -->
-## Changelog
 
 Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is generated from it by `scripts/changelog_render.py`, so edit the changelog, not this copy.
 
@@ -126,6 +135,12 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - Troubleshooting page in the app: the three guards, where the logs live, and what was already fixed.
 - The RAM probe the painting guard calls, and the RAM it measured shown in Settings.
+
+**Changed**
+
+- The README front page states what actually ships: the per-user Windows installer, ROCm stills, and the real test count.
+- The generated changelog block no longer repeats the "Changelog" heading above it.
+- `AGENTS.md` is plain UTF-8 text again, so its arrows and dashes render as arrows and dashes.
 
 **Fixed**
 
@@ -142,14 +157,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 - Named engine profiles (`lite`, `balanced`, `max`, `cpu`) with auto-install, and an Engine panel in Settings: profile summary, painter status and Restart engine.
 - Stills polish pass: pose detection, a masked redraw of the hands, off by default, reported in `/api/health`.
 - q4 GGUF transformer path — FLUX.2 klein on an 8 GB card, precision tier chosen from free VRAM.
-- Resident painter: one model load per session, guarded by a lock that survives restarts.
-- Instrumentation for the painter and the model caches; health reports the painter's precision.
-- Measured q4 numbers and per-card precision tiers in the docs.
 
-**Changed**
-
-- Hot caches are memory-resident and the database connection is shared.
-
-*...and 11 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 15 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->

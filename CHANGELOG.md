@@ -16,6 +16,12 @@ fails when that copy is stale.
 - Troubleshooting page in the app: the three guards, where the logs live, and what was already fixed.
 - The RAM probe the painting guard calls, and the RAM it measured shown in Settings.
 
+### Changed
+
+- The README front page states what actually ships: the per-user Windows installer, ROCm stills, and the real test count.
+- The generated changelog block no longer repeats the "Changelog" heading above it.
+- `AGENTS.md` is plain UTF-8 text again, so its arrows and dashes render as arrows and dashes.
+
 ### Fixed
 
 - Painting refuses to start without enough free system RAM, and reports what was left instead of dying mid-still.

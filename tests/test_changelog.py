@@ -28,6 +28,7 @@ class ChangelogTests(unittest.TestCase):
         block = load_module().render_block()
         self.assertLessEqual(len(block), 2600)
         self.assertIn("CHANGELOG.md", block)
+        self.assertNotRegex(block, r"(?m)^## ", "the block sits under the README's own heading")
 
     def test_release_notes_carry_the_whole_section(self):
         module = load_module()
@@ -50,6 +51,7 @@ class ChangelogTests(unittest.TestCase):
         module = load_module()
         updated = module.apply_block("Intro\r\n\r\n", module.render_block())
         self.assertEqual(updated.count("\n"), updated.count("\r\n"))
+        self.assertTrue(updated.endswith("\r\n"))
 
 
 if __name__ == "__main__":

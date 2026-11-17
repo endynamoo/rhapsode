@@ -8,7 +8,7 @@ covers the part it cannot.
 
 Two agents in `C:\Apps\Rhapsode` at once:
 
-- Agent A runs `git switch feat/x` while Agent B has unsaved edits â€” B's work disappears from
+- Agent A runs `git switch feat/x` while Agent B has unsaved edits — B's work disappears from
   disk mid-task.
 - Agent A runs `git add -A` and commits B's half-finished work under A's message.
 - Both edit the same file; the second commit silently reverts the first (this happened on
@@ -37,7 +37,7 @@ None of that shows up as a merge conflict, because it never gets to git's merge 
 3. **`git add -A` is banned in a shared checkout.** Add explicit paths:
    `git add app.py tests/test_jobs.py`. It is fine inside a dedicated worktree.
 
-4. **A PR for anything touching more than one file** â€” even solo, even for an agent. The diff
+4. **A PR for anything touching more than one file** — even solo, even for an agent. The diff
    is the only place a cross-file collision becomes visible before it lands.
 
 5. **Check the ladder at the end of a session:**
@@ -55,7 +55,7 @@ None of that shows up as a merge conflict, because it never gets to git's merge 
 
 ## When two agents do collide
 
-1. Do not `git checkout -- .` or reset to "clean up" â€” that deletes the other agent's work.
+1. Do not `git checkout -- .` or reset to "clean up" — that deletes the other agent's work.
 2. `git status` and `git diff` first: whose change is on disk?
 3. If both changes are needed, keep whichever is in the tree, apply the other from its commit
    (`git show <sha> -- <path>`), then commit both deliberately.

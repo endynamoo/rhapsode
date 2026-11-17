@@ -60,11 +60,15 @@ A PR is mergeable when:
 .\scripts\promote.ps1 -To stable -Tag "what you actually verified"
 ```
 
-Then publish the version:
+Then publish the version from the changelog, never by hand:
 
 ```powershell
-gh release create v0.2.0 --target stable --generate-notes --title "v0.2.0"
+python scripts\changelog_render.py --release 0.2.0-alpha > notes.md
+gh release create v0.2.0-alpha --target stable --notes-file notes.md --title "v0.2.0-alpha"
 ```
+
+`--release` prints that version's whole section; the README copy is truncated and
+must not be used as release notes.
 
 `v*` tags are the product version (semantic versioning, with `-alpha`/`-beta` suffixes while
 a platform is still preview); `known-good-<date>` tags are the QA anchor for every promotion
