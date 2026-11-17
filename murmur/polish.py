@@ -201,6 +201,7 @@ def apply(path: Path, prompt: str = "", force: bool = False) -> dict:
         return {"action": "failed", "error": info["error"]}
 
     if not info["faces"] and not info["people"]:
+        _last_action = "skipped (no people)"
         _write_record(path, {"version": POLISH_VERSION, "action": "skipped",
                              "reason": "no people", "output_hash": digest})
         return {"action": "skipped", "reason": "no people"}
