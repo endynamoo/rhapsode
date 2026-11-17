@@ -17,6 +17,7 @@ Everything on this page is day-to-day use. Install instructions are in
 | Add a document | `⌘N` (`Ctrl+N` on Windows/Linux) |
 | Switch Book / Manga view | `V` |
 | Jump to a chapter | `C` (opens Contents) |
+| Search your library | `⌘F` (`Ctrl+F`) or the magnifier |
 | Hide UI / immersive mode | `F` or `Esc` |
 | Settings | `⌘,` (`Ctrl+,`) |
 
@@ -27,6 +28,28 @@ The sidebar has two tabs: **Library** and **Contents**. Opening a book or a PDF
 with bookmarks switches to Contents automatically; clicking a chapter reads from
 that chapter. In Book view the current word is highlighted inside the rendered
 chapter, and the chapter scrolls to keep it in sight.
+
+## Searching your library
+
+Press `⌘F` / `Ctrl+F` (or the magnifier in the top bar) and type. Results are
+grouped by book, each with the matching passage, the chapter or page, and the
+sentence number. `↑` `↓` move through the results, `Enter` opens one, and the
+book opens at that sentence with the matching words marked.
+
+- **Any time / Read this week / Read this month** narrow the search to books you
+  have actually opened or read in that window. Importing a book is not reading
+  it, so a shelf you have not touched stays out of a recent search.
+- **Keywords work immediately.** The first search after an import may say a book
+  is waiting to be indexed; the panel offers **Index library**, and indexing runs
+  in the background while you keep reading.
+- **Meaning search is optional.** If the panel says *Keyword search only*, press
+  **Download** once (23 MB, Apache-2.0, runs on the CPU) and Rhapsode can find a
+  passage that talks about your query without using its words. To ignore the
+  model entirely, set `MURMUR_SEMANTIC=off`.
+
+The index lives in `search.db` next to `murmur.db`. It is derived from your
+books: deleting it is safe and only costs a rebuild. Details, the API and the
+ranking formula are in [SEARCH.md](SEARCH.md).
 
 ## Foreign voices and translation
 
@@ -147,6 +170,8 @@ Override with `MURMUR_HOME`. Inside it:
 |---|---|
 | `models/` | `kokoro-v1.0.onnx`, `voices-v1.0.bin` |
 | `murmur.db` | document library, positions, settings |
+| `search.db` | derived search index — safe to delete |
+| `models/minilm-l6-v2/` | optional search embeddings (23 MB) |
 | `cache/` | synthesized WAV clips |
 | `cache/pages/` | rendered PDF page images |
 | `files/` | original PDFs and images (for the page view) |
@@ -157,7 +182,8 @@ Delete that folder to reset — back it up first if you care about the library. 
 audio cache can also be trimmed from Settings.
 
 Environment variables: `MURMUR_PORT` (default 8765), `MURMUR_HOME`,
-`MURMUR_CACHE_MB`, `MURMUR_NO_OPEN=1`.
+`MURMUR_CACHE_MB`, `MURMUR_NO_OPEN=1`, `MURMUR_SEMANTIC=off` (ignore the search
+model even when it is installed).
 
 ## Troubleshooting
 

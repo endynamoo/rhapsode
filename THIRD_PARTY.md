@@ -80,6 +80,7 @@ Weights are downloaded at runtime and are **not** part of this repository.
 | Model | License | Notes |
 | --- | --- | --- |
 | Kokoro-82M (`kokoro-v1.0.onnx`, `voices-v1.0.bin`) | Apache-2.0 | Voice styles from the Kokoro model card. |
+| all-MiniLM-L6-v2 (`minilm-l6-v2/model.onnx`) | Apache-2.0 | Optional search embeddings, int8 ONNX export by `Xenova/all-MiniLM-L6-v2`; 23 MB, CPU only, downloaded only when the user asks for meaning search. |
 | FLUX.2 [klein] 4B | Apache-2.0 | The stills engine, both quality presets. Downloaded by `scripts/setup_flux.sh` (macOS) or `scripts/setup_image.ps1` (Windows/Linux). |
 | FLUX.2 [klein] 4B Q4_K_M (GGUF) | Apache-2.0 | Quantized transformer from `unsloth/FLUX.2-klein-4B-GGUF`; 2.4 GB on disk and ~2.6 GiB resident, which is what lets an 8 GB card paint. |
 | Qwen3 text encoder used by FLUX.2 | Apache-2.0 | Downloaded with the FLUX.2 pipeline. |

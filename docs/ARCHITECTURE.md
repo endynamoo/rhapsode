@@ -366,7 +366,9 @@ Filesystem layout (macOS shown; see below for Windows/Linux):
   cache/pages/<doc>_<n>*.png|json
   film/<doc_id>/            stills, prompts, cast, chapter mp4
   exports/<job>.mp3|wav     audio exports
+  search.db                 derived search index (safe to delete)
   models/                   Kokoro + HF weights (external)
+  models/minilm-l6-v2/      optional search embeddings
   image-venv/               optional FLUX runtime
 ```
 
@@ -375,6 +377,11 @@ Data root by platform (override with `MURMUR_HOME`):
 - macOS: `~/.murmur`
 - Windows: `%LOCALAPPDATA%\Rhapsode`
 - Linux: `$XDG_DATA_HOME/rhapsode` or `~/.local/share/rhapsode`
+
+`search.db` is not part of the library. It holds `books` (per-document
+signature and coverage), `chunks` plus its FTS5 index, `vectors` (float32
+embeddings), `progress` (reading recency) and `meta`; it is rebuilt from `docs`
+whenever it is missing or stale. See [SEARCH.md](SEARCH.md).
 
 ---
 
@@ -386,6 +393,8 @@ Data root by platform (override with `MURMUR_HOME`):
 | TTS synthesis | `TTSEngine._compute` semaphore (2) | model load guarded by a lock |
 | PDF render / words | `server._PDF_LOCK` | PDFium is not thread-safe |
 | Audio export | `server._EXPORT_LOCK` | one export at a time |
+| Search index | one daemon worker in `murmur/search.py` | writes in batches of 200; readers use WAL |
+| Search model | background download thread in `murmur/semantic.py` | streams to `*.part`, styled by `status()` |
 | Chapter film | FIFO worker in `film.py` | one film job at a time |
 | Live events | SSE `/api/events` | quick-read notifications |
 | Cache pruning | startup thread | audio LRU + 7-day export cleanup |
@@ -416,6 +425,10 @@ Data root by platform (override with `MURMUR_HOME`):
 | GET/DELETE | `/api/export/{job}` | export status / cancel |
 | POST | `/api/quick-read` | open a document from a shortcut |
 | POST | `/api/ocr-clipboard` | OCR the clipboard |
+| GET | `/api/search` | ranked library search (lexical + optional meaning) |
+| GET | `/api/search/status` | index coverage, progress, model state |
+| POST | `/api/search/index` | start an index pass (optionally forced or one doc) |
+| POST | `/api/search/model` | download the optional embedding model |
 | GET | `/api/events` | SSE stream |
 | GET | `/api/film/plan`, `/images`, `/progress` | scene planning and status |
 | POST | `/api/film/scene`, `/scene/regenerate`, `/prefetch` | scene generation |
@@ -443,6 +456,11 @@ Data root by platform (override with `MURMUR_HOME`):
   before chapter HTML is framed.
 - **URL import SSRF guard.** Only `http`/`https`, public IPs only, redirects
   re-validated, download capped at 12 MB.
+- **Search is local.** The index is a local SQLite file and never leaves the
+  machine. The only outbound request the feature makes is the optional
+  embedding-model download, to a fixed `huggingface.co` URL, triggered by an
+  explicit `POST /api/search/model` from the user; nothing else is fetched, and
+  search itself works with no network at all.
 - **Uploads** are capped at 120 MB before and during read.
 
 ---

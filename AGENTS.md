@@ -101,8 +101,9 @@ Classify the GPU vendor from the name: `NVIDIA`, `AMD/Radeon`, `Intel`,
   1234 and 11434 are probed for `/v1/models`, so a lane that is already running is
   used as-is. Without either, `health.translate` is false and foreign voices read
   the original text with an accent.
-- **Disk**: ~1–2 GB base; +2.5 GB for film dependencies; image models download
-  separately on first film build.
+- **Disk**: ~1–2 GB base; +2.5 GB for film dependencies; +23 MB if you
+  download the optional search model. Image models download separately on first
+  film build.
 - **Data directory** (database, models, cache, films):
   - macOS: `~/.murmur` (kept for compatibility)
   - Windows: `%LOCALAPPDATA%\Rhapsode`
@@ -399,6 +400,8 @@ still loading.
 | CUDA out of memory | model too large for VRAM | use Fast quality, close other GPU apps, or set `MURMUR_FLUX_OFFLOAD=1` |
 | `Permission denied` writing data | sandboxed install | set `MURMUR_HOME` to a writable directory |
 | Remote URL asks for token | remote access enabled | use the link with `?token=…` from Settings → Remote access |
+| Search finds nothing | the index has not been built yet | open search and press **Index library**, or `POST /api/search/index`; check `GET /api/search/status` for `pending` |
+| Search says "keyword only" | optional meaning model not downloaded | press **Download** in the search panel (23 MB, Apache-2.0, CPU only), or set `MURMUR_SEMANTIC=off` to stop offering it |
 
 Logs go to the terminal that started the server. The desktop app writes to
 stdout; run it from a terminal to see errors.
@@ -428,6 +431,8 @@ stdout; run it from a terminal to see errors.
 
 - `docs/ARCHITECTURE.md` — modules, UML diagrams, API, security model.
 - `docs/PLATFORMS.md` — Windows/Linux/GPU plan, backend interfaces, packaging.
+- `docs/SEARCH.md` — library search: chunks and anchors, ranking, recency, the
+  optional embedding model, the API and its limits.
 - `README.md` — feature overview and developer quick start.
 
 ---
@@ -451,6 +456,12 @@ Sections 0-9 are about installing and running. This section is about changing th
   did **not** verify. Never describe unverified work as working.
 - **Data.** Never delete or rewrite the library directory, `*.db`, or downloaded weights to
   "fix" a problem; back up first and say so.
+- **Search index.** `search.db` is derived data: safe to delete, rebuilt by the next
+  pass. It is never migrated by hand. `murmur/search.py` and `murmur/semantic.py` must
+  derive their paths from `config.HOME` / `config.MODELS_DIR` at call time (tests move
+  them), `note_document()` only queues, and only `start_background()` may spawn the
+  indexing thread. `onnxruntime` is imported lazily so the test suite never needs it.
+  Details: `docs/SEARCH.md`.
 - **Changelog.** `CHANGELOG.md` is a running history: add an entry under `## [Unreleased]` in the
   same commit as the change (Added / Changed / Fixed / Removed / Security), and move it under
   `## [<version>] - YYYY-MM-DD` when a version is cut. Then run
