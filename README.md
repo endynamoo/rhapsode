@@ -70,6 +70,7 @@ verification checklist live in **[AGENTS.md](AGENTS.md)**.
 |---|---|
 | [docs/USAGE.md](docs/USAGE.md) | Keyboard map, Quick Read, translation, OCR knobs, remote access, where your data lives, troubleshooting |
 | [docs/STILLS.md](docs/STILLS.md) | Manga stills, chapter stills, the Murmur engine sidecar |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | VRAM and RAM guards, where the logs are, failure modes already fixed |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module map, pipelines, API surface, security model, UML |
 | [docs/PLATFORMS.md](docs/PLATFORMS.md) | Windows and Linux port, GPU backend plan, packaging |
 | [AGENTS.md](AGENTS.md) | The install and build guide, written to be followed by an agent |
