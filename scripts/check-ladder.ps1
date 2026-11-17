@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 Verify the promotion ladder is intact: main -> testing -> stable, fast-forward only,
 every rung under a known-good tag, CI green on each head.
@@ -12,7 +12,7 @@ session's wrap-up. Run it after other agents have been working.
 #>
 param([switch]$SkipCI)
 
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Continue'   # native commands write progress to stderr; we check $LASTEXITCODE instead
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $problems = @()
 
@@ -127,3 +127,4 @@ if ($problems.Count -gt 0) {
 
 Write-Host "ladder intact: main -> testing -> stable, all rungs under a known-good tag" -ForegroundColor Green
 exit 0
+
