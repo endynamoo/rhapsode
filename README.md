@@ -112,3 +112,33 @@ Apache-2.0, so commercial use is fine. Two GPL components (`phonemizer` and eSpe
 NG) reach the app through the dependency chain, so redistributing a **built
 bundle** carries GPL obligations even though the source stays MIT; the inventory
 is in [THIRD_PARTY.md](THIRD_PARTY.md).
+
+## Changelog
+
+<!-- CHANGELOG:BEGIN -->
+
+### [Unreleased]
+
+### Added
+
+- **The installer proves itself before release.** A CI job on a clean Windows runner
+  builds the app and the setup program, installs it into a temporary directory,
+  checks that the engine script shipped, runs it, starts the app and asks it for
+  health, then uninstalls and confirms nothing is left behind.
+- **A running changelog** (`CHANGELOG.md`) with a truncated copy at the bottom of the
+  README; a test fails when the copy is stale, so it cannot drift from the code.
+- `scripts/build_installer.ps1` builds and refuses to hand over an installer that is
+  not the version in the tree - the mistake that once reinstalled the previous build
+  while reporting success.
+
+### [0.1.0-alpha] - 2026-11-16
+
+### Added
+
+- First public source drop: local read-aloud with Kokoro-82M, a book view with
+  word-level highlighting, on-device OCR, translation, manga stills, chapter video,
+  20 themes, Quick Read, and a Windows installer.
+
+*…and 16 more entries in [CHANGELOG.md](CHANGELOG.md).*
+
+<!-- CHANGELOG:END -->
