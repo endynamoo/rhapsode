@@ -3,7 +3,7 @@
 ; Build:  ISCC.exe packaging\Rhapsode-setup.iss   (from the repo root)
 
 #define AppName        "Rhapsode"
-#define AppVersion     "0.1.0-alpha"
+#define AppVersion     "0.2.0-alpha"
 #define AppPublisher   "Anthony Cortez"
 #define AppExe         "Rhapsode.exe"
 #define SourceDir      "..\dist\Rhapsode"
