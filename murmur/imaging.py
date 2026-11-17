@@ -387,6 +387,41 @@ def restart_painter() -> dict:
         worker.stop()
     return painter_info()
 
+def ram_info() -> dict:
+    """Free and total system memory, in GiB, for the engine panel.
+
+    The painter refuses to load below MURMUR_FLUX_RAM_FLOOR_MB, so the panel needs
+    the same number to explain why a still will not start.
+    """
+    try:
+        import ctypes
+
+        class MEMORYSTATUSEX(ctypes.Structure):
+            _fields_ = [
+                ("dwLength", ctypes.c_uint32),
+                ("dwMemoryLoad", ctypes.c_uint32),
+                ("ullTotalPhys", ctypes.c_uint64),
+                ("ullAvailPhys", ctypes.c_uint64),
+                ("ullTotalPageFile", ctypes.c_uint64),
+                ("ullAvailPageFile", ctypes.c_uint64),
+                ("ullTotalVirtual", ctypes.c_uint64),
+                ("ullAvailVirtual", ctypes.c_uint64),
+                ("ullAvailExtendedVirtual", ctypes.c_uint64),
+            ]
+
+        status = MEMORYSTATUSEX()
+        status.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+        if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+            return {}
+        return {
+            "free_gib": round(status.ullAvailPhys / 2**30, 2),
+            "total_gib": round(status.ullTotalPhys / 2**30, 2),
+            "floor_mib": int(float(os.environ.get("MURMUR_FLUX_RAM_FLOOR_MB", "6000"))),
+        }
+    except Exception:
+        return {}
+
+
 def painter_info() -> dict:
     """What the resident painter decided (precision, VRAM headroom) for the UI."""
     backend = FluxPythonBackend()
@@ -394,6 +429,9 @@ def painter_info() -> dict:
     info = dict(worker.ready_info)
     info["running"] = worker.alive
     info["python"] = str(config.IMAGE_PYTHON)
+    ram = ram_info()
+    if ram:
+        info["ram"] = ram
     if worker.last_job:
         info["last_job"] = {
             key: worker.last_job.get(key)

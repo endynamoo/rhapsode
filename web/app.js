@@ -2935,7 +2935,12 @@ async function refreshEngine() {
   bits.push(painter.running ? 'painter running' : 'painter idle');
   if (job.seconds) bits.push(`last still ${job.seconds}s (${job.width}x${job.height}, ${job.steps} steps)`);
   if (job.peak_gib) bits.push(`${job.peak_gib} GiB peak`);
-  if (job.free_gib) bits.push(`${job.free_gib} GiB free after`);
+  if (job.free_gib) bits.push(`${job.free_gib} GiB VRAM free after`);
+  const ram = painter.ram || {};
+  if (ram.free_gib) {
+    bits.push(`${ram.free_gib} GiB RAM free of ${ram.total_gib}`);
+    if (ram.free_gib * 1024 < (ram.floor_mib || 0)) bits.push('below the RAM floor - painting will refuse');
+  }
   $('#engineStatus').textContent = bits.join(' · ');
 }
 
