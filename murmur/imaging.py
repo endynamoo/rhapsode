@@ -35,6 +35,10 @@ MODELS = {
 
 DEFAULT_MODEL = "flux2-klein-4b"
 
+# A real still at 1080p is hundreds of kilobytes. The placeholder painter writes a
+# prompt card of roughly 8 KB, so anything smaller is not art and must be repainted.
+MIN_STILL_BYTES = 24_000
+
 
 class ImageError(Exception):
     pass
@@ -289,7 +293,7 @@ class FilmImages:
                  model: str | None = None,
                  reference_image: Path | None = None) -> str:
         marker = out_path.with_suffix(out_path.suffix + ".placeholder")
-        cached = out_path.exists() and out_path.stat().st_size > 1024
+        cached = out_path.exists() and out_path.stat().st_size >= MIN_STILL_BYTES
         with self._lock:
             backend = self.backend(model)
             # A placeholder is not a still: once a real engine exists, repaint it.

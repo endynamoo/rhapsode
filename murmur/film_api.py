@@ -82,7 +82,7 @@ def film_images(doc: str, chapter: int = 0) -> dict:
                 "first": scene.units[0] if scene.units else 0,
                 "last": scene.units[-1] if scene.units else 0,
                 "text": scene.text[:160],
-                "url": _url(document["id"], chapter, scene.index, path) if path.exists() else None,
+                "url": _url(document["id"], chapter, scene.index, path) if film.still_ready(path) else None,
             }
         )
     return {"doc": document["id"], "chapter": chapter, "images": images}
@@ -98,7 +98,7 @@ def film_scene(payload: FilmSceneIn) -> dict:
 
     scene = scenes[payload.index]
     path = film.scene_image_path(document["id"], chapter, scene.index)
-    if not path.exists():
+    if not film.still_ready(path):
         film.painter.enqueue(document, chapter, [scene])
         return {
             "ready": False,
@@ -165,7 +165,7 @@ def film_progress(doc: str, chapter: int = 0) -> dict:
 @router.get("/api/film/image/{doc_id}/{chapter}/{index}.png")
 def film_image(doc_id: str, chapter: int, index: int):
     path = film.scene_image_path(doc_id, chapter, index)
-    if not path.exists():
+    if not film.still_ready(path):
         raise HTTPException(status_code=404, detail="Scene image not rendered yet")
     return FileResponse(
         path,

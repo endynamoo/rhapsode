@@ -106,11 +106,34 @@ class CacheTests(unittest.TestCase):
                 doc = self._doc()
                 path = film.scene_image_path(doc["id"], 0, 0)
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_bytes(b"x" * 2048)
+                path.write_bytes(b"x" * 60_000)  # a real still is far bigger than a card
                 with mock.patch.object(film.imaging.image_gen, "generate") as generate:
                     generate.side_effect = AssertionError("should not regenerate")
                     result = film.ensure_scene_image(doc, 0, self._scene())
                 self.assertEqual(result, path)
+
+    def test_placeholder_card_is_repainted(self) -> None:
+        """An 8 KB prompt card from before the engine existed is not a still."""
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(film.config, "FILM_DIR", Path(tmp)):
+                doc = self._doc()
+                path = film.scene_image_path(doc["id"], 0, 0)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"x" * 2048)
+                with mock.patch.object(film.imaging.image_gen, "generate") as generate:
+                    result = film.ensure_scene_image(doc, 0, self._scene())
+                self.assertEqual(result, path)
+                generate.assert_called_once()
+
+    def test_still_ready_rejects_small_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            small = Path(tmp) / "card.png"
+            small.write_bytes(b"x" * 8181)
+            big = Path(tmp) / "art.png"
+            big.write_bytes(b"x" * 200_000)
+            self.assertFalse(film.still_ready(small))
+            self.assertTrue(film.still_ready(big))
+            self.assertFalse(film.still_ready(Path(tmp) / "missing.png"))
 
     def test_render_key_tracks_images_and_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

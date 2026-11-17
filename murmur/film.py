@@ -23,6 +23,7 @@ SCENE_MAX_UNITS = 20
 SCENE_GAP = 0.10
 XFADE = 1.2
 SCENE_VERSION = "v9"
+
 # Bump when clip/compose output would change for the same plan and images.
 RENDER_VERSION = "v3"
 FPS = 30
@@ -30,6 +31,14 @@ OUT_W = 1920
 OUT_H = 1080
 CLIP_W = 2560
 CLIP_H = 1440
+
+
+def still_ready(path) -> bool:
+    """True when a still exists and is real art, not a placeholder prompt card."""
+    try:
+        return path.exists() and path.stat().st_size >= imaging.MIN_STILL_BYTES
+    except OSError:
+        return False
 
 
 @dataclass
@@ -433,7 +442,7 @@ def ensure_cast_portraits(doc: dict, chapter: int = 0) -> list[dict]:
     ready = []
     for member in cast:
         path = character_portrait_path(doc["id"], member["slug"])
-        if not (path.exists() and path.stat().st_size > 1024):
+        if not still_ready(path):
             prompt = (
                 "Monochrome manga character reference, one character only: "
                 f"{member['name']}, {member['description']}. Full-body front view, "
@@ -450,7 +459,7 @@ def ensure_cast_portraits(doc: dict, chapter: int = 0) -> list[dict]:
                 _finish_still(path)
             except Exception:
                 path.unlink(missing_ok=True)
-        if path.exists() and path.stat().st_size > 1024:
+        if still_ready(path):
             ready.append({**member, "path": path})
     return ready
 
@@ -458,7 +467,7 @@ def ensure_cast_portraits(doc: dict, chapter: int = 0) -> list[dict]:
 def ensure_cast_group(doc: dict, chapter: int = 0) -> Path | None:
     """One composite reference containing the recurring cast side by side."""
     path = cast_group_path(doc["id"])
-    if path.exists() and path.stat().st_size > 1024:
+    if still_ready(path):
         return path
     cast = ensure_cast_portraits(doc, chapter)
     if not cast:
@@ -492,7 +501,7 @@ def _reference_crop(member: dict, doc_id: str, close: bool) -> Path:
         character_face_path(doc_id, member["slug"]) if close
         else character_body_path(doc_id, member["slug"])
     )
-    if path.exists() and path.stat().st_size > 1024:
+    if still_ready(path):
         return path
     try:
         from PIL import Image
@@ -553,7 +562,7 @@ def ensure_character_reference(doc: dict, scene: Scene | None = None,
 def ensure_character_sheet(doc: dict) -> Path | None:
     """One consistent manga character sheet per book, used as a FLUX reference."""
     path = character_sheet_path(doc["id"])
-    if path.exists() and path.stat().st_size > 1024:
+    if still_ready(path):
         return path
     if not imaging.image_gen.backend("flux2-klein-4b").available():
         return None
@@ -576,7 +585,7 @@ def ensure_character_sheet(doc: dict) -> Path | None:
             config.FILM_WIDTH, config.FILM_HEIGHT,
             model="flux2-klein-4b",
         )
-        if path.exists() and path.stat().st_size > 1024:
+        if still_ready(path):
             _finish_still(path)
             return path
     except Exception:
@@ -708,7 +717,7 @@ def _clean_lettering(path: Path, scene: Scene, model: str,
             prompt, temp, scene.seed + 1009, width, height,
             reference_image=path, model=model,
         )
-        if temp.exists() and temp.stat().st_size > 1024:
+        if still_ready(temp):
             temp.replace(path)
     except Exception:
         pass
@@ -863,7 +872,7 @@ def ensure_scene_image(doc: dict, chapter: int, scene: Scene,
     model, width, height = film_model()
     path = scene_image_path(doc["id"], chapter, scene.index, model)
     try:
-        if path.exists() and path.stat().st_size > 1024:
+        if still_ready(path):
             if _has_gutter(path):
                 if model.startswith("flux"):
                     _clean_lettering(path, scene, model, width, height)
@@ -1067,7 +1076,7 @@ class ScenePainter:
                 key = (doc["id"], chapter, scene.index)
                 if key in self._pending:
                     continue
-                if scene_image_path(doc["id"], chapter, scene.index, model).exists():
+                if still_ready(scene_image_path(doc["id"], chapter, scene.index, model)):
                     continue
                 source_index = (start + offset) % max(1, len(scenes))
                 previous = scenes[source_index - 1] if source_index > 0 else None
@@ -1139,7 +1148,7 @@ class ScenePainter:
         model = film_model()[0]
         done = sum(
             1 for scene in scenes
-            if scene_image_path(doc["id"], chapter, scene.index, model).exists()
+            if still_ready(scene_image_path(doc["id"], chapter, scene.index, model))
         )
         with self._lock:
             pending = sum(
