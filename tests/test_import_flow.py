@@ -38,7 +38,12 @@ def temp_home():
         ):
             config.ensure_dirs()
             store.init()
-            yield base
+            try:
+                yield base
+            finally:
+                # The shared connection would keep murmur.db open inside the
+                # temporary directory, which Windows refuses to delete.
+                store.close()
 
 
 def pdf_bytes(paragraphs: list[str]) -> bytes:

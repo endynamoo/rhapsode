@@ -5,6 +5,7 @@ import json
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 import uuid
 from collections.abc import Iterator
@@ -12,7 +13,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from . import config, text as textmod
+from . import cache, config, text as textmod
 from . import proc
 
 SCHEMA = """
@@ -50,6 +51,11 @@ CREATE TABLE IF NOT EXISTS translations (
 );
 """
 
+# Translations are read once per sentence while a chapter plays; keep the
+# hot ones in RAM so a repeat costs a dict lookup, not a query.
+_translations = cache.LRUCache(maxsize=2048, name="translations")
+
+
 DEFAULT_SETTINGS: dict[str, Any] = {
     "voice": "af_heart",
     "speed": 1.0,
@@ -64,12 +70,47 @@ DEFAULT_SETTINGS: dict[str, Any] = {
 }
 
 
+_conn_lock = threading.RLock()
+_shared: sqlite3.Connection | None = None
+_shared_path: Path | None = None
+
+
 def _conn() -> sqlite3.Connection:
-    config.HOME.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(config.DB_PATH, timeout=15)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    return conn
+    """One connection, reused for the life of the process.
+
+    Opening SQLite per call cost a handle setup on every translation lookup, and a
+    chapter is hundreds of them. The connection is shared under a lock and reopened
+    when the data directory changes (tests point config.DB_PATH elsewhere).
+    """
+    global _shared, _shared_path
+    with _conn_lock:
+        if _shared is not None and _shared_path == config.DB_PATH:
+            return _shared
+        if _shared is not None:
+            try:
+                _shared.close()
+            except sqlite3.Error:
+                pass
+            _shared = None
+        config.HOME.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(config.DB_PATH, timeout=15, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        _shared, _shared_path = conn, config.DB_PATH
+        return conn
+
+
+def close() -> None:
+    """Drop the shared connection and the in-memory caches (tests, shutdown)."""
+    global _shared, _shared_path
+    with _conn_lock:
+        if _shared is not None:
+            try:
+                _shared.close()
+            except sqlite3.Error:
+                pass
+        _shared, _shared_path = None, None
+    _translations.clear()
 
 
 @contextmanager
@@ -81,11 +122,9 @@ def _db() -> Iterator[sqlite3.Connection]:
     open long after the request that needed them.
     """
     conn = _conn()
-    try:
+    with _conn_lock:
         with conn:
             yield conn
-    finally:
-        conn.close()
 
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp", ".heic", ".heif"}
@@ -316,11 +355,17 @@ def set_settings(patch: dict) -> dict:
 
 
 def translation_get(key: str) -> str | None:
+    cached = _translations.get(key)
+    if cached is not None:
+        return cached
     with _db() as conn:
         row = conn.execute(
             "SELECT translated FROM translations WHERE key = ?", (key,)
         ).fetchone()
-    return row["translated"] if row else None
+    if row is None:
+        return None
+    _translations.put(key, row["translated"])
+    return row["translated"]
 
 
 def translation_put(key: str, source: str, target: str, original: str, translated: str) -> None:
@@ -331,3 +376,4 @@ def translation_put(key: str, source: str, target: str, original: str, translate
             " ON CONFLICT(key) DO UPDATE SET translated=excluded.translated, created=excluded.created",
             (key, source, target, original, translated, time.time()),
         )
+    _translations.put(key, translated)
