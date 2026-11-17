@@ -191,7 +191,6 @@ def _paint(pipe, torch, device: str, job: dict, cache: dict | None = None) -> Pa
     reference = job.get("reference")
 
     if mask_path and reference and Path(mask_path).exists() and Path(reference).exists():
-        pipeline = _inpaint_pipeline(pipe, torch, device, cache)
         image = Image.open(reference).convert("RGB").resize((width, height))
         mask = Image.open(mask_path).convert("L").resize((width, height))
         kwargs = {
@@ -204,13 +203,20 @@ def _paint(pipe, torch, device: str, job: dict, cache: dict | None = None) -> Pa
             "generator": torch.Generator(device=device).manual_seed(int(job.get("seed", 1))),
         }
         try:
-            result = pipeline(**kwargs).images[0]
-        except TypeError:
-            kwargs.pop("strength", None)
-            result = pipeline(**kwargs).images[0]
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        result.save(out_path, format="PNG")
-        return out_path
+            pipeline = _inpaint_pipeline(pipe, torch, device, cache)
+            try:
+                result = pipeline(**kwargs).images[0]
+            except TypeError:
+                kwargs.pop("strength", None)
+                result = pipeline(**kwargs).images[0]
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            result.save(out_path, format="PNG")
+            return out_path
+        except Exception as exc:  # noqa: BLE001
+            # A quantized transformer cannot be re-dtyped into the inpaint
+            # pipeline. Edit mode plus the caller's masked blend does the same job:
+            # the frame is re-drawn, then only the masked region is kept.
+            print(f"fluxgen: inpaint unavailable ({exc}); using edit mode", file=sys.stderr, flush=True)
 
     kwargs = {
         "prompt": job["prompt"],
