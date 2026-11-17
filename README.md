@@ -19,6 +19,9 @@ no account, no cloud, no per-word billing.
   foreign voice with the translation shown under the player. Apple's framework on
   macOS; a local OpenAI-compatible server everywhere else, configured or
   discovered on the usual ports.
+- **Polish pass** — each still is re-drawn once from itself so the ink settles and
+  faces tighten; a face/person detector decides whether a frame needs it at all.
+  Optional, and toggleable in Settings.
 - **Manga stills** — the narration is planned into beats and each beat gets one
   locally generated still. Chapter view plays those stills against the voice with
   a slow drift and a dissolve, and a chapter can be assembled into a 1080p MP4 cut

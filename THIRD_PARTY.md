@@ -82,6 +82,9 @@ Weights are downloaded at runtime and are **not** part of this repository.
 | Kokoro-82M (`kokoro-v1.0.onnx`, `voices-v1.0.bin`) | Apache-2.0 | Voice styles from the Kokoro model card. |
 | FLUX.2 [klein] 4B | Apache-2.0 | The stills engine, both quality presets. Downloaded by `scripts/setup_flux.sh` (macOS) or `scripts/setup_image.ps1` (Windows/Linux). |
 | Qwen3 text encoder used by FLUX.2 | Apache-2.0 | Downloaded with the FLUX.2 pipeline. |
+| YuNet face detector (`yunet.onnx`) | MIT | Stills polish pass: finds faces so a still with people gets re-drawn. |
+| RTMDet person detector (`rtmdet-n-person.onnx`) | Apache-2.0 | Stills polish pass: decides whether a still contains people at all. |
+| RTMPose (`rtmpose-m.onnx`) | Apache-2.0 | Reserved for the anatomy check; not used yet. |
 
 Murmur downloads these weights on demand into `~/.murmur/models/hf`. It does not
 ship them inside the source tree. If you redistribute a bundle that includes the

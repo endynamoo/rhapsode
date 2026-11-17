@@ -20,6 +20,9 @@ beautifulsoup4>=4.12
 
 # Images, page rendering and the placeholder backend
 pillow>=10.4
+# Detectors for the stills polish pass: YuNet faces and RTMDet people.
+# Headless: no GUI stack, and the contrib build is what carries FaceDetectorYN.
+opencv-contrib-python-headless>=4.10
 # HEIC/HEIF decoding where macOS `sips` is not available
 pillow-heif>=0.20; sys_platform != "darwin"
 

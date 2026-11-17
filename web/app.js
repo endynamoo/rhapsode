@@ -341,6 +341,12 @@ function bindUI() {
         : 'Manga quality: Fast - 720p FLUX.2 [klein], two steps');
     })
   );
+  $('#setPolish').addEventListener('click', async () => {
+    const next = $('#setPolish').getAttribute('aria-checked') !== 'true';
+    await saveSettings({ polishStills: next });
+    applySettings();
+    toast(next ? 'Polish pass on - each still is re-drawn once' : 'Polish pass off - stills are painted once');
+  });
   $('#setAutoScroll').addEventListener('click', () => {
     state.settings.autoScroll = !state.settings.autoScroll;
     state.autoScroll = state.settings.autoScroll;
@@ -569,6 +575,7 @@ function applySettings() {
   $('#setAutoScroll').setAttribute('aria-checked', String(s.autoScroll));
   $('#setRemote').setAttribute('aria-checked', String(!!s.remoteAccess));
   $('#setTranslate').setAttribute('aria-checked', String(s.translateToVoice !== false));
+  $('#setPolish').setAttribute('aria-checked', String(s.polishStills !== false));
   syncVoiceSelects();
   $('#speedSel').value = String(state.speed);
   if (state.doc && state.doc.viewer === 'epub' && state.view === 'page' && !$('#pageView').hidden) {

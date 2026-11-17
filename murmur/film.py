@@ -16,7 +16,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import config, engine, imaging, ocr, proc, prompts, speak, store
+from . import config, engine, imaging, ocr, polish, proc, prompts, speak, store
 
 SCENE_SECONDS = 75.0
 SCENE_MAX_UNITS = 20
@@ -942,6 +942,11 @@ def ensure_scene_image(doc: dict, chapter: int, scene: Scene,
         _finish_still(path)
         if _has_gutter(path):
             _crop_gutter(path)
+    if still_ready(path):
+        try:
+            polish.apply(path, prompt)
+        except Exception:  # a polish mistake must never lose the still
+            pass
     return path
 
 

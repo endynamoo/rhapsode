@@ -77,7 +77,7 @@ class BundleTests(unittest.TestCase):
     def test_trafilatura_dependencies_are_collected(self) -> None:
         # trafilatura imports these as separate distributions; missing them makes
         # every HTML and URL import a 500 in the installed app.
-        for module in ("justext", "htmldate", "courlan", "charset_normalizer", "lxml"):
+        for module in ("justext", "htmldate", "courlan", "charset_normalizer", "lxml", "cv2"):
             self.assertIn(f'"{module}"', self.text, f"{module} is not collected")
 
     def test_ocr_and_stills_hooks_are_present(self) -> None:

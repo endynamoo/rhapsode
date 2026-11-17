@@ -60,6 +60,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "remoteAccess": False,
     "translateToVoice": True,
     "filmQuality": "high",
+    "polishStills": True,
 }
 
 

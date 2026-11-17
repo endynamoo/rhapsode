@@ -47,6 +47,25 @@ video model runs anywhere in the app.
   as a soft `mov_text` track so the cut still plays. H.264 + AAC, hardware encoded
   where possible.
 
+## The polish pass
+
+Every painted still gets one **cleanup re-draw** before it is cached: FLUX.2 looks
+at its own output and paints over it at 0.32 strength, which sharpens halftone
+mush, settles stray linework and tightens faces without moving anything — no mask,
+so no seam. It runs only when a still actually contains people (a YuNet face
+check and an RTMDet person check decide that), and each still records the outcome
+in a `*.polish.json` sidecar keyed to the output hash, so a repaint polishes again
+and an unchanged still never does.
+
+- **Cost**: about three minutes per polished still on an RX 9070 XT — the model
+  reload dominates. Turn it off in **Settings → Polish stills** to paint at half
+  the time.
+- **What it does not fix**: hands. At this strength the model tidies ink and
+  contrast but leaves an ambiguous pen-hand a blob. Regional inpainting, driven by
+  a pose check, is the next step.
+- **Never destructive**: the pre-polish still is kept beside it as
+  `*.pre-polish.png`, and a failed re-draw leaves the original untouched.
+
 ## Install the stills engine once
 
 macOS (Apple Silicon, MLX):

@@ -49,6 +49,7 @@ packages = [
     "pypdfium2",
     "pypdfium2_raw",
     "bs4",
+    "cv2",
     "docx",
     "trafilatura",
     # trafilatura imports these as separate distributions; without them the
