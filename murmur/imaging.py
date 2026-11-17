@@ -8,7 +8,10 @@ image at this path for this prompt".
 """
 from __future__ import annotations
 
+import atexit
+import json
 import os
+import queue
 import subprocess
 import sys
 import threading
@@ -110,6 +113,112 @@ class PlaceholderBackend(ImageBackend):
         image.save(out_path, format="PNG")
 
 
+class FluxWorker:
+    """A resident `fluxgen --serve` painter: one model load per app session.
+
+    Loading the weights costs ~30 s of transfer plus a ROCm warm-up; paying that
+    once instead of once per still is the single biggest saving in the pipeline.
+    A second worker would not help: one image's steps are a chain, so two painters
+    only time-slice the card.
+    """
+
+    READY_TIMEOUT = 1200.0
+
+    def __init__(self, python: Path, script: Path | None) -> None:
+        self.python = python
+        self.script = script
+        self._proc = None
+        self._lock = threading.Lock()
+        self._counter = 0
+        atexit.register(self.stop)
+
+    def _env(self) -> dict:
+        env = dict(os.environ)
+        env.setdefault("HF_HOME", str(config.HOME / "models" / "hf"))
+        return env
+
+    @property
+    def alive(self) -> bool:
+        return self._proc is not None and self._proc.poll() is None
+
+    def _ensure(self) -> None:
+        if self.alive:
+            return
+        self.stop()
+        if self.script is None:
+            raise ImageError("fluxgen.py is missing from the installation.")
+        process = proc.popen(
+            [str(self.python), str(self.script), "--serve"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            bufsize=1,
+            cwd=str(config.APP_ROOT),
+            env=self._env(),
+        )
+        ready = self._read_line(process.stdout, self.READY_TIMEOUT)
+        if not ready or not ready.get("ready"):
+            process.kill()
+            detail = (ready or {}).get("error", "no answer from the painter")
+            raise ImageError(f"the painter did not start: {detail}")
+        self._proc = process
+
+    @staticmethod
+    def _read_line(stream, timeout: float) -> dict | None:
+        box: queue.Queue = queue.Queue(maxsize=1)
+
+        def reader() -> None:
+            try:
+                box.put(stream.readline())
+            except Exception:  # noqa: BLE001 - a closed pipe is a dead painter
+                box.put("")
+
+        threading.Thread(target=reader, name="flux-reader", daemon=True).start()
+        try:
+            line = box.get(timeout=timeout)
+        except queue.Empty:
+            return None
+        if not line:
+            return None
+        try:
+            return json.loads(line)
+        except ValueError:
+            return None
+
+    def run(self, job: dict, timeout: float = 900.0) -> None:
+        with self._lock:
+            self._ensure()
+            self._counter += 1
+            payload = dict(job, id=str(self._counter))
+            assert self._proc is not None and self._proc.stdin is not None
+            self._proc.stdin.write(json.dumps(payload) + "\n")
+            self._proc.stdin.flush()
+            answer = self._read_line(self._proc.stdout, timeout)
+            if answer is None:
+                self.stop()
+                raise ImageError("the painter stopped answering")
+            if not answer.get("ok"):
+                raise ImageError(str(answer.get("error") or "painting failed")[-900:])
+
+    def stop(self) -> None:
+        process, self._proc = self._proc, None
+        if process is None:
+            return
+        try:
+            if process.stdin is not None:
+                process.stdin.write('{"op": "quit"}\n')
+                process.stdin.flush()
+            process.wait(timeout=5)
+            return
+        except Exception:  # noqa: BLE001 - fall through to a hard kill
+            pass
+        try:
+            process.kill()
+        except Exception:  # noqa: BLE001 - already gone
+            pass
+
+
 class FluxPythonBackend(ImageBackend):
     """FLUX.2 [klein] through diffusers, in the image interpreter.
 
@@ -122,6 +231,8 @@ class FluxPythonBackend(ImageBackend):
 
     _probe: bool | None = None
     _probe_lock = threading.Lock()
+    _worker: "FluxWorker | None" = None
+    _last_error: str | None = None
 
     def __init__(self, model_key: str = DEFAULT_MODEL) -> None:
         self.model_key = model_key if model_key in MODELS else DEFAULT_MODEL
@@ -170,22 +281,46 @@ class FluxPythonBackend(ImageBackend):
         script = self.script
         if script is None:
             raise ImageError("fluxgen.py is missing from the installation.")
+        source = reference_image if reference_image and Path(reference_image).exists() else init_image
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.unlink(missing_ok=True)
+
+        job = {
+            "prompt": prompt,
+            "out": str(out_path),
+            "width": width,
+            "height": height,
+            "seed": int(seed),
+            "steps": spec["steps"],
+            "reference": str(source) if source is not None and Path(source).exists() else None,
+            "strength": float(strength) if source is not None else None,
+        }
+
+        worker = self.worker()
+        try:
+            worker.run(job, timeout=900)
+            if out_path.exists() and out_path.stat().st_size > 1024:
+                return
+            raise ImageError("the painter produced no image")
+        except Exception as exc:  # noqa: BLE001 - fall back to a one-shot run
+            self._last_error = str(exc)
+        self._run_once(script, job)
+
+    def _run_once(self, script: Path, job: dict) -> None:
+        """Slow path: a fresh interpreter, used when the resident painter fails."""
         env = dict(os.environ)
         env.setdefault("HF_HOME", str(config.HOME / "models" / "hf"))
         command = [
             str(self.python), str(script),
-            "--prompt", prompt,
-            "--width", str(width), "--height", str(height),
-            "--seed", str(int(seed)),
-            "--steps", str(spec["steps"]),
-            "--out", str(out_path),
+            "--prompt", job["prompt"],
+            "--width", str(job["width"]), "--height", str(job["height"]),
+            "--seed", str(job["seed"]),
+            "--steps", str(job["steps"]),
+            "--out", job["out"],
         ]
-        source = reference_image if reference_image and Path(reference_image).exists() else init_image
-        if source is not None and Path(source).exists():
-            command += ["--reference", str(source), "--strength", str(float(strength))]
-
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.unlink(missing_ok=True)
+        if job.get("reference"):
+            command += ["--reference", job["reference"]]
+        out_path = Path(job["out"])
         try:
             result = proc.run(
                 command, capture_output=True, text=True, timeout=900,
@@ -200,6 +335,18 @@ class FluxPythonBackend(ImageBackend):
         if result.returncode != 0 or not out_path.exists():
             tail = (result.stderr or result.stdout or "FLUX generation failed")[-900:]
             raise ImageError(tail.strip())
+
+    def worker(self) -> "FluxWorker":
+        """One resident painter per process, keyed to this interpreter."""
+        with self._probe_lock:
+            if self._worker is None:
+                self._worker = FluxWorker(self.python, self.script)
+            return self._worker
+
+
+def paint_job(job: dict, timeout: float = 900.0) -> None:
+    """Send one raw job to the resident painter (the polish pass uses this)."""
+    FluxPythonBackend().worker().run(job, timeout=timeout)
 
 
 class FluxKleinBackend(ImageBackend):

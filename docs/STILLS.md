@@ -50,15 +50,18 @@ video model runs anywhere in the app.
 ## The polish pass
 
 Every painted still gets one **cleanup re-draw** before it is cached: FLUX.2 looks
-at its own output and paints over it at 0.32 strength, which sharpens halftone
-mush, settles stray linework and tightens faces without moving anything — no mask,
-so no seam. It runs only when a still actually contains people (a YuNet face
-check and an RTMDet person check decide that), and each still records the outcome
-in a `*.polish.json` sidecar keyed to the output hash, so a repaint polishes again
-and an unchanged still never does.
+at its own output and re-draws it in two steps, which sharpens halftone mush,
+settles stray linework and tightens faces without moving anything — no mask, so no
+seam. It runs only when a still actually contains people (a YuNet face check and
+an RTMDet person check decide that), and each still records the outcome in a
+`*.polish.json` sidecar keyed to the output hash, so a repaint polishes again and
+an unchanged still never does.
 
-- **Cost**: about three minutes per polished still on an RX 9070 XT — the model
-  reload dominates. Turn it off in **Settings → Polish stills** to paint at half
+- **Cost**: ~10 s per polished still once the painter is warm — the model loads
+  once per session, not per image. The first still in a session pays ~75 s for the
+  15 GiB transfer and the ROCm warm-up. Turn it off in **Settings → Polish stills**
+  to skip the pass. Speed comes from one painter, not more: a single image's steps
+  are a chain, so extra workers only time-slice the card.
   the time.
 - **What it does not fix**: hands. At this strength the model tidies ink and
   contrast but leaves an ambiguous pen-hand a blob. Regional inpainting, driven by

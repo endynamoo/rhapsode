@@ -27,10 +27,9 @@ class FakeRun:
         self.stdout = ""
         self.stderr = ""
 
-    def __call__(self, command, **kwargs):
-        out = Path(command[command.index("--out") + 1])
-        _noise(out, self.size)
-        return self
+    def __call__(self, job, timeout=None):
+        _noise(Path(job["out"]), self.size)
+        return None
 
 
 def _still(folder: Path) -> Path:
@@ -53,7 +52,7 @@ class PolishGateTests(unittest.TestCase):
             polish.store, "get_settings", return_value={"polishStills": True}
         ), mock.patch.object(polish.detectors, "available", return_value=True), mock.patch.object(
             polish.detectors, "inspect", return_value={"faces": [], "people": [], "error": None}
-        ), mock.patch.object(polish.proc, "run") as run:
+        ), mock.patch.object(polish.imaging, "paint_job") as run:
             path = _still(Path(tmp))
             result = polish.apply(path, "a lighthouse")
             self.assertEqual("skipped", result["action"])
@@ -87,7 +86,7 @@ class PolishRunTests(unittest.TestCase):
     def test_refine_replaces_the_still_and_records_a_sidecar(self) -> None:
         settings, available, inspect, python = self._patches()
         with tempfile.TemporaryDirectory() as tmp, settings, available, inspect, python, mock.patch.object(
-            polish.proc, "run", FakeRun()
+            polish.imaging, "paint_job", FakeRun()
         ):
             path = _still(Path(tmp))
             before = path.read_bytes()
@@ -99,12 +98,12 @@ class PolishRunTests(unittest.TestCase):
             record = polish._read_record(path)
             self.assertEqual(polish.POLISH_VERSION, record["version"])
             self.assertEqual(1, record["faces_before"])
-            self.assertIn("strength", record)
+            self.assertEqual(polish.STEPS, record["steps"])
 
     def test_second_pass_on_an_unchanged_still_is_cached(self) -> None:
         settings, available, inspect, python = self._patches()
         with tempfile.TemporaryDirectory() as tmp, settings, available, inspect, python, mock.patch.object(
-            polish.proc, "run", side_effect=FakeRun()
+            polish.imaging, "paint_job", side_effect=FakeRun()
         ) as run:
             path = _still(Path(tmp))
             polish.apply(path, "a seated man")
@@ -114,10 +113,9 @@ class PolishRunTests(unittest.TestCase):
 
     def test_failed_render_keeps_the_original(self) -> None:
         settings, available, inspect, python = self._patches()
-        run = mock.MagicMock()
-        run.return_value = mock.MagicMock(returncode=1, stderr="boom", stdout="")
+        run = mock.MagicMock(side_effect=RuntimeError("boom"))
         with tempfile.TemporaryDirectory() as tmp, settings, available, inspect, python, mock.patch.object(
-            polish.proc, "run", run
+            polish.imaging, "paint_job", run
         ):
             path = _still(Path(tmp))
             before = path.read_bytes()

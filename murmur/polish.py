@@ -19,11 +19,14 @@ from pathlib import Path
 
 import numpy as np
 
-from . import config, detectors, imaging, proc, store
+from . import config, detectors, imaging, store
 
 POLISH_VERSION = "polish_v1"
-STRENGTH = 0.32
-STEPS = 4
+# One step: the 1/2/4-step renders are indistinguishable on our stills, and warm
+# that is ~10 s against 26 s and 101 s. Flux2KleinPipeline takes no `strength`, so
+# the step count is the only per-pass lever; the resident painter removes the
+# model load that used to dominate.
+STEPS = 1
 
 CLEAN_SUFFIX = (
     " Re-draw the same composition cleanly: consistent faces, correct hands with "
@@ -75,12 +78,6 @@ def _write_record(path: Path, record: dict) -> None:
         pass
 
 
-def _script() -> Path | None:
-    for candidate in (config.ASSET_ROOT / "fluxgen.py", Path(__file__).with_name("fluxgen.py")):
-        if candidate.exists():
-            return candidate
-    return None
-
 
 def apply(path: Path, prompt: str = "", force: bool = False) -> dict:
     """Polish one still in place. Never raises: painting must not depend on it."""
@@ -107,8 +104,7 @@ def apply(path: Path, prompt: str = "", force: bool = False) -> dict:
                              "reason": "no people", "output_hash": digest})
         return {"action": "skipped", "reason": "no people"}
 
-    script = _script()
-    if script is None or not config.IMAGE_PYTHON.exists():
+    if not config.IMAGE_PYTHON.exists():
         return {"action": "skipped", "reason": "no image engine"}
 
     try:
@@ -128,29 +124,25 @@ def apply(path: Path, prompt: str = "", force: bool = False) -> dict:
 
     out = path.with_suffix(".polish.png")
     out.unlink(missing_ok=True)
-    env = dict(__import__("os").environ)
-    env.setdefault("HF_HOME", str(config.HOME / "models" / "hf"))
-    command = [
-        str(config.IMAGE_PYTHON), str(script),
-        "--prompt", (prompt or "monochrome manga illustration").rstrip() + CLEAN_SUFFIX,
-        "--reference", str(path),
-        "--strength", str(STRENGTH),
-        "--steps", str(STEPS),
-        "--width", str(width), "--height", str(height),
-        "--seed", str(int(digest[:8], 16)),
-        "--out", str(out),
-    ]
+    job = {
+        "prompt": (prompt or "monochrome manga illustration").rstrip() + CLEAN_SUFFIX,
+        "out": str(out),
+        "width": width,
+        "height": height,
+        "seed": int(digest[:8], 16),
+        "steps": STEPS,
+        "reference": str(path),
+    }
     started = time.time()
     try:
-        result = proc.run(command, capture_output=True, text=True, timeout=900,
-                          cwd=str(config.APP_ROOT), env=env, errors="replace")
+        imaging.paint_job(job, timeout=900)
     except Exception as exc:  # noqa: BLE001 - reported, never raised
         _write_record(path, {"version": POLISH_VERSION, "action": "failed",
                              "error": str(exc), "output_hash": digest})
         return {"action": "failed", "error": str(exc)}
 
-    if result.returncode != 0 or not out.exists() or out.stat().st_size < imaging.MIN_STILL_BYTES:
-        tail = (result.stderr or result.stdout or "no output")[-400:]
+    if not out.exists() or out.stat().st_size < imaging.MIN_STILL_BYTES:
+        tail = "the painter produced no usable image"
         _write_record(path, {"version": POLISH_VERSION, "action": "failed",
                              "error": tail, "output_hash": digest})
         out.unlink(missing_ok=True)
@@ -166,7 +158,7 @@ def apply(path: Path, prompt: str = "", force: bool = False) -> dict:
     record = {
         "version": POLISH_VERSION,
         "action": "refined",
-        "strength": STRENGTH,
+        "steps": STEPS,
         "seconds": round(time.time() - started, 1),
         "input_hash": digest,
         "output_hash": _digest(path),
