@@ -116,29 +116,40 @@ is in [THIRD_PARTY.md](THIRD_PARTY.md).
 ## Changelog
 
 <!-- CHANGELOG:BEGIN -->
+## Changelog
 
-### [Unreleased]
+Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is generated from it by `scripts/changelog_render.py`, so edit the changelog, not this copy.
 
-### Added
+### Unreleased
 
-- **The installer proves itself before release.** A CI job on a clean Windows runner
-  builds the app and the setup program, installs it into a temporary directory,
-  checks that the engine script shipped, runs it, starts the app and asks it for
-  health, then uninstalls and confirms nothing is left behind.
-- **A running changelog** (`CHANGELOG.md`) with a truncated copy at the bottom of the
-  README; a test fails when the copy is stale, so it cannot drift from the code.
-- `scripts/build_installer.ps1` builds and refuses to hand over an installer that is
-  not the version in the tree - the mistake that once reinstalled the previous build
-  while reporting success.
+**Added**
 
-### [0.1.0-alpha] - 2026-11-16
+- Troubleshooting page in the app: the three guards, where the logs live, and what was already fixed.
+- The RAM probe the painting guard calls, and the RAM it measured shown in Settings.
 
-### Added
+**Fixed**
 
-- First public source drop: local read-aloud with Kokoro-82M, a book view with
-  word-level highlighting, on-device OCR, translation, manga stills, chapter video,
-  20 themes, Quick Read, and a Windows installer.
+- Painting refuses to start without enough free system RAM, and reports what was left instead of dying mid-still.
+- A resident painter survives an out-of-memory kill instead of dying, and is reaped with the app, including the one-shot fallback.
+- A still that is already painted is never repainted on a later session.
+- Both halves of the app log to file, because the window and the server have each died silently.
+- The engine switch posts JSON — the shared api helper sets no content type.
 
-*…and 16 more entries in [CHANGELOG.md](CHANGELOG.md).*
+### 0.2.0-alpha - 2026-11-17
+
+**Added**
+
+- Named engine profiles (`lite`, `balanced`, `max`, `cpu`) with auto-install, and an Engine panel in Settings: profile summary, painter status and Restart engine.
+- Stills polish pass: pose detection, a masked redraw of the hands, off by default, reported in `/api/health`.
+- q4 GGUF transformer path — FLUX.2 klein on an 8 GB card, precision tier chosen from free VRAM.
+- Resident painter: one model load per session, guarded by a lock that survives restarts.
+- Instrumentation for the painter and the model caches; health reports the painter's precision.
+- Measured q4 numbers and per-card precision tiers in the docs.
+
+**Changed**
+
+- Hot caches are memory-resident and the database connection is shared.
+
+*...and 11 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->

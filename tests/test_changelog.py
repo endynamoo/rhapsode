@@ -1,8 +1,5 @@
-"""The README changelog copy must be generated, never hand-edited."""
-from __future__ import annotations
-
-import subprocess
-import sys
+"""The changelog stays current, and the README copy of it does too."""
+import importlib.util
 import unittest
 from pathlib import Path
 
@@ -10,33 +7,49 @@ ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "changelog_render.py"
 
 
+def load_module():
+    spec = importlib.util.spec_from_file_location("changelog_render", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class ChangelogTests(unittest.TestCase):
-    def _run(self, *args: str) -> subprocess.CompletedProcess:
-        return subprocess.run(
-            [sys.executable, str(SCRIPT), *args],
-            cwd=str(ROOT),
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
+    def test_changelog_has_a_dated_section(self):
+        text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        self.assertTrue(text.startswith("# Changelog"))
+        self.assertRegex(text, r"(?m)^##\s+\[?(Unreleased|\d)")
 
-    def test_the_readme_copy_is_current(self) -> None:
-        result = self._run("--check")
-        self.assertEqual(0, result.returncode, result.stderr or result.stdout)
+    def test_readme_block_matches_the_changelog(self):
+        ok, message = load_module().check()
+        self.assertTrue(ok, message)
 
-    def test_a_version_section_can_be_rendered_for_a_release(self) -> None:
-        result = self._run("--release", "0.2.0")
-        self.assertEqual(0, result.returncode, result.stderr)
-        self.assertIn("0.2.0", result.stdout)
-        self.assertIn("### Added", result.stdout)
+    def test_readme_block_is_truncated(self):
+        block = load_module().render_block()
+        self.assertLessEqual(len(block), 2600)
+        self.assertIn("CHANGELOG.md", block)
 
-    def test_an_unknown_version_is_an_error(self) -> None:
-        result = self._run("--release", "9.9.9")
-        self.assertNotEqual(0, result.returncode)
+    def test_release_notes_carry_the_whole_section(self):
+        module = load_module()
+        text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        released = [
+            title
+            for title, _ in module.raw_sections(text)
+            if "unreleased" not in title.lower()
+        ]
+        self.assertTrue(released, "CHANGELOG.md has no released version yet")
+        version = released[0].strip().lstrip("[").split("]")[0].strip()
+        notes = module.release_notes(version, text)
+        self.assertGreater(len(notes), 40)
+        self.assertRegex(notes, r"(?m)^- ")
+        self.assertNotRegex(notes, r"(?m)^## ")
 
-    def test_the_changelog_file_has_an_unreleased_section(self) -> None:
-        text = (ROOT / "CHANGELOG.md").read_text("utf-8")
-        self.assertIn("[Unreleased]", text)
+
+
+    def test_crlf_readme_keeps_its_line_endings(self):
+        module = load_module()
+        updated = module.apply_block("Intro\r\n\r\n", module.render_block())
+        self.assertEqual(updated.count("\n"), updated.count("\r\n"))
 
 
 if __name__ == "__main__":

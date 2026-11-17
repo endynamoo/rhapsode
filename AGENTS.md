@@ -442,6 +442,14 @@ Sections 0-9 are about installing and running. This section is about changing th
   did **not** verify. Never describe unverified work as working.
 - **Data.** Never delete or rewrite the library directory, `*.db`, or downloaded weights to
   "fix" a problem; back up first and say so.
+- **Changelog.** `CHANGELOG.md` is a running history: add an entry under `## [Unreleased]` in the
+  same commit as the change (Added / Changed / Fixed / Removed / Security), and move it under
+  `## [<version>] - YYYY-MM-DD` when a version is cut. Then run
+  `python scripts\changelog_render.py` - it mirrors a truncated copy into the `## Changelog` block
+  at the bottom of `README.md`, and `tests/test_changelog.py` fails when that copy is stale. A
+  GitHub release carries the detailed section, not the truncated one:
+  `python scripts\changelog_render.py --release 0.2.0-alpha > notes.md` then
+  `gh release create v0.2.0-alpha --notes-file notes.md`.
 - **Scope.** Do not reformat or tidy files outside the task, and do not add dependencies
   without a reason in the commit body.
 
