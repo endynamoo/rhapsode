@@ -19,9 +19,13 @@ This is a plan plus the architecture it requires.
 - Capability probe exposed through `/api/health`.
 - Pillow-based TIFF/BMP/WebP conversion with a `sips` fallback; HEIC uses
   `pillow-heif` when installed.
+- WebView2 desktop window on Windows and GTK/WebKitGTK on Linux, through
+  pywebview, alongside the browser UI.
+- A per-user Windows installer (Inno Setup, no admin prompt), built and
+  installed from a clean runner in CI.
 
-Still planned: native Windows/Linux packages, DirectML/ROCm/OpenVINO image
-backends, WebView2/GTK desktop builds, and installers.
+Still planned: Linux packages, DirectML/OpenVINO image backends, and signed
+installers.
 
 ---
 
@@ -31,9 +35,9 @@ backends, WebView2/GTK desktop builds, and installers.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | A (current) | macOS 13+, Apple Silicon | WKWebView | Kokoro ONNX (CPU/CoreML) | Vision | FLUX.2 klein via MLX | FLUX.2 klein 720p (MLX) | `.app` + DMG |
 | A | macOS Intel | WKWebView | Kokoro ONNX CPU | Vision | CPU painting, opt-in | CPU painting, opt-in | `.app` + DMG |
-| B | Windows 11, NVIDIA | WebView2 | Kokoro ONNX (CUDA provider) | Windows OCR | FLUX.2 klein via diffusers CUDA (≥12 GB) | FLUX.2 klein 720p CUDA | MSIX or NSIS |
-| B | Windows 11, AMD (ROCm) | WebView2 | Kokoro ONNX (CPU or DirectML) | Windows OCR | FLUX.2 klein via diffusers ROCm (≥12 GB) | FLUX.2 klein 720p ROCm | MSIX or NSIS |
-| B | Windows 11, Intel | WebView2 | Kokoro ONNX (DirectML/OpenVINO) | Windows OCR | placeholder (no FLUX path yet) | placeholder | MSIX or NSIS |
+| B | Windows 11, NVIDIA | WebView2 | Kokoro ONNX (CUDA provider) | Windows OCR | FLUX.2 klein via diffusers CUDA (≥12 GB) | FLUX.2 klein 720p CUDA | Inno Setup installer |
+| B | Windows 11, AMD (ROCm) | WebView2 | Kokoro ONNX (CPU or DirectML) | Windows OCR | FLUX.2 klein via diffusers ROCm (≥12 GB) | FLUX.2 klein 720p ROCm | Inno Setup installer |
+| B | Windows 11, Intel | WebView2 | Kokoro ONNX (DirectML/OpenVINO) | Windows OCR | placeholder (no FLUX path yet) | placeholder | Inno Setup installer |
 | B | Linux, NVIDIA | GTK/WebKitGTK | Kokoro ONNX (CUDA) | Tesseract | FLUX.2 klein diffusers CUDA | FLUX.2 klein 720p CUDA | AppImage + deb |
 | C | Linux, AMD | GTK/WebKitGTK | Kokoro ONNX (ROCm) | Tesseract | FLUX.2 klein diffusers ROCm | FLUX.2 klein 720p ROCm | AppImage + deb |
 | C | Linux, Intel | GTK/WebKitGTK | Kokoro ONNX (OpenVINO) | Tesseract | placeholder | placeholder | AppImage + deb |

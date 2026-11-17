@@ -110,7 +110,9 @@ def render_block(changelog_text: str | None = None) -> str:
         if shown >= MIN_BULLETS and used >= BUDGET:
             break
 
-    lines = [BEGIN, "## Changelog", ""]
+    # README.md already has a "## Changelog" heading above the markers; emitting
+    # another one here rendered as two headings on the repository front page.
+    lines = [BEGIN, ""]
     lines.append(
         "Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this "
         "block is generated from it by `%s`, so edit the changelog, not this copy."
@@ -152,6 +154,7 @@ def render_block(changelog_text: str | None = None) -> str:
 def apply_block(readme_text: str, block: str) -> str:
     """Return readme_text with the generated block in place, markers included."""
     newline = "\r\n" if "\r\n" in readme_text else "\n"
+    ends_with_newline = readme_text.endswith(("\n", "\r"))
     text = readme_text.replace("\r\n", "\n")
     block_lf = block.replace("\r\n", "\n")
     start = text.find(BEGIN)
@@ -164,6 +167,8 @@ def apply_block(readme_text: str, block: str) -> str:
         )
     else:
         text = text[:start] + block_lf.rstrip("\n") + text[end + len(END):]
+    if ends_with_newline and not text.endswith("\n"):
+        text += "\n"
     if newline != "\n":
         text = text.replace("\n", newline)
     return text
