@@ -144,6 +144,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 **Fixed**
 
+- `scripts\build_installer.ps1` builds on a clean machine without `.venv`, and survives PyInstaller's stderr logging under Windows PowerShell, so the installer workflow on CI can run it.
 - Painting refuses to start without enough free system RAM, and reports what was left instead of dying mid-still.
 - A resident painter survives an out-of-memory kill instead of dying, and is reaped with the app, including the one-shot fallback.
 - A still that is already painted is never repainted on a later session.
@@ -155,9 +156,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 **Added**
 
 - Named engine profiles (`lite`, `balanced`, `max`, `cpu`) with auto-install, and an Engine panel in Settings: profile summary, painter status and Restart engine.
-- Stills polish pass: pose detection, a masked redraw of the hands, off by default, reported in `/api/health`.
-- q4 GGUF transformer path — FLUX.2 klein on an 8 GB card, precision tier chosen from free VRAM.
 
-*...and 15 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 17 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
