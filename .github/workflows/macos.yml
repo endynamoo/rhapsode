@@ -2,8 +2,9 @@ name: macos
 
 # A clean macOS runner: build the .app, self-test it, wrap it in a
 # drag-install DMG, and attach the DMG to the release when a v* tag is pushed.
-# The bundle is ad-hoc signed (no Developer ID), so the first launch needs
-# right-click -> Open. Stills generation is installed per-user at runtime.
+# Two legs: arm64 on macos-latest and x86_64 on macos-15-intel; each DMG is
+# named with its arch. The bundle is ad-hoc signed (no Developer ID), so the
+# first launch needs right-click -> Open. Stills are installed per-user later.
 
 on:
   push:
@@ -28,9 +29,19 @@ concurrency:
 
 jobs:
   build:
-    name: build + dmg (macos-latest)
-    runs-on: macos-latest
+    name: build + dmg (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
+    strategy:
+      # The arm64 pool is frequently congested; a slow Apple Silicon leg must not
+      # cancel a valid Intel build. Each leg ships the DMG for its own arch.
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
     steps:
       - uses: actions/checkout@v4
 
@@ -60,7 +71,7 @@ jobs:
       - name: Upload the DMG as an artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Rhapsode-macos-dmg
+          name: Rhapsode-macos-dmg-${{ matrix.arch }}
           path: dist/*.dmg
           if-no-files-found: error
 
