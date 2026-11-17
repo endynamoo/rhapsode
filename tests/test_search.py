@@ -218,11 +218,38 @@ class IncrementalTests(unittest.TestCase):
             search.index_all()
             ids = [row["id"] for row in chunk_rows(doc["id"])]
 
-            store.touch(doc["id"])  # a position save moves `updated`, not the text
+            store.update_doc(doc["id"], title="The Lighthouse Keeper")
             summary = search.index_all()
             self.assertEqual(1, summary["documents"])
             self.assertEqual("unchanged", summary["results"][0]["state"])
             self.assertEqual(ids, [row["id"] for row in chunk_rows(doc["id"])])
+            self.assertEqual(
+                "The Lighthouse Keeper", search.search("lighthouse")["hits"][0]["title"]
+            )
+
+    def test_reading_a_book_does_not_requeue_it(self) -> None:
+        with temp_home():
+            doc = make_doc("The Lighthouse", UNITS)
+            search.index_all()
+            self.assertEqual(0, search.status()["pending"])
+
+            store.update_doc(doc["id"], position=3)
+            store.touch(doc["id"])
+            self.assertEqual(0, search.status()["pending"])
+            self.assertEqual(0, search.index_all()["documents"])
+
+    def test_a_library_from_before_this_feature_still_skips_unchanged_books(self) -> None:
+        with temp_home():
+            doc = make_doc("The Lighthouse", UNITS)
+            with store._db() as conn:
+                # What an older murmur.db looks like after the ALTER TABLE.
+                conn.execute("UPDATE docs SET content_updated = 0 WHERE id = ?", (doc["id"],))
+            store.init()  # the migration the app runs at startup
+            self.assertGreater(store.get_doc(doc["id"])["contentUpdated"], 0)
+
+            search.index_all()
+            self.assertEqual(0, search.status()["pending"])
+            self.assertEqual(0, search.index_all()["documents"])
 
     def test_an_interrupted_index_resumes_without_duplicates(self) -> None:
         with temp_home():

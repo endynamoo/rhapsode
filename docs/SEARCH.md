@@ -33,9 +33,11 @@ the time to rebuild, and the next index pass recreates it.
 
 ### Incremental and resumable
 
-- Each book stores a **signature** (`updated`, character count, word count, page
-  count). An index pass compares signatures from `documents` without reading any
-  body; unchanged books cost one row each.
+- Each book stores a **signature** (the content stamp `content_updated`,
+  character count, word count, page count, title). `content_updated` moves only
+  when the text changes, so turning a page does not look like editing the book.
+  An index pass compares signatures from `documents` without reading any body;
+  unchanged books cost one row each.
 - When the signature moves, the body hash decides whether the text really
   changed. A rename or a saved position refreshes the metadata and keeps the
   chunks.

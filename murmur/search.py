@@ -17,11 +17,12 @@ Design
   to be calibrated against the other. A small recency term then nudges
   documents that were read recently (half-life 30 days, at most 0.002, which is
   about seven places in one list at the top of the ranking).
-* **Incremental.** A book is skipped while its cheap signature (updated, chars,
-  words, pages) is unchanged; when the signature moves, its body hash decides
-  whether the text really changed. Rows are written in batches and the book is
-  marked ``partial`` until the last batch commits, so an interrupted run
-  resumes at the next unit instead of duplicating rows.
+* **Incremental.** A book is skipped while its cheap signature (the content
+  stamp `docs.content_updated`, chars, words, pages, title) is unchanged; when
+  the signature moves, its body hash decides whether the text really changed.
+  Rows are written in batches and the book is marked ``partial`` until the last
+  batch commits, so an interrupted run resumes at the next unit instead of
+  duplicating rows.
 * **Fallback.** Without the embedding model (not downloaded, or switched off
   with ``MURMUR_SEMANTIC=off``) search is lexical-only, and both the API and
   the UI say so. ``books.embedded < books.chunks`` is the queue for embedding
@@ -178,11 +179,25 @@ def _db():
 
 
 def _signature(doc: dict) -> str:
-    """The cheap half of the change check: no body is read to compare it."""
+    """The cheap half of the change check: no body is read to compare it.
+
+    ``contentUpdated`` (``content_updated`` on a raw stat row) moves only when
+    the text does; the ordinary ``updated`` moves on every position save, and
+    including it would make reading a book look like editing it. The title is
+    here so a rename refreshes the copy stored with the chunks.
+    """
+    content = doc.get("contentUpdated") or doc.get("content_updated") or 0
+    page_count = doc.get("pageCount") or doc.get("page_count") or 0
     return "|".join(
-        str(doc.get(key) or 0)
-        for key in ("updated", "chars", "words")
-    ) + "|" + str(doc.get("pageCount") or doc.get("page_count") or 0)
+        str(part)
+        for part in (
+            content,
+            doc.get("chars") or 0,
+            doc.get("words") or 0,
+            page_count,
+            doc.get("title") or "",
+        )
+    )
 
 
 def _fingerprint(body: str) -> str:
