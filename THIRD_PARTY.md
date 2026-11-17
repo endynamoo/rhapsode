@@ -1,15 +1,15 @@
 # Third-party components
 
-Murmur's own source code is released under the MIT licence in [`LICENSE`](LICENSE).
+Murmur's own source code is released under the MIT license in [`LICENSE`](LICENSE).
 This file lists the third-party software, model weights, and data it uses, and
-the licences they carry. It is a notice, not legal advice.
+the licenses they carry. It is a notice, not legal advice.
 
 ## Python runtime dependencies
 
 Installed from PyPI by `./run.sh` / `build_app.sh`; not copied into this
 repository.
 
-| Component | Used for | Licence |
+| Component | Used for | License |
 | --- | --- | --- |
 | `kokoro-onnx` | Kokoro ONNX inference wrapper | MIT |
 | `onnxruntime` | Model execution | MIT |
@@ -42,7 +42,7 @@ repository.
 Installed on demand into `image-venv` inside the data directory; weights are
 downloaded separately and are not bundled.
 
-| Component | Used for | Licence |
+| Component | Used for | License |
 | --- | --- | --- |
 | mflux | FLUX.2 inference on Apple MLX (macOS) | MIT |
 | diffusers | FLUX.2 inference on CUDA/ROCm (Windows, Linux) | Apache-2.0 |
@@ -55,14 +55,14 @@ Setup: `./scripts/setup_flux.sh` on macOS, `scripts\setup_image.ps1` on Windows.
 
 Two dependencies of `kokoro-onnx` are **GPL-3.0**:
 
-| Component | Used for | Licence |
+| Component | Used for | License |
 | --- | --- | --- |
 | `phonemizer` | Python bindings to the eSpeak NG C library | GPL-3.0 |
 | `espeakng-loader` + eSpeak NG data | English text-to-phoneme conversion | GPL-3.0 |
 
 They are loaded as separate Python/C libraries and are not modified by Murmur.
 Because they are GPL, a **binary distribution that bundles them** (for example a
-prebuilt `Rhapsode.app`) must comply with GPL-3.0: include the licence texts and
+prebuilt `Rhapsode.app`) must comply with GPL-3.0: include the license texts and
 offer the corresponding source. Upstream sources are available at:
 
 - https://github.com/bootphon/phonemizer
@@ -77,7 +77,7 @@ their own environment. Murmur's own code remains MIT either way.
 
 Weights are downloaded at runtime and are **not** part of this repository.
 
-| Model | Licence | Notes |
+| Model | License | Notes |
 | --- | --- | --- |
 | Kokoro-82M (`kokoro-v1.0.onnx`, `voices-v1.0.bin`) | Apache-2.0 | Voice styles from the Kokoro model card. |
 | FLUX.2 [klein] 4B | Apache-2.0 | The stills engine, both quality presets. Downloaded by `scripts/setup_flux.sh` (macOS) or `scripts/setup_image.ps1` (Windows/Linux). |
@@ -102,7 +102,7 @@ weights, you are redistributing the models and must follow their terms.
 ## Fonts and dictionaries
 
 - Japanese/Chinese dictionaries come from `misaki` extras and `pyopenjtalk`;
-  see those packages for the bundled data licences.
+  see those packages for the bundled data licenses.
 - The app icon and all UI artwork are original to Murmur (MIT).
 
 ## Replacing the remaining GPL components
