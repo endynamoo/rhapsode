@@ -81,6 +81,8 @@ if ($gpuVisible -ne 'True' -and $base) {
 }
 
 $env:HF_HOME = Join-Path $homeDir 'models\hf'
+"fetching the q4 transformer (2.4 GB; this is what makes an 8 GB card work)"
+& $python -c "from huggingface_hub import hf_hub_download; print(hf_hub_download('unsloth/FLUX.2-klein-4B-GGUF', 'flux-2-klein-4b-Q4_K_M.gguf'))"
 "checking the GPU is visible"
 & $python -c "import torch; print('torch', torch.__version__, 'gpu', torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else '')"
 

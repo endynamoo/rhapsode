@@ -57,49 +57,114 @@ def _reserve_mib(torch) -> float:
         return 2500.0
 
 
-def _decide(torch, device: str, requested_offload: bool) -> tuple[bool, str]:
-    """Pick full residency or CPU offload, and refuse when neither fits.
+def _gguf_path() -> Path | None:
+    """The q4 transformer, if the machine has one downloaded."""
+    explicit = os.environ.get("MURMUR_FLUX_GGUF")
+    if explicit:
+        path = Path(explicit)
+        return path if path.exists() else None
+    roots = [Path(os.environ.get("HF_HOME", ""))] if os.environ.get("HF_HOME") else []
+    roots += [Path.home() / ".cache" / "huggingface"]
+    for root in roots:
+        hub = root / "hub"
+        if not hub.exists():
+            continue
+        for path in hub.rglob("*klein*Q4_K_M*.gguf"):
+            return path
+        for path in hub.rglob("*klein*Q4*.gguf"):
+            return path
+    return None
 
-    Full residency of klein-4B is ~15.5 GiB of a 16 GB card, which leaves nothing
-    for the desktop or a remote-desktop encoder — that is how this machine locks
-    up. Offload keeps one component resident (~9 GiB) and streams the rest, which
-    costs time but not the session.
+
+def _plan(torch, device: str) -> dict:
+    """Choose precision and where the text encoder lives, from free VRAM.
+
+    8 GB cards are the target (5060/4060/9060 class): the q4 transformer is 2.6 GiB
+    and the VAE 0.3 GiB, so the card keeps its headroom — but the text encoder
+    (Qwen3, ~8 GiB in bf16) only fits on bigger cards and stays on the CPU
+    elsewhere. Encoding a prompt on the CPU costs seconds, once per prompt.
     """
-    if device != "cuda":
-        return requested_offload, "non-cuda device"
-    free, total = _vram(torch)
     reserve = _reserve_mib(torch)
-    full = float(os.environ.get("MURMUR_FLUX_FULL_VRAM_MIB", "15500"))
-    offload_need = float(os.environ.get("MURMUR_FLUX_OFFLOAD_MIB", "9000"))
+    free, total = _vram(torch)
+    requested = (os.environ.get("MURMUR_FLUX_PRECISION") or "").strip().lower()
+    gguf = _gguf_path()
+    offload = os.environ.get("MURMUR_FLUX_OFFLOAD") == "1"
+
+    if device != "cuda":
+        return {"precision": "bf16", "offload": offload, "text_device": device, "why": "non-cuda device"}
     if free <= 0:
-        return requested_offload, "VRAM unknown"
-    if requested_offload:
-        return True, "offload requested"
-    if free >= full + reserve:
-        return False, f"{free:.0f} MiB free: full residency with {reserve:.0f} MiB spare"
-    if free >= offload_need + reserve:
-        return True, (
-            f"only {free:.0f} MiB free ({total:.0f} total, {reserve:.0f} reserved): "
-            "CPU offload, so the desktop keeps its memory"
+        return {"precision": "bf16", "offload": offload, "text_device": device, "why": "VRAM unknown"}
+
+    def q4(with_text_on_gpu: bool) -> dict:
+        return {
+            "precision": "q4", "gguf": gguf, "offload": False,
+            "text_device": "cuda" if with_text_on_gpu else "cpu",
+            "why": (
+                f"{free:.0f} MiB free of {total:.0f} ({reserve:.0f} reserved): q4 transformer"
+                + (", text encoder on the GPU" if with_text_on_gpu else ", text encoder on the CPU")
+            ),
+        }
+
+    if requested == "q4" or (requested != "bf16" and gguf and free < 18_500):
+        if gguf is None:
+            if free >= 9_000 + reserve:
+                return {"precision": "bf16", "offload": True, "text_device": "cuda",
+                        "why": "no q4 transformer available: bf16 with CPU offload"}
+            raise SystemExit(
+                f"only {free:.0f} MiB free and no q4 transformer on disk; "
+                "run scripts\\setup_image.ps1 to fetch it."
+            )
+        if free >= 11_500 + reserve:
+            return q4(True)
+        if free >= 3_500 + reserve:
+            return q4(False)
+        raise SystemExit(
+            f"refusing to paint: {free:.0f} MiB of {total:.0f} MiB free, "
+            f"{reserve:.0f} MiB reserved for the desktop. Close the other GPU job."
         )
+
+    if free >= 15_500 + reserve:
+        return {"precision": "bf16", "offload": False, "text_device": "cuda",
+                "why": f"{free:.0f} MiB free: full bf16 residency"}
+    if free >= 9_000 + reserve:
+        return {"precision": "bf16", "offload": True, "text_device": "cuda",
+                "why": f"{free:.0f} MiB free: bf16 with CPU offload"}
     raise SystemExit(
         f"refusing to load: {free:.0f} MiB of {total:.0f} MiB is free and "
-        f"{reserve:.0f} MiB is reserved for the desktop and the remote session. "
-        "Close the other GPU job (or lower MURMUR_FLUX_RESERVE_MB knowingly)."
+        f"{reserve:.0f} MiB is reserved for the desktop and the remote session."
     )
 
 
-def _load(torch, device: str, offload: bool):
+def _load(torch, device: str, plan: dict):
     from diffusers import Flux2KleinPipeline
 
     dtype = torch.bfloat16 if device != "cpu" else torch.float32
-    pipe = Flux2KleinPipeline.from_pretrained(MODEL_ID, torch_dtype=dtype)
-    if offload:
-        # Text encoder and transformer take turns on the card; slower, but it
-        # fits where a full residency does not.
-        pipe.enable_model_cpu_offload()
+    if plan.get("precision") == "q4" and plan.get("gguf"):
+        from diffusers import Flux2Transformer2DModel, GGUFQuantizationConfig
+
+        transformer = Flux2Transformer2DModel.from_single_file(
+            str(plan["gguf"]),
+            config=MODEL_ID,
+            subfolder="transformer",
+            quantization_config=GGUFQuantizationConfig(compute_dtype=torch.bfloat16),
+            torch_dtype=torch.bfloat16,
+        )
+        pipe = Flux2KleinPipeline.from_pretrained(
+            MODEL_ID, transformer=transformer, torch_dtype=torch.bfloat16
+        )
     else:
-        pipe = pipe.to(device)
+        pipe = Flux2KleinPipeline.from_pretrained(MODEL_ID, torch_dtype=torch.bfloat16)
+
+    if plan.get("offload"):
+        pipe.enable_model_cpu_offload()
+        pipe.set_progress_bar_config(disable=True)
+        return pipe
+
+    pipe.transformer.to(device)
+    pipe.vae.to(device)
+    text_device = plan.get("text_device") or device
+    if hasattr(pipe, "text_encoder") and pipe.text_encoder is not None:
+        pipe.text_encoder.to(text_device)
     pipe.set_progress_bar_config(disable=True)
     return pipe
 
@@ -190,15 +255,15 @@ def generate(
     if device == "cpu" and not os.environ.get("MURMUR_ALLOW_CPU_FILM"):
         raise SystemExit("no GPU is visible to torch; refusing to paint on the CPU")
 
-    offload, why = _decide(torch, device, os.environ.get("MURMUR_FLUX_OFFLOAD") == "1")
-    print(f"fluxgen: {why}", file=sys.stderr, flush=True)
+    plan = _plan(torch, device)
+    print(f"fluxgen: {plan['why']}", file=sys.stderr, flush=True)
     try:
-        pipe = _load(torch, device, offload)
+        pipe = _load(torch, device, plan)
     except RuntimeError as exc:
         if "out of memory" not in str(exc).lower():
             raise
         torch.cuda.empty_cache()
-        pipe = _load(torch, device, True)
+        pipe = _load(torch, device, dict(plan, offload=True))
 
     _paint(
         pipe, torch, device,
@@ -295,19 +360,19 @@ def serve() -> int:
 
 def _serve_loop(torch, device: str) -> int:
     try:
-        offload, why = _decide(torch, device, os.environ.get("MURMUR_FLUX_OFFLOAD") == "1")
+        plan = _plan(torch, device)
     except SystemExit as exc:
         print(json.dumps({"ready": False, "error": str(exc)}), flush=True)
         return 2
     try:
-        pipe = _load(torch, device, offload)
+        pipe = _load(torch, device, plan)
     except RuntimeError as exc:
         if "out of memory" not in str(exc).lower():
             raise
         torch.cuda.empty_cache()
-        pipe = _load(torch, device, True)
-        why += "; retried with CPU offload after an OOM"
-    print(json.dumps({"ready": True, "model": MODEL_ID, "vram": why}), flush=True)
+        pipe = _load(torch, device, dict(plan, offload=True))
+        plan["why"] += "; retried with CPU offload after an OOM"
+    print(json.dumps({"ready": True, "model": MODEL_ID, "vram": plan["why"], "precision": plan.get("precision")}), flush=True)
 
     cache: dict = {}
     for line in sys.stdin:

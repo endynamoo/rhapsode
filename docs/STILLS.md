@@ -110,14 +110,25 @@ RX 9070 XT, 1080p High takes about two minutes per still including model load, a
 
 ## GPU support
 
-| Platform | Stills |
-|---|---|
-| macOS Apple Silicon | MLX through mflux |
-| macOS Intel | CPU only, opt-in |
-| Windows / Linux, NVIDIA | diffusers on CUDA |
-| Windows / Linux, AMD | diffusers on ROCm |
-| Any, CPU | opt-in (`MURMUR_ALLOW_CPU_FILM=1`), hours per still |
-| No GPU torch | placeholder painter, clearly labelled in the UI |
+| Card | What runs | Peak VRAM |
+|---|---|---|
+| 20 GB+ | bf16 transformer and text encoder | ~16 GB |
+| 12–16 GB | bf16 with CPU offload, or q4 when `MURMUR_FLUX_PRECISION=q4` | ~9 GB |
+| **8 GB (5060/4060/9060 class)** | **q4 transformer, text encoder on the CPU** | **~5 GB** |
+| 6 GB | q4, text encoder on the CPU, Fast preset | ~5 GB |
+| Any, CPU | opt-in (`MURMUR_ALLOW_CPU_FILM=1`), hours per still | — |
+| No GPU torch | placeholder painter, clearly labelled in the UI | — |
+
+Precision is chosen from free VRAM at load time, not from the model name: the q4
+transformer (2.4 GB on disk, ~2.6 GiB resident) plus the VAE is enough that an 8 GB
+card keeps its desktop. The text encoder is the other half — Qwen3 is ~8 GiB in
+bf16 — so it stays on the CPU below ~14 GB of free VRAM; encoding a prompt there
+costs seconds, once per prompt.
+
+`MURMUR_FLUX_RESERVE_MB` (default 2500) is the headroom the painter refuses to
+touch. Without it, a 15.5 GiB bf16 load on a 16 GB card leaves ~1 GB for Windows
+and the remote-desktop encoder, and the whole session stalls — which is exactly
+what happened here before the guard existed.
 
 ## Murmur engine sidecar
 
