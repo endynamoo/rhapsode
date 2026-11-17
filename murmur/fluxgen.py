@@ -108,6 +108,14 @@ def _plan(torch, device: str) -> dict:
     """
     reserve = _reserve_mib(torch)
     free, total = _vram(torch)
+    ram_free, ram_total = _ram()
+    floor = _ram_floor_mib()
+    if ram_free and ram_free < floor:
+        raise SystemExit(
+            f"refusing to paint: only {ram_free:.0f} MiB of {ram_total:.0f} MiB system "
+            f"memory is free (floor {floor:.0f} MiB). Close something first - loading "
+            "the model needs RAM as well as VRAM."
+        )
     requested = (os.environ.get("MURMUR_FLUX_PRECISION") or "").strip().lower()
     text_device = (os.environ.get("MURMUR_FLUX_TEXT_DEVICE") or "").strip().lower()
     gguf = _gguf_path()
@@ -223,6 +231,10 @@ def _stats(torch, device: str, started: float, mode: str, width: int, height: in
         "height": height,
         "steps": steps,
     }
+    ram_free, ram_total = _ram()
+    if ram_free:
+        out["ram_free_gib"] = round(ram_free / 1024, 2)
+        out["ram_total_gib"] = round(ram_total / 1024, 2)
     if device == "cuda":
         try:
             out["peak_gib"] = round(torch.cuda.max_memory_allocated() / 2**30, 2)
