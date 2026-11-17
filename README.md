@@ -4,7 +4,7 @@ A read-aloud app that paints manga stills, entirely on your own machine. Drop in
 book, a PDF, a scanned page or a screenshot and it reads to you in a local voice —
 no account, no cloud, no per-word billing.
 
-![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![licence](https://img.shields.io/badge/licence-MIT-green) ![status](https://img.shields.io/badge/version-0.2.0--alpha-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml)
+![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/version-0.2.0--alpha-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml)
 
 ## What it does
 
@@ -83,7 +83,7 @@ verification checklist live in **[AGENTS.md](AGENTS.md)**.
 | [docs/CONCURRENCY.md](docs/CONCURRENCY.md) | Several agents, one repository: worktrees, pushes, cleanup |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branches, commits, pull requests and releases |
 | [AGENTS.md](AGENTS.md) | The install and build guide, written to be followed by an agent |
-| [THIRD_PARTY.md](THIRD_PARTY.md) | Dependency, model and licence inventory |
+| [THIRD_PARTY.md](THIRD_PARTY.md) | Dependency, model and license inventory |
 
 ## Platform status
 
@@ -115,7 +115,7 @@ read it before you depend on it, and look hardest at the parts that handle other
 people's files and the network: document extraction, OCR input, and the
 remote-access token.
 
-## Licence
+## License
 
 Rhapsode's own code is MIT — see [LICENSE](LICENSE). Kokoro-82M weights are
 Apache-2.0, so commercial use is fine. Two GPL components (`phonemizer` and eSpeak
@@ -138,6 +138,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 **Changed**
 
+- The front page, the third-party notices and the app's copyright string say "license", not "licence".
 - The README front page states what actually ships: the per-user Windows installer, ROCm stills, and the real test count.
 - The generated changelog block no longer repeats the "Changelog" heading above it.
 - `AGENTS.md` is plain UTF-8 text again, so its arrows and dashes render as arrows and dashes.

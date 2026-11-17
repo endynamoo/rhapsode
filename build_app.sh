@@ -61,7 +61,7 @@ fi
 chmod +x dist/Rhapsode.app/Contents/Frameworks/bin/murmur-translate 2>/dev/null || true
 chmod +x dist/Rhapsode.app/Contents/Frameworks/bin/murmur-prompts 2>/dev/null || true
 
-# Ship the licence texts with the bundle.
+# Ship the license texts with the bundle.
 cp -f LICENSE THIRD_PARTY.md dist/Rhapsode.app/Contents/Resources/ 2>/dev/null || true
 
 # Ad-hoc signature so macOS will launch it locally.

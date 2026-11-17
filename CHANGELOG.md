@@ -18,6 +18,7 @@ fails when that copy is stale.
 
 ### Changed
 
+- The front page, the third-party notices and the app's copyright string say "license", not "licence".
 - The README front page states what actually ships: the per-user Windows installer, ROCm stills, and the real test count.
 - The generated changelog block no longer repeats the "Changelog" heading above it.
 - `AGENTS.md` is plain UTF-8 text again, so its arrows and dashes render as arrows and dashes.

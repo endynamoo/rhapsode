@@ -93,4 +93,4 @@ evidence is not done.
 - `docs/CONCURRENCY.md` — several agents, one repo: worktrees, who pushes, how to untangle.
 - `docs/ARCHITECTURE.md` — modules, API, security model.
 - `docs/PLATFORMS.md`, `docs/STILLS.md` — GPU/packaging plan and the stills pipeline.
-- `THIRD_PARTY.md` — licences for weights and bundled assets.
+- `THIRD_PARTY.md` — licenses for weights and bundled assets.
