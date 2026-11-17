@@ -130,6 +130,7 @@ class FluxWorker:
         self._proc = None
         self._lock = threading.Lock()
         self._counter = 0
+        self.ready_info: dict = {}
         atexit.register(self.stop)
 
     def _env(self) -> dict:
@@ -342,6 +343,16 @@ class FluxPythonBackend(ImageBackend):
             if self._worker is None:
                 self._worker = FluxWorker(self.python, self.script)
             return self._worker
+
+
+def painter_info() -> dict:
+    """What the resident painter decided (precision, VRAM headroom) for the UI."""
+    backend = FluxPythonBackend()
+    worker = backend.worker()
+    info = dict(worker.ready_info)
+    info["running"] = worker.alive
+    info["python"] = str(config.IMAGE_PYTHON)
+    return info
 
 
 def paint_job(job: dict, timeout: float = 900.0) -> None:

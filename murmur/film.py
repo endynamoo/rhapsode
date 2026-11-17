@@ -945,8 +945,8 @@ def ensure_scene_image(doc: dict, chapter: int, scene: Scene,
     if still_ready(path):
         try:
             polish.apply(path, prompt)
-        except Exception:  # a polish mistake must never lose the still
-            pass
+        except Exception as exc:  # a polish mistake must never lose the still
+            polish.note_failure(exc)
     return path
 
 

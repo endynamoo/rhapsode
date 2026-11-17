@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import config, extract, film, fonts, imaging, netinfo, ocr, proc, speak, store, translate
+from . import config, extract, film, fonts, imaging, netinfo, ocr, polish, proc, speak, store, translate
 from .backends import detect
 from .engine import cache_stats, engine, prune_cache
 from .film_api import router as film_router
@@ -170,6 +170,8 @@ def health() -> dict:
         "ocr": ocr.available(),
         "ocrBackend": ocr.backend_name(),
         "translate": translate.translator.available(),
+        "polish": polish.status(),
+        "painter": imaging.painter_info(),
         "platform": detect.snapshot(),
         "cache": cache_stats(),
     }

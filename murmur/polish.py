@@ -40,6 +40,28 @@ CLEAN_SUFFIX = (
 )
 
 
+_last_error: str | None = None
+_last_action: str | None = None
+
+
+def status() -> dict:
+    """What the pass last did, for /api/health and support."""
+    return {
+        "version": POLISH_VERSION,
+        "enabled": enabled(),
+        "detectors": detectors.available(),
+        "last_action": _last_action,
+        "last_error": _last_error,
+    }
+
+
+def note_failure(error: object) -> None:
+    """Remember a failure the painting path swallowed, so health can report it."""
+    global _last_error, _last_action
+    _last_action = "failed"
+    _last_error = str(error)[-300:]
+
+
 def sidecar(path: Path) -> Path:
     return path.with_suffix(path.suffix + ".polish.json")
 
@@ -149,11 +171,15 @@ def _repair_hands(path: Path, info: dict, width: int, height: int, seed: int) ->
 
 def apply(path: Path, prompt: str = "", force: bool = False) -> dict:
     """Polish one still in place. Never raises: painting must not depend on it."""
+    global _last_action, _last_error
     if not enabled():
+        _last_action = "disabled"
         return {"action": "disabled"}
     if not path.exists():
         return {"action": "missing"}
     if not detectors.available():
+        _last_action = "no detectors"
+        _last_error = "opencv or onnxruntime is not importable in this build"
         return {"action": "skipped", "reason": "detectors unavailable"}
 
     digest = _digest(path)
@@ -243,4 +269,6 @@ def apply(path: Path, prompt: str = "", force: bool = False) -> dict:
         "flags": info.get("flags") or [],
     }
     _write_record(path, record)
+    _last_action = "refined"
+    _last_error = None
     return record
