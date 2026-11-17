@@ -210,7 +210,17 @@ It prints the data directory. Expected:
 
 ### B3. Run
 
-Browser/server mode:
+```powershell
+.\run.ps1
+```
+
+`run.ps1` creates the venv, installs dependencies, downloads the voice model, and
+starts the server hidden. It only reports success when `/api/health` answers, and
+writes each attempt to `server-<timestamp>.log` / `server-<timestamp>.err.log` in
+the data directory — if it says the app did not start, those files hold the
+reason. `-Desktop` opens the pywebview window instead of a browser tab.
+
+Browser/server mode by hand:
 
 ```powershell
 $env:MURMUR_PORT = "8765"

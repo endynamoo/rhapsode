@@ -1,12 +1,12 @@
-# Murmur/Rhapsode Windows launcher — follows AGENTS.md Section B (uv path).
+# Murmur/Rhapsode Windows launcher -- follows AGENTS.md Section B (uv path).
 # Browser mode by default; -Desktop for the pywebview window (WebView2).
 #
-# The launcher only reports success when the server answers /api/health. Its
+# The launcher only reports success when the server answers /api/health. Server
 # output goes to server.log next to the library, so a crash is readable instead
 # of vanishing with the hidden console.
 param(
     [switch]$Desktop,
-    [int]$TimeoutSeconds = 90
+    [int]$TimeoutSeconds = 120
 )
 $ErrorActionPreference = 'Stop'
 Set-Location "$PSScriptRoot"
@@ -32,7 +32,7 @@ if (Test-RhapsodeHealth) {
 }
 
 if (-not (Test-Path $py)) {
-    "creating uv venv (3.12 — misaki pins <3.13)"
+    "creating uv venv (3.12, because misaki pins <3.13)"
     & $uv venv --python 3.12 .venv
 }
 $stamp = ".venv\.requirements.sha"
@@ -48,15 +48,25 @@ if (-not (Test-Path $stamp) -or (Get-Content $stamp) -ne $hash) {
 }
 
 $homeDir = if ($env:MURMUR_HOME) { $env:MURMUR_HOME } else { "$env:LOCALAPPDATA\Rhapsode" }
+try {
+    New-Item -ItemType Directory -Force -Path $homeDir | Out-Null
+} catch {
+    "cannot create the data directory: $homeDir"
+    "  $($_.Exception.Message)"
+    exit 1
+}
 if (-not (Test-Path "$homeDir\models\kokoro-v1.0.onnx")) {
     "downloading Kokoro-82M (~340 MB)"
     & $py -m murmur.bootstrap
+    if ($LASTEXITCODE) {
+        "the voice model download failed (exit $LASTEXITCODE); the reader cannot start"
+        exit 1
+    }
 }
-New-Item -ItemType Directory -Force -Path $homeDir | Out-Null
-$log = Join-Path $homeDir 'server.log'
-$errLog = Join-Path $homeDir 'server.err.log'
-Set-Content -Path $log -Value ''
-Set-Content -Path $errLog -Value ''
+# Timestamped logs: an older server may still hold yesterday's file open.
+$stampName = Get-Date -Format 'yyyyMMdd-HHmmss'
+$log = Join-Path $homeDir "server-$stampName.log"
+$errLog = Join-Path $homeDir "server-$stampName.err.log"
 
 if ($Desktop) {
     $proc = Start-Process -FilePath $py -ArgumentList '-m', 'murmur.desktop' `
@@ -79,7 +89,11 @@ while ((Get-Date) -lt $deadline) {
 }
 
 "Rhapsode did not start on port $port."
-if ($proc.HasExited) { "  python exited with code $($proc.ExitCode)" }
+if ($proc.HasExited) {
+    $proc.Refresh()
+    if ($null -ne $proc.ExitCode) { "  python exited with code $($proc.ExitCode)" }
+    else { "  python exited" }
+}
 $holder = $null
 try { $holder = (Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction Stop).OwningProcess } catch {}
 if ($holder) {
