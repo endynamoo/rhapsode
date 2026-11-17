@@ -6,6 +6,7 @@ WKWebView via pywebview. This is the entry point used by the packaged `.app`.
 from __future__ import annotations
 
 import argparse
+import os
 import socket
 import sys
 import threading
@@ -72,13 +73,42 @@ def _serve(port: int) -> None:
             pass
 
 
+def _log_handle():
+    """Append-only log in the data directory: a windowed build has no console.
+
+    Without this the process can vanish with nothing written anywhere, which is
+    exactly what happened twice during chapter renders (no WER report, no event,
+    no log). faulthandler additionally dumps the Python stack on a hard crash.
+    """
+    import time
+
+    try:
+        path = config.HOME / "app.log"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        handle = open(path, "a", encoding="utf-8", buffering=1)
+        handle.write(
+            f"\n=== {time.strftime('%Y-%m-%d %H:%M:%S')} start pid={os.getpid()} "
+            f"version={__import__('murmur', fromlist=['__version__']).__version__} ===\n"
+        )
+        handle.flush()
+        return handle
+    except OSError:
+        return None
+
+
 def main(argv: list[str] | None = None) -> int:
+    log = _log_handle()
+    if log is not None:
+        try:
+            import faulthandler
+
+            faulthandler.enable(file=log, all_threads=True)
+        except Exception:
+            pass
     if sys.stderr is None:  # windowed builds (console=False / pythonw): stdio
-        import os           # handles are None — uvicorn/llvmlite crash on .isatty()
-        sys.stderr = open(os.devnull, "w", encoding="utf-8")
+        sys.stderr = log if log is not None else open(os.devnull, "w", encoding="utf-8")
     if sys.stdout is None:
-        import os
-        sys.stdout = open(os.devnull, "w", encoding="utf-8")
+        sys.stdout = log if log is not None else open(os.devnull, "w", encoding="utf-8")
 
     parser = argparse.ArgumentParser(prog="rhapsode")
     parser.add_argument("--selftest", action="store_true", help="start, check health, exit")

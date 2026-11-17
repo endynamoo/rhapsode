@@ -152,11 +152,17 @@ class FluxWorker:
         self.stop()
         if self.script is None:
             raise ImageError("fluxgen.py is missing from the installation.")
+        # Capture the child's stderr: a painter that dies on import or runs out of
+        # memory is otherwise invisible, because its parent is a windowed process.
+        try:
+            err = open(config.HOME / "painter.log", "a", encoding="utf-8", buffering=1)
+        except OSError:
+            err = subprocess.DEVNULL
         process = proc.popen(
             [str(self.python), str(self.script), "--serve"],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
+            stderr=err,
             text=True,
             bufsize=1,
             cwd=str(config.APP_ROOT),
