@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS docs (
     page_count INTEGER NOT NULL DEFAULT 0,
     created   REAL NOT NULL,
     updated   REAL NOT NULL,
+    content_updated REAL NOT NULL DEFAULT 0,
     position  INTEGER DEFAULT 0,
     voice     TEXT DEFAULT '',
     speed     REAL DEFAULT 1.0,
@@ -205,9 +206,14 @@ def init() -> None:
             ("chapter_files", "TEXT NOT NULL DEFAULT '[]'"),
             ("file", "TEXT NOT NULL DEFAULT ''"),
             ("page_count", "INTEGER NOT NULL DEFAULT 0"),
+            ("content_updated", "REAL NOT NULL DEFAULT 0"),
         ):
             if name not in columns:
                 conn.execute(f"ALTER TABLE docs ADD COLUMN {name} {ddl}")
+        # `updated` moves on every position save; `content_updated` only moves
+        # when the text does, so search can tell "you turned a page" from "this
+        # book changed" without reading the body.
+        conn.execute("UPDATE docs SET content_updated = created WHERE content_updated = 0")
 
 
 def _row_to_doc(row: sqlite3.Row, include_units: bool = True) -> dict:
@@ -233,6 +239,7 @@ def _row_to_doc(row: sqlite3.Row, include_units: bool = True) -> dict:
         "speed": row["speed"],
         "chars": row["chars"],
         "words": row["words"],
+        "contentUpdated": row["content_updated"],
         "unitCount": len(json.loads(row["units"])),
         "pageCount": row["page_count"] or 0,
         "viewer": viewer,
@@ -282,8 +289,8 @@ def create_doc(
     with _db() as conn:
         conn.execute(
             "INSERT INTO docs (id,title,source,kind,body,units,unit_pages,toc,chapter_files,"
-            "file,page_count,created,updated,position,voice,speed,chars,words)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,0,'',1.0,?,?)",
+            "file,page_count,created,updated,content_updated,position,voice,speed,chars,words)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,'',1.0,?,?)",
             (
                 doc_id, title, source, kind, body,
                 json.dumps(units, ensure_ascii=False),
@@ -291,7 +298,7 @@ def create_doc(
                 json.dumps(toc or [], ensure_ascii=False),
                 json.dumps(chapter_files or [], ensure_ascii=False),
                 file_name, page_count,
-                now, now,
+                now, now, now,
                 sum(len(u) for u in units), words,
             ),
         )
@@ -301,12 +308,16 @@ def create_doc(
 def update_doc(doc_id: str, **fields: Any) -> dict | None:
     allowed = {k: v for k, v in fields.items() if k in {
         "title", "position", "voice", "speed", "body", "units", "words", "chars",
-        "file", "unit_pages", "page_count", "toc", "chapter_files",
+        "file", "unit_pages", "page_count", "toc", "chapter_files", "content_updated",
     }}
     if not allowed:
         return get_doc(doc_id)
     if "units" in allowed and isinstance(allowed["units"], list):
         allowed["units"] = json.dumps(allowed["units"], ensure_ascii=False)
+    # Only a text change moves the content stamp; a new position or voice must
+    # not look like an edit to the search index.
+    if "content_updated" not in allowed and ("body" in allowed or "units" in allowed):
+        allowed["content_updated"] = time.time()
     allowed["updated"] = time.time()
     sets = ", ".join(f"{k} = ?" for k in allowed)
     with _db() as conn:
@@ -317,6 +328,20 @@ def update_doc(doc_id: str, **fields: Any) -> dict | None:
 def touch(doc_id: str) -> None:
     with _db() as conn:
         conn.execute("UPDATE docs SET updated = ? WHERE id = ?", (time.time(), doc_id))
+
+
+def doc_stats() -> list[dict]:
+    """One row per document without its body or units.
+
+    The search index needs to notice a changed book cheaply; parsing every
+    ``units`` JSON array just to compare signatures would make a no-op index
+    pass as expensive as the first one.
+    """
+    with _db() as conn:
+        rows = conn.execute(
+            "SELECT id, title, updated, content_updated, chars, words, page_count FROM docs"
+        ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def delete_doc(doc_id: str) -> bool:

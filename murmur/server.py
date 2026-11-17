@@ -24,16 +24,18 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import config, extract, film, fonts, imaging, netinfo, ocr, polish, proc, speak, store, translate
+from . import config, extract, film, fonts, imaging, netinfo, ocr, polish, proc, search, speak, store, translate
 from .backends import detect
 from .engine import cache_stats, clip_cache_stats, engine, prune_cache
 from .film_api import router as film_router
+from .search_api import router as search_router
 from .voices import DEFAULT_VOICE, VOICES, voice_groups
 
 app = FastAPI(title="Murmur", docs_url=None, redoc_url=None)
 # PDFium is not thread-safe; the page image and word-box endpoints share one lock.
 _PDF_LOCK = threading.Lock()
 app.include_router(film_router)
+app.include_router(search_router)
 
 MAX_UPLOAD = 120 * 1024 * 1024
 
@@ -151,6 +153,9 @@ def _startup() -> None:
     store.init()
     engine.warm_async()
     threading.Thread(target=_maintenance, name="cache-prune", daemon=True).start()
+    # Search indexing is a background nicety: the reader must be usable before
+    # the first chunk is written, so this only wakes a worker after startup.
+    search.start_background(delay=2.0)
     if PUBLIC:
         print("Murmur is available on the network:")
         for item in netinfo.access_urls(config.PORT, TOKEN):
@@ -390,9 +395,11 @@ def list_docs() -> dict:
 @app.post("/api/docs")
 def create_doc(payload: TextIn) -> dict:
     try:
-        return store.create_doc(payload.title, payload.text, kind="text")
+        doc = store.create_doc(payload.title, payload.text, kind="text")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    search.note_document(doc["id"])
+    return doc
 
 
 @app.post("/api/docs/upload")
@@ -445,6 +452,7 @@ async def upload_doc(file: UploadFile = File(...)) -> dict:
             doc = store.update_doc(doc["id"], file=stored) or doc
 
     doc["ocr"] = meta
+    search.note_document(doc["id"])
     return doc
 
 
@@ -461,6 +469,7 @@ def import_url(payload: UrlIn) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     doc["ocr"] = meta
+    search.note_document(doc["id"])
     return doc
 
 
@@ -469,6 +478,8 @@ def get_doc(doc_id: str) -> dict:
     doc = store.get_doc(doc_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
+    # Opening a book is reading activity: this is what "recently read" means.
+    search.record_read(doc_id, doc.get("position") or 0)
     return doc
 
 
@@ -823,6 +834,8 @@ def patch_doc(doc_id: str, patch: DocPatch) -> dict:
     if "speed" in fields:
         fields["speed"] = max(0.5, min(float(fields["speed"]), 3.0))
     doc = store.update_doc(doc_id, **fields)
+    if doc and "position" in fields:
+        search.record_read(doc_id, doc.get("position") or 0)
     return doc or {}
 
 
@@ -830,6 +843,7 @@ def patch_doc(doc_id: str, patch: DocPatch) -> dict:
 def remove_doc(doc_id: str) -> dict:
     if not store.delete_doc(doc_id):
         raise HTTPException(status_code=404, detail="Document not found")
+    search.forget(doc_id)
     film.clear_plan(doc_id)
     film.painter.clear(doc_id)
     shutil.rmtree(config.FILM_DIR / doc_id, ignore_errors=True)
@@ -865,6 +879,7 @@ async def quick_read(request: Request) -> dict:
         doc = store.create_doc(title, raw, kind="quick")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    search.note_document(doc["id"])
     return {"id": doc["id"], "delivered": _broadcast({"type": "quick", "id": doc["id"]})}
 
 
@@ -895,6 +910,7 @@ async def ocr_clipboard() -> dict:
         doc = store.create_doc(title[:120], text, kind="ocr")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    search.note_document(doc["id"])
     return {
         "id": doc["id"],
         "chars": len(text),

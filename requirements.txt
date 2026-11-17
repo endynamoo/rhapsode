@@ -5,6 +5,9 @@ soundfile>=0.14.0
 numpy>=2.0
 misaki[ja,zh]>=0.9
 pyopenjtalk>=0.4.1
+# Search embeddings run on the same runtime Kokoro uses; named here because
+# `murmur.semantic` imports it, rather than relying on it arriving via kokoro.
+onnxruntime>=1.17
 
 # Server
 fastapi>=0.115

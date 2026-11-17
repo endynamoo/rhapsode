@@ -69,6 +69,9 @@
         <div class="doc-meta" id="docMeta">Pick something to listen to</div>
       </div>
       <div class="top-actions">
+        <button class="icon-btn" id="searchBtn" title="Search library (Ctrl+F)" aria-label="Search library">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20.2 20.2-3.6-3.6"/></svg>
+        </button>
         <div class="view-toggle" id="viewToggle" hidden>
           <button data-view="book" class="is-active" title="Book view">Book</button>
           <button data-view="cinema" title="Manga view">Manga</button>
@@ -266,6 +269,36 @@
         <span class="hint">Strips ads and navigation automatically</span>
         <button class="btn-primary" id="urlAdd">Fetch &amp; read</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── search ───────────────────────── -->
+<div class="modal" id="searchModal" hidden>
+  <div class="modal-card search-card" role="dialog" aria-modal="true" aria-labelledby="searchHeading">
+    <div class="modal-head">
+      <h2 id="searchHeading">Search library</h2>
+      <button class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="search-body">
+      <div class="search-field">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20.2 20.2-3.6-3.6"/></svg>
+        <input class="field" id="searchInput" type="search" placeholder="Search every book — a phrase, a name, or what it was about" autocomplete="off" spellcheck="false" aria-controls="searchResults" aria-describedby="searchState">
+      </div>
+      <div class="search-filters" role="group" aria-label="Narrow by when you read it">
+        <button type="button" data-recent="" class="is-active">Any time</button>
+        <button type="button" data-recent="7d">Read this week</button>
+        <button type="button" data-recent="30d">Read this month</button>
+      </div>
+      <p class="search-state" id="searchState" role="status">Type to search every book in your library.</p>
+      <div class="search-note" id="searchNote" hidden></div>
+      <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="modal-foot">
+      <span class="hint">↑ ↓ to move · Enter to open · Esc to close</span>
+      <button class="btn-ghost" id="searchIndexBtn" type="button">Index library</button>
     </div>
   </div>
 </div>

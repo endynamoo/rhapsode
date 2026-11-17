@@ -227,6 +227,7 @@ function bindUI() {
   );
   $('#themeBtn').addEventListener('click', toggleTheme);
   $('#settingsBtn').addEventListener('click', openSettings);
+  $('#searchBtn').addEventListener('click', openSearch);
   wireEngine();
   $('#focusBtn').addEventListener('click', toggleFocus);
   $('#focusExit').addEventListener('click', () => setFocus(false));
@@ -305,6 +306,27 @@ function bindUI() {
   $('#settingsModal').addEventListener('mousedown', (e) => {
     if (e.target.id === 'settingsModal') closeModals();
   });
+
+  // search modal
+  $$('#searchModal [data-close]').forEach((b) => b.addEventListener('click', closeModals));
+  $('#searchModal').addEventListener('mousedown', (e) => {
+    if (e.target.id === 'searchModal') closeModals();
+  });
+  $('#searchInput').addEventListener('input', () => {
+    clearTimeout(searchView.timer);
+    searchView.timer = setTimeout(runSearch, 180);
+  });
+  $('#searchInput').addEventListener('keydown', onSearchKey);
+  $$('.search-filters button').forEach((button) =>
+    button.addEventListener('click', () => {
+      searchView.recent = button.dataset.recent || '';
+      $$('.search-filters button').forEach((other) =>
+        other.classList.toggle('is-active', other === button)
+      );
+      if (searchView.query.trim()) runSearch();
+    })
+  );
+  $('#searchIndexBtn').addEventListener('click', () => startReindex(false));
   $('#setVoice').addEventListener('change', (e) => {
     state.settings.voice = e.target.value;
     saveSettings({ voice: e.target.value });
@@ -854,6 +876,13 @@ function showEmpty() {
 
 async function openDoc(id, { autoplay = false, position = null } = {}) {
   if (state.doc && state.doc.id === id && state.units.length) {
+    // A search hit can point into the book that is already open.
+    if (position != null) {
+      state.index = Math.min(Math.max(0, position), state.units.length - 1);
+      setCurrentUnit(state.index);
+      updatePlayerUI();
+      savePosition(true);
+    }
     if (autoplay) togglePlay();
     return;
   }
@@ -1528,6 +1557,7 @@ function updateProgress(t) {
 function setCurrentUnit(i) {
   const unit = state.units[i];
   if (!unit) return;
+  clearSearchMatch();
   if (state.activeUnitEl) state.activeUnitEl.classList.remove('is-current');
   ensureSpans(unit);
   unit.el.classList.add('is-current');
@@ -2901,6 +2931,349 @@ function savePosition(immediate = false) {
   else state.saveTimer = setTimeout(commit, 700);
 }
 
+/* ─────────────────────────── search ─────────────────────────── */
+
+const searchView = {
+  seq: 0,
+  timer: 0,
+  poll: 0,
+  query: '',
+  recent: '',
+  hits: [],
+  data: null,
+  status: null,
+  backfilled: false,
+  selected: -1,
+};
+
+function openSearch() {
+  const modal = $('#searchModal');
+  const input = $('#searchInput');
+  modal.hidden = false;
+  loadSearchStatus();
+  setTimeout(() => {
+    input.focus();
+    input.select();
+  }, 40);
+  if (input.value.trim()) runSearch();
+}
+
+async function loadSearchStatus() {
+  let status = null;
+  try {
+    status = await api('/api/search/status');
+  } catch (_) {}
+  searchView.status = status;
+  renderSearchNote();
+  if (!status) return;
+  const indexing = status.indexing || {};
+  if ((status.pending || 0) > 0 && !indexing.running) startReindex(true);
+}
+
+async function startReindex(silent = false) {
+  clearTimeout(searchView.poll);
+  try {
+    const res = await api('/api/search/index', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    if (res && res.status) searchView.status = res.status;
+    renderSearchNote();
+    if (!silent) toast('Indexing your library in the background');
+    scheduleSearchPoll();
+  } catch (err) {
+    if (!silent) toast(err.message, 'error');
+  }
+}
+
+async function downloadSearchModel() {
+  try {
+    await api('/api/search/model', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ download: true }),
+    });
+    toast('Downloading the search model in the background');
+    scheduleSearchPoll();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+function scheduleSearchPoll() {
+  clearTimeout(searchView.poll);
+  searchView.poll = setTimeout(pollSearch, 1200);
+}
+
+async function pollSearch() {
+  if ($('#searchModal').hidden) return;
+  let status = null;
+  try {
+    status = await api('/api/search/status');
+  } catch (_) {
+    return;
+  }
+  searchView.status = status;
+  renderSearchNote();
+  const indexing = status.indexing || {};
+  const semantic = status.semantic || {};
+  if (semantic.available && !searchView.backfilled) {
+    // Books indexed before the model arrived still need their vectors.
+    searchView.backfilled = true;
+    startReindex(true);
+    return;
+  }
+  const busy = indexing.running || (status.pending || 0) > 0 || semantic.state === 'downloading';
+  if (busy && !indexing.lastError) {
+    scheduleSearchPoll();
+    return;
+  }
+  if (searchView.query.trim()) runSearch();
+}
+
+function renderSearchNote() {
+  const note = $('#searchNote');
+  note.textContent = '';
+  const status = searchView.status;
+  if (!status) {
+    note.hidden = true;
+    return;
+  }
+  const indexing = status.indexing || {};
+  const semantic = status.semantic || {};
+  const parts = [];
+
+  if (indexing.running) {
+    const done = indexing.done || 0;
+    const total = indexing.total || 0;
+    parts.push(total ? `Indexing your library… ${done} of ${total} books` : 'Indexing your library…');
+  } else if (indexing.lastError) {
+    const error = document.createElement('span');
+    error.className = 'search-error';
+    error.textContent = `Indexing stopped: ${indexing.lastError}`;
+    parts.push(error);
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.textContent = 'Try again';
+    retry.addEventListener('click', () => startReindex(false));
+    parts.push(retry);
+  } else if ((status.pending || 0) > 0) {
+    parts.push(`${status.pending} ${status.pending === 1 ? 'book is' : 'books are'} waiting to be indexed`);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = 'Index now';
+    button.addEventListener('click', () => startReindex(false));
+    parts.push(button);
+  }
+
+  if (semantic.state === 'downloading') {
+    const progress = Math.round((semantic.progress || 0) * 100);
+    parts.push(`Downloading the meaning model… ${progress}%`);
+    const bar = document.createElement('span');
+    bar.className = 'search-progress';
+    const fill = document.createElement('i');
+    fill.style.width = `${progress}%`;
+    bar.appendChild(fill);
+    parts.push(bar);
+    scheduleSearchPoll();
+  } else if (!semantic.available && semantic.state !== 'off') {
+    parts.push(
+      semantic.error
+        ? semantic.error
+        : 'Keyword search only — the meaning model is not downloaded (23 MB, Apache-2.0, CPU only).'
+    );
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = semantic.state === 'error' ? 'Try again' : 'Download';
+    button.addEventListener('click', downloadSearchModel);
+    parts.push(button);
+  }
+
+  if (!parts.length) {
+    note.hidden = true;
+    return;
+  }
+  note.hidden = false;
+  for (const part of parts) {
+    if (typeof part === 'string') {
+      const span = document.createElement('span');
+      span.textContent = part;
+      note.appendChild(span);
+    } else {
+      note.appendChild(part);
+    }
+  }
+}
+
+async function runSearch() {
+  clearTimeout(searchView.timer);
+  const query = $('#searchInput').value.trim();
+  searchView.query = query;
+  const seq = ++searchView.seq;
+  if (!query) {
+    searchView.hits = [];
+    $('#searchResults').textContent = '';
+    $('#searchState').textContent = 'Type to search every book in your library.';
+    return;
+  }
+  $('#searchState').textContent = 'Searching…';
+  try {
+    const params = new URLSearchParams({ q: query, limit: '30' });
+    if (searchView.recent) params.set('recent', searchView.recent);
+    const data = await api(`/api/search?${params}`);
+    if (seq !== searchView.seq) return;
+    searchView.data = data;
+    renderSearchResults(data);
+  } catch (err) {
+    if (seq !== searchView.seq) return;
+    $('#searchResults').textContent = '';
+    $('#searchState').textContent = err.message;
+  }
+}
+
+function searchWindowLabel(recent) {
+  if (recent === '7d') return 'this week';
+  if (recent === '30d') return 'this month';
+  return '';
+}
+
+function renderSearchResults(data) {
+  const results = $('#searchResults');
+  results.textContent = '';
+  searchView.hits = data.hits || [];
+  searchView.selected = -1;
+  const windowLabel = searchWindowLabel(searchView.recent);
+  const mode = data.mode === 'hybrid' ? 'words and meaning' : 'keywords only';
+  const count = data.total || 0;
+  if (count) {
+    $('#searchState').textContent =
+      `${count} ${count === 1 ? 'passage' : 'passages'} · ${data.tookMs} ms · ${mode}` +
+      (windowLabel ? ` · read ${windowLabel}` : '');
+  } else {
+    $('#searchState').textContent =
+      `Nothing found${windowLabel ? ` in books you read ${windowLabel}` : ''} — try fewer or different words.`;
+  }
+  if (!searchView.hits.length) {
+    const empty = document.createElement('p');
+    empty.className = 'search-empty';
+    empty.textContent = data.mode === 'hybrid'
+      ? 'Searched the words and the meaning of your query.'
+      : 'Searched the words in your library. Meaning search is not available.';
+    results.appendChild(empty);
+    return;
+  }
+  const groups = new Map();
+  for (const hit of searchView.hits) {
+    if (!groups.has(hit.docId)) groups.set(hit.docId, { title: hit.title, hits: [] });
+    groups.get(hit.docId).hits.push(hit);
+  }
+  for (const group of groups.values()) {
+    const head = document.createElement('div');
+    head.className = 'search-book';
+    head.textContent = group.title;
+    const tally = document.createElement('span');
+    tally.textContent = `${group.hits.length} ${group.hits.length === 1 ? 'passage' : 'passages'}`;
+    head.appendChild(tally);
+    results.appendChild(head);
+    for (const hit of group.hits) results.appendChild(searchHitButton(hit));
+  }
+}
+
+function searchLocation(hit) {
+  const parts = [];
+  if (hit.chapterTitle) parts.push(hit.chapterTitle);
+  if (hit.page) parts.push(`page ${hit.page + 1}`);
+  parts.push(`sentence ${hit.unit + 1}${hit.unitCount ? ` of ${hit.unitCount}` : ''}`);
+  return parts.join(' · ');
+}
+
+function searchHitButton(hit) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'search-hit';
+  button.dataset.chunk = String(hit.chunkId);
+  button.setAttribute('aria-label', `${hit.title}: ${hit.snippet ? hit.snippet.text : ''}`);
+
+  const snippet = document.createElement('span');
+  const text = (hit.snippet && hit.snippet.text) || '';
+  let cursor = 0;
+  for (const range of (hit.snippet && hit.snippet.highlights) || []) {
+    const start = Math.max(0, Math.min(text.length, range[0]));
+    const stop = Math.max(start, Math.min(text.length, range[1]));
+    if (start > cursor) snippet.appendChild(document.createTextNode(text.slice(cursor, start)));
+    const mark = document.createElement('mark');
+    mark.textContent = text.slice(start, stop);
+    snippet.appendChild(mark);
+    cursor = stop;
+  }
+  if (cursor < text.length) snippet.appendChild(document.createTextNode(text.slice(cursor)));
+
+  const where = document.createElement('span');
+  where.className = 'search-where';
+  where.textContent = searchLocation(hit);
+  button.append(snippet, where);
+  button.addEventListener('click', () => openSearchHit(hit));
+  return button;
+}
+
+async function openSearchHit(hit) {
+  const jump = hit.jump || {};
+  closeModals();
+  await openDoc(jump.docId || hit.docId, { position: jump.unit != null ? jump.unit : hit.unit });
+  requestAnimationFrame(() =>
+    flashSearchMatch(jump.unit != null ? jump.unit : hit.unit, jump.terms || [])
+  );
+}
+
+function flashSearchMatch(unitIndex, terms) {
+  if (state.view !== 'text') return; // the page view already turned to the page
+  const unit = state.units[unitIndex];
+  if (!unit || !unit.el) return;
+  ensureSpans(unit);
+  const wanted = (terms || []).map((term) => term.toLowerCase());
+  if (!wanted.length) return;
+  for (const span of unit.spans) {
+    const word = span.textContent.replace(/^[^\w]+|[^\w]+$/g, '').toLowerCase();
+    if (word && wanted.includes(word)) span.classList.add('is-match');
+  }
+}
+
+function clearSearchMatch() {
+  $$('.w.is-match').forEach((span) => span.classList.remove('is-match'));
+}
+
+function onSearchKey(event) {
+  if (event.key === 'Escape') {
+    closeModals();
+    return;
+  }
+  const hits = $$('#searchResults .search-hit');
+  if (event.key === 'Enter') {
+    if (!hits.length) {
+      runSearch();
+      return;
+    }
+    const inside = hits.includes(document.activeElement);
+    const target = inside ? document.activeElement : hits[Math.max(0, searchView.selected)];
+    if (target) {
+      event.preventDefault();
+      target.click();
+    }
+    return;
+  }
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    if (!hits.length) return;
+    event.preventDefault();
+    const current = hits.indexOf(document.activeElement);
+    const next = event.key === 'ArrowDown'
+      ? (current < 0 ? 0 : Math.min(hits.length - 1, current + 1))
+      : (current <= 0 ? 0 : current - 1);
+    searchView.selected = next;
+    hits[next].focus();
+  }
+}
+
 /* ─────────────────────────── add flows ─────────────────────────── */
 
 function openAdd() {
@@ -3045,6 +3418,8 @@ function closeModals() {
   $('#addModal').hidden = true;
   $('#settingsModal').hidden = true;
   $('#sceneModal').hidden = true;
+  $('#searchModal').hidden = true;
+  clearTimeout(searchView.poll);
   sceneReview.drag = null;
   sceneReview.rect = null;
 }
@@ -3223,6 +3598,11 @@ function onKeyDown(e) {
   const tag = (e.target.tagName || '').toLowerCase();
   const typing = ['input', 'textarea', 'select'].includes(tag) || e.target.isContentEditable;
 
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
+    e.preventDefault();
+    openSearch();
+    return;
+  }
   if (e.key === 'Escape') {
     closeModals();
     document.body.classList.remove('sidebar-open');

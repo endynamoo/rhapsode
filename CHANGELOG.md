@@ -13,12 +13,16 @@ fails when that copy is stale.
 
 ### Added
 
+- Search across your whole library with `Ctrl+F` / `⌘F` or the magnifier: results grouped by book, the matching passage marked, and a jump straight to that sentence, chapter or page. Keywords work with nothing extra installed; the optional 23 MB meaning model (Apache-2.0, CPU only) is offered as a download in the panel and can be switched off with `MURMUR_SEMANTIC=off`.
+- "Read this week" and "Read this month" filters for search, based on when a book was actually opened or its position saved.
+- Live progress for library indexing and the model download, plus an Index library button; an interrupted index resumes where it stopped instead of duplicating rows.
 - Troubleshooting page in the app: the three guards, where the logs live, and what was already fixed.
 - The RAM probe the painting guard calls, and the RAM it measured shown in Settings.
 
 ### Changed
 
 - The front page, the third-party notices and the app's copyright string say "license", not "licence".
+- Opening or resuming a book now records reading activity, so recent-only search can tell a book you read last week from one you imported and never touched.
 - The README front page states what actually ships: the per-user Windows installer, ROCm stills, and the real test count.
 - The generated changelog block no longer repeats the "Changelog" heading above it.
 - `AGENTS.md` is plain UTF-8 text again, so its arrows and dashes render as arrows and dashes.
