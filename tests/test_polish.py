@@ -124,6 +124,44 @@ class PolishRunTests(unittest.TestCase):
             self.assertEqual(before, path.read_bytes())
 
 
+class HandRepairTests(unittest.TestCase):
+    def test_mask_covers_the_hand_boxes_and_fades(self) -> None:
+        from PIL import Image
+
+        mask = polish._hand_mask([(40, 40, 120, 120)], (200, 200))
+        self.assertEqual((200, 200), mask.size)
+        self.assertEqual(255, mask.getpixel((80, 80)))
+        self.assertLess(mask.getpixel((5, 5)), 32)
+        edible = mask.getpixel((40, 40))
+        self.assertLess(edible, 255, "the edge must be feathered, not hard")
+
+    def test_blend_only_touches_the_masked_area(self) -> None:
+        from PIL import Image
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp) / "base.png"
+            painted = Path(tmp) / "painted.png"
+            Image.new("RGB", (120, 120), (255, 255, 255)).save(base)
+            Image.new("RGB", (120, 120), (0, 0, 0)).save(painted)
+            mask = Image.new("L", (120, 120), 0)
+            for x in range(40, 80):
+                for y in range(40, 80):
+                    mask.putpixel((x, y), 255)
+
+            polish._blend_in(base, painted, mask)
+
+            with Image.open(base) as result:
+                self.assertLess(result.getpixel((60, 60))[0], 40, "masked area is repainted")
+                self.assertGreater(result.getpixel((5, 5))[0], 240, "outside is untouched")
+
+    def test_repair_without_hands_does_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(polish.imaging, "paint_job") as run:
+            path = _still(Path(tmp))
+            result = polish._repair_hands(path, {"hands": []}, 120, 160, 1)
+            self.assertEqual("none", result["action"])
+            run.assert_not_called()
+
+
 class DetectorShapeTests(unittest.TestCase):
     def test_models_are_named_and_downloadable(self) -> None:
         for name in (detectors.FACES_MODEL, detectors.PERSON_MODEL, detectors.POSE_MODEL):

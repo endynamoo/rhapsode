@@ -63,11 +63,27 @@ an unchanged still never does.
   to skip the pass. Speed comes from one painter, not more: a single image's steps
   are a chain, so extra workers only time-slice the card.
   the time.
-- **What it does not fix**: hands. At this strength the model tidies ink and
-  contrast but leaves an ambiguous pen-hand a blob. Regional inpainting, driven by
-  a pose check, is the next step.
+- **What it does not fix on its own**: hands. The one-step global pass tidies ink
+  and contrast but leaves an ambiguous pen-hand a blob, so a second, masked pass
+  runs over detected hands at 0.75 strength — see below.
 - **Never destructive**: the pre-polish still is kept beside it as
   `*.pre-polish.png`, and a failed re-draw leaves the original untouched.
+
+### The hand repair
+
+After the global pass, RTMDet finds the people, RTMPose locates their wrists, and
+each wrist becomes a hand box. Those boxes are painted into a feathered mask and
+only that region is re-drawn, at 0.75 strength and two steps, with the result
+blended back through the mask so no edge shows.
+
+Why this one is allowed to change pixels when the global pass is not: a hand has no
+identity to preserve. Any plausible hand beats a mangled one, and it sits at the
+edge of the frame where a small change is invisible. Faces are the opposite — they
+carry the character — so they only ever get the gentle global pass.
+
+If the pose decode is wrong the geometry check catches it: a wrist outside the
+person's box is discarded rather than inpainted, and arms whose segments are out of
+proportion or longer than the body are logged in the sidecar as `flags`.
 
 ## Install the stills engine once
 

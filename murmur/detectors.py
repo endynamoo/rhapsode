@@ -33,6 +33,17 @@ MODEL_URLS = {
 _MEAN = np.array([103.53, 116.28, 123.675], dtype=np.float32)
 _STD = np.array([57.375, 57.12, 58.395], dtype=np.float32)
 
+# RTMPose wants RGB at 192x256 with the same means in RGB order.
+_POSE_MEAN = np.array([123.675, 116.28, 103.53], dtype=np.float32)
+_POSE_STD = np.array([58.395, 57.12, 57.375], dtype=np.float32)
+
+KEYPOINTS = (
+    "nose", "left_eye", "right_eye", "left_ear", "right_ear",
+    "left_shoulder", "right_shoulder", "left_elbow", "right_elbow",
+    "left_wrist", "right_wrist", "left_hip", "right_hip",
+    "left_knee", "right_knee", "left_ankle", "right_ankle",
+)
+
 _lock = threading.Lock()
 _sessions: dict[str, object] = {}
 _download_failed = False
@@ -95,9 +106,20 @@ def available() -> bool:
         import cv2  # noqa: F401
         import onnxruntime  # noqa: F401
 
+        _quiet_cv2()
         return True
     except Exception:
         return False
+
+
+def _quiet_cv2() -> None:
+    """OpenCV logs a DNN-backend warning on every FaceDetectorYN; drop it."""
+    try:
+        import cv2
+
+        cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_ERROR)
+    except Exception:
+        pass
 
 
 def _letterbox(array_bgr: np.ndarray, size: int) -> tuple[np.ndarray, float, tuple[int, int]]:
@@ -130,6 +152,7 @@ def faces(image_bgr: np.ndarray, threshold: float = 0.6) -> list[tuple[float, fl
     """Face boxes in pixel coordinates."""
     import cv2
 
+    _quiet_cv2()
     session_path = _fetch(FACES_MODEL)
     height, width = image_bgr.shape[:2]
     detector = cv2.FaceDetectorYN_create(str(session_path), "", (width, height), threshold, 0.3, 5000)
@@ -174,15 +197,132 @@ def people(image_bgr: np.ndarray, threshold: float = 0.35) -> list[tuple[float, 
     return kept
 
 
+def pose(image_bgr: np.ndarray, box: tuple[float, float, float, float]) -> list[dict]:
+    """17 COCO keypoints for one person, in image pixels.
+
+    RTMPose outputs SimCC: separate x/y logits per keypoint over 384/512 bins.
+    Per-bin probability is meaningless (a good pose still scores ~0.004 because
+    the mass is spread over hundreds of bins), so the geometry is what counts.
+    """
+    import cv2
+
+    session = _session(POSE_MODEL)
+    x1, y1, x2, y2 = box
+    height, width = image_bgr.shape[:2]
+    x1, y1 = max(0.0, x1), max(0.0, y1)
+    x2, y2 = min(float(width), x2), min(float(height), y2)
+    if x2 - x1 < 8 or y2 - y1 < 8:
+        return []
+
+    crop = image_bgr[int(y1):int(y2), int(x1):int(x2)]
+    rgb = crop[:, :, ::-1]
+    resized = cv2.resize(rgb, (192, 256), interpolation=cv2.INTER_LINEAR).astype(np.float32)
+    tensor = ((resized - _POSE_MEAN) / _POSE_STD).transpose(2, 0, 1)[None]
+    simcc_x, simcc_y = session.run(None, {"input": tensor})
+
+    xs = simcc_x[0].argmax(axis=1) / 2.0
+    ys = simcc_y[0].argmax(axis=1) / 2.0
+    crop_w, crop_h = x2 - x1, y2 - y1
+    points = []
+    for index, name in enumerate(KEYPOINTS):
+        points.append({
+            "name": name,
+            "x": float(x1 + xs[index] / 192.0 * crop_w),
+            "y": float(y1 + ys[index] / 256.0 * crop_h),
+        })
+    return points
+
+
+def hands(image_bgr: np.ndarray) -> list[tuple[float, float, float, float]]:
+    """Hand boxes derived from wrist keypoints, one per visible hand."""
+    height, width = image_bgr.shape[:2]
+    found: list[tuple[float, float, float, float]] = []
+    for person in people(image_bgr):
+        points = pose(image_bgr, person)
+        if not points:
+            continue
+        by_name = {point["name"]: point for point in points}
+        body = max(48.0, (person[2] - person[0]) * 0.18)
+        nose = by_name.get("nose")
+        for side in ("left", "right"):
+            wrist = by_name.get(f"{side}_wrist")
+            elbow = by_name.get(f"{side}_elbow")
+            if not wrist:
+                continue
+            # A wrist outside the person's box is a decode failure, not a hand.
+            if not (person[0] - body <= wrist["x"] <= person[2] + body):
+                continue
+            size = body
+            if elbow:
+                dx, dy = wrist["x"] - elbow["x"], wrist["y"] - elbow["y"]
+                length = max(1.0, (dx * dx + dy * dy) ** 0.5)
+                # Push the box past the wrist, in the direction the arm travels.
+                size = min(body * 1.4, max(body, length * 0.6))
+            found.append((
+                wrist["x"] - size / 2,
+                wrist["y"] - size / 2,
+                wrist["x"] + size / 2,
+                wrist["y"] + size / 2,
+            ))
+        if nose is not None and not found:
+            continue
+    kept: list[tuple[float, float, float, float]] = []
+    for box in found:
+        clipped = (max(0.0, box[0]), max(0.0, box[1]),
+                   min(float(width), box[2]), min(float(height), box[3]))
+        if clipped[2] - clipped[0] < 12 or clipped[3] - clipped[1] < 12:
+            continue
+        if all(_iou(clipped, other) < 0.5 for other in kept):
+            kept.append(clipped)
+    return kept
+
+
+def anatomy_flags(image_bgr: np.ndarray) -> list[str]:
+    """Cheap sanity checks on each detected skeleton. Empty list means plausible."""
+    flags: list[str] = []
+    for index, person in enumerate(people(image_bgr)):
+        points = {point["name"]: point for point in pose(image_bgr, person)}
+        if not points:
+            continue
+        height = max(1.0, person[3] - person[1])
+        width = max(1.0, person[2] - person[0])
+        for side in ("left", "right"):
+            shoulder = points.get(f"{side}_shoulder")
+            elbow = points.get(f"{side}_elbow")
+            wrist = points.get(f"{side}_wrist")
+            if not (shoulder and elbow and wrist):
+                continue
+            upper = _distance(shoulder, elbow)
+            lower = _distance(elbow, wrist)
+            if upper < 1 or lower < 1:
+                continue
+            ratio = upper / lower
+            if ratio > 2.2 or ratio < 0.45:
+                flags.append(f"person {index}: {side} arm segments out of proportion ({ratio:.2f})")
+            if _distance(shoulder, wrist) > height * 1.1:
+                flags.append(f"person {index}: {side} arm longer than the body")
+        if points.get("left_wrist") and points.get("right_wrist"):
+            if _distance(points["left_wrist"], points["right_wrist"]) < width * 0.04:
+                flags.append(f"person {index}: both wrists in the same place")
+    return flags
+
+
+def _distance(a: dict, b: dict) -> float:
+    return ((a["x"] - b["x"]) ** 2 + (a["y"] - b["y"]) ** 2) ** 0.5
+
+
 def inspect(image_bgr: np.ndarray) -> dict:
     """Everything the polisher needs to decide whether a still is worth repair."""
-    result = {"faces": [], "people": [], "error": None}
+    result = {"faces": [], "people": [], "hands": [], "flags": [], "error": None}
     try:
         result["faces"] = faces(image_bgr)
     except DetectorUnavailable as exc:
         result["error"] = str(exc)
     try:
         result["people"] = people(image_bgr)
+        if result["people"]:
+            result["hands"] = hands(image_bgr)
+            result["flags"] = anatomy_flags(image_bgr)
     except DetectorUnavailable as exc:
         result["error"] = result["error"] or str(exc)
     return result

@@ -50,12 +50,49 @@ def _load(torch, device: str, offload: bool):
     return pipe
 
 
-def _paint(pipe, torch, device: str, job: dict) -> Path:
+def _inpaint_pipeline(pipe, torch, device: str, cache: dict):
+    """Share the text2img components instead of loading 15 GiB a second time."""
+    if "inpaint" not in cache:
+        from diffusers import Flux2KleinInpaintPipeline
+
+        inpaint = Flux2KleinInpaintPipeline.from_pipe(pipe)
+        inpaint.set_progress_bar_config(disable=True)
+        cache["inpaint"] = inpaint
+    return cache["inpaint"]
+
+
+def _paint(pipe, torch, device: str, job: dict, cache: dict | None = None) -> Path:
     from PIL import Image
 
+    cache = cache if cache is not None else {}
     width = max(256, int(round(int(job.get("width", 1280)) / 16)) * 16)
     height = max(256, int(round(int(job.get("height", 720)) / 16)) * 16)
     out_path = Path(job["out"])
+    mask_path = job.get("mask")
+    reference = job.get("reference")
+
+    if mask_path and reference and Path(mask_path).exists() and Path(reference).exists():
+        pipeline = _inpaint_pipeline(pipe, torch, device, cache)
+        image = Image.open(reference).convert("RGB").resize((width, height))
+        mask = Image.open(mask_path).convert("L").resize((width, height))
+        kwargs = {
+            "prompt": job["prompt"],
+            "image": image,
+            "mask_image": mask,
+            "strength": float(job.get("strength", 0.75)),
+            "num_inference_steps": int(job.get("steps", 2)),
+            "guidance_scale": float(job.get("guidance", 1.0)),
+            "generator": torch.Generator(device=device).manual_seed(int(job.get("seed", 1))),
+        }
+        try:
+            result = pipeline(**kwargs).images[0]
+        except TypeError:
+            kwargs.pop("strength", None)
+            result = pipeline(**kwargs).images[0]
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        result.save(out_path, format="PNG")
+        return out_path
+
     kwargs = {
         "prompt": job["prompt"],
         "width": width,
@@ -64,7 +101,6 @@ def _paint(pipe, torch, device: str, job: dict) -> Path:
         "guidance_scale": float(job.get("guidance", 1.0)),
         "generator": torch.Generator(device=device).manual_seed(int(job.get("seed", 1))),
     }
-    reference = job.get("reference")
     if reference and Path(reference).exists():
         kwargs["image"] = Image.open(reference).convert("RGB").resize((width, height))
         if job.get("strength") is not None:
@@ -138,6 +174,7 @@ def serve() -> int:
         pipe = _load(torch, device, True)
     print(json.dumps({"ready": True, "model": MODEL_ID}), flush=True)
 
+    cache: dict = {}
     for line in sys.stdin:
         line = line.strip()
         if not line:
@@ -150,7 +187,7 @@ def serve() -> int:
         if job.get("op") == "quit":
             break
         try:
-            _paint(pipe, torch, device, job)
+            _paint(pipe, torch, device, job, cache)
             print(json.dumps({"id": job.get("id"), "ok": True}), flush=True)
         except Exception as exc:  # noqa: BLE001 - reported, never fatal
             print(json.dumps({"id": job.get("id"), "ok": False, "error": str(exc)[-500:]}), flush=True)

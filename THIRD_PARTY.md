@@ -84,7 +84,7 @@ Weights are downloaded at runtime and are **not** part of this repository.
 | Qwen3 text encoder used by FLUX.2 | Apache-2.0 | Downloaded with the FLUX.2 pipeline. |
 | YuNet face detector (`yunet.onnx`) | MIT | Stills polish pass: finds faces so a still with people gets re-drawn. |
 | RTMDet person detector (`rtmdet-n-person.onnx`) | Apache-2.0 | Stills polish pass: decides whether a still contains people at all. |
-| RTMPose (`rtmpose-m.onnx`) | Apache-2.0 | Reserved for the anatomy check; not used yet. |
+| RTMPose (`rtmpose-m.onnx`) | Apache-2.0 | Locates wrists and joints for the hand repair and the anatomy check. |
 
 Murmur downloads these weights on demand into `~/.murmur/models/hf`. It does not
 ship them inside the source tree. If you redistribute a bundle that includes the
