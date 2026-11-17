@@ -74,9 +74,19 @@ an unchanged still never does.
 
 **Not on by default.** Measured on the lab still: at 0.75 strength the repair
 replaced the whole forearm with a white blot; at 0.5 with a tighter mask it still
-redrew the desk and duplicated the hand. A repair that damages a frame is worse
-than the blobby hand it was meant to fix, so the pass sits behind
-`polish.HANDS_ENABLED` until it can be tuned against a real hand-quality check.
+redrew the desk and duplicated the hand. The pass now carries two guards, and still
+stays behind `polish.HANDS_ENABLED` because no still has needed it yet:
+
+- **Blob gate** — only a hand box with almost no ink structure (edge energy below
+  0.12) is worth repairing. Hands the model already drew score ~0.2 and are left
+  alone.
+- **Acceptance** — after the repair the region must keep 60% of its ink and 50% of
+  its edge energy, or the still is restored from a copy taken beforehand. Both bad
+  repairs erased the hand to flat white (ink 0.185 → 0.000), which this catches.
+
+MediaPipe's hand landmarker was tried as the quality signal and rejected: it finds
+**zero** hands even on 3× upscaled crops of clearly drawn hands, so it cannot judge
+this artwork.
 
 After the global pass, RTMDet finds the people, RTMPose locates their wrists, and
 each wrist becomes a hand box. Those boxes are painted into a feathered mask and
