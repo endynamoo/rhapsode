@@ -14,9 +14,11 @@ no account, no cloud, no per-word billing.
   page by page, and the highlight is driven by Kokoro's phoneme timings rather than
   a guess, so it tracks the voice.
 - **OCR built in** — scanned pages and screenshots, on-device: Apple Vision on
-  macOS, Tesseract on Windows and Linux.
+  macOS, Windows.Media.Ocr on Windows, Tesseract on Linux.
 - **On-device translation** — read a foreign book in your own language, or in the
-  foreign voice with the translation shown under the player.
+  foreign voice with the translation shown under the player. Apple's framework on
+  macOS; a local OpenAI-compatible server everywhere else, configured or
+  discovered on the usual ports.
 - **Manga stills** — the narration is planned into beats and each beat gets one
   locally generated still. Chapter view plays those stills against the voice with
   a slow drift and a dissolve, and a chapter can be assembled into a 1080p MP4 cut

@@ -1,9 +1,17 @@
 # Murmur/Rhapsode Windows launcher — follows AGENTS.md Section B (uv path).
 # Browser mode by default; -Desktop for the pywebview window (WebView2).
-param([switch]$Desktop)
+#
+# The launcher only reports success when the server answers /api/health. Its
+# output goes to server.log next to the library, so a crash is readable instead
+# of vanishing with the hidden console.
+param(
+    [switch]$Desktop,
+    [int]$TimeoutSeconds = 90
+)
 $ErrorActionPreference = 'Stop'
 Set-Location "$PSScriptRoot"
 $env:PYTHONIOENCODING = 'utf-8'
+
 $py = '.venv\Scripts\python.exe'
 $uv = (Get-Command uv -EA SilentlyContinue).Source
 if (-not $uv) { $uv = "$env:USERPROFILE\.local\bin\uv.exe" }
@@ -11,8 +19,17 @@ if (-not (Test-Path $uv)) { "install uv: winget install --id astral-sh.uv -e"; e
 
 $port = if ($env:MURMUR_PORT) { $env:MURMUR_PORT } else { 8765 }
 $url = "http://127.0.0.1:$port"
-try { Invoke-RestMethod "$url/api/health" -TimeoutSec 2 | Out-Null
-      "already running"; Start-Process $url; exit 0 } catch {}
+
+function Test-RhapsodeHealth {
+    try { Invoke-RestMethod "$url/api/health" -TimeoutSec 2 | Out-Null; return $true }
+    catch { return $false }
+}
+
+if (Test-RhapsodeHealth) {
+    "Rhapsode is already running on $url"
+    if (-not $Desktop) { Start-Process $url }
+    exit 0
+}
 
 if (-not (Test-Path $py)) {
     "creating uv venv (3.12 — misaki pins <3.13)"
@@ -35,12 +52,44 @@ if (-not (Test-Path "$homeDir\models\kokoro-v1.0.onnx")) {
     "downloading Kokoro-82M (~340 MB)"
     & $py -m murmur.bootstrap
 }
+New-Item -ItemType Directory -Force -Path $homeDir | Out-Null
+$log = Join-Path $homeDir 'server.log'
+$errLog = Join-Path $homeDir 'server.err.log'
+Set-Content -Path $log -Value ''
+Set-Content -Path $errLog -Value ''
 
 if ($Desktop) {
-    Start-Process -FilePath $py -ArgumentList '-m', 'murmur.desktop' -WorkingDirectory $PSScriptRoot
+    $proc = Start-Process -FilePath $py -ArgumentList '-m', 'murmur.desktop' `
+        -WorkingDirectory $PSScriptRoot -PassThru
 } else {
-    Start-Process -FilePath $py -ArgumentList '-m', 'murmur' -WorkingDirectory $PSScriptRoot -WindowStyle Hidden
-    Start-Sleep 3
-    Start-Process $url
+    $proc = Start-Process -FilePath $py -ArgumentList '-m', 'murmur' `
+        -WorkingDirectory $PSScriptRoot -WindowStyle Hidden `
+        -RedirectStandardOutput $log -RedirectStandardError $errLog -PassThru
 }
-"Rhapsode launched ($($(if ($Desktop) {'window'} else {'browser'})) mode) on port $port"
+
+$deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+while ((Get-Date) -lt $deadline) {
+    if (Test-RhapsodeHealth) {
+        "Rhapsode is up on $url"
+        if (-not $Desktop) { Start-Process $url }
+        exit 0
+    }
+    if ($proc.HasExited) { break }
+    Start-Sleep -Milliseconds 700
+}
+
+"Rhapsode did not start on port $port."
+if ($proc.HasExited) { "  python exited with code $($proc.ExitCode)" }
+$holder = $null
+try { $holder = (Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction Stop).OwningProcess } catch {}
+if ($holder) {
+    $name = (Get-Process -Id $holder -ErrorAction SilentlyContinue).ProcessName
+    "  port $port is held by $name (PID $holder): stop it, or set MURMUR_PORT"
+}
+foreach ($file in @($errLog, $log)) {
+    if ((Test-Path $file) -and (Get-Item $file).Length -gt 0) {
+        "--- $(Split-Path $file -Leaf), last 20 lines ---"
+        Get-Content $file -Tail 20
+    }
+}
+exit 1

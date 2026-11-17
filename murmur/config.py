@@ -76,6 +76,10 @@ else:
 HOST = os.environ.get("MURMUR_HOST", "127.0.0.1")
 PORT = int(os.environ.get("MURMUR_PORT", "8765"))
 
+# Translation off macOS: an OpenAI-compatible endpoint on this machine.
+TRANSLATE_URL = os.environ.get("MURMUR_TRANSLATE_URL", "").strip()
+TRANSLATE_MODEL = os.environ.get("MURMUR_TRANSLATE_MODEL", "local-model").strip() or "local-model"
+
 # Set by the launcher once the real bind address is known. None means "derive
 # from HOST" (which keeps `uvicorn murmur.server:app` working).
 PUBLIC: bool | None = None

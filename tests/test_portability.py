@@ -42,20 +42,65 @@ class OcrBackendTests(unittest.TestCase):
     def test_vision_is_preferred(self) -> None:
         with mock.patch.object(ocr, "_backend", None), mock.patch.object(
             ocr.VisionBackend, "available", return_value=True
+        ), mock.patch.object(
+            ocr.WindowsOcrBackend, "available", return_value=True
         ), mock.patch.object(ocr.TesseractBackend, "available", return_value=True):
             self.assertEqual(ocr.backend_name(), "vision")
 
-    def test_tesseract_is_the_fallback(self) -> None:
+    def test_windows_is_preferred_over_tesseract(self) -> None:
         with mock.patch.object(ocr, "_backend", None), mock.patch.object(
             ocr.VisionBackend, "available", return_value=False
+        ), mock.patch.object(
+            ocr.WindowsOcrBackend, "available", return_value=True
+        ), mock.patch.object(ocr.TesseractBackend, "available", return_value=True):
+            self.assertEqual(ocr.backend_name(), "windows")
+
+    def test_tesseract_is_the_last_fallback(self) -> None:
+        with mock.patch.object(ocr, "_backend", None), mock.patch.object(
+            ocr.VisionBackend, "available", return_value=False
+        ), mock.patch.object(
+            ocr.WindowsOcrBackend, "available", return_value=False
         ), mock.patch.object(ocr.TesseractBackend, "available", return_value=True):
             self.assertEqual(ocr.backend_name(), "tesseract")
 
     def test_no_backend_is_unavailable(self) -> None:
         with mock.patch.object(ocr, "_backend", None), mock.patch.object(
             ocr.VisionBackend, "available", return_value=False
+        ), mock.patch.object(
+            ocr.WindowsOcrBackend, "available", return_value=False
         ), mock.patch.object(ocr.TesseractBackend, "available", return_value=False):
             self.assertFalse(ocr.available())
+
+    def test_windows_backend_reads_rendered_text(self) -> None:
+        """The real engine, when this machine has one: exact text, in order."""
+        backend = ocr.WindowsOcrBackend()
+        if not backend.available():
+            self.skipTest("Windows OCR is not available on this machine")
+
+        import io
+
+        from PIL import Image, ImageDraw, ImageFont
+
+        image = Image.new("RGB", (900, 260), "white")
+        draw = ImageDraw.Draw(image)
+        font = None
+        for name in ("georgia.ttf", "arial.ttf", "DejaVuSans.ttf"):
+            try:
+                font = ImageFont.truetype(name, 34)
+                break
+            except OSError:
+                continue
+        if font is None:
+            self.skipTest("no TrueType font to render with")
+        draw.text((40, 60), "The quick brown fox jumps.", font=font, fill="black")
+        draw.text((40, 140), "Scanned pages read locally.", font=font, fill="black")
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+
+        text = backend.recognize(buffer.getvalue())
+        self.assertIn("quick brown fox", text)
+        self.assertIn("Scanned pages", text)
+        self.assertTrue(backend.lettering(buffer.getvalue()))
 
 
 class TtsProviderTests(unittest.TestCase):

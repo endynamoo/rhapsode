@@ -37,7 +37,10 @@ That strip gets its own word-level highlight, and the page keeps a proportional
 word cursor derived from the translated timing, so the render still follows along.
 
 - Detection, translation, and the language switch run on-device. On macOS that is
-  Apple's Translation framework; nothing is sent anywhere.
+  Apple's Translation framework; nothing is sent anywhere. On Windows and Linux
+  it is a local OpenAI-compatible server: set `MURMUR_TRANSLATE_URL` (and
+  `MURMUR_TRANSLATE_MODEL` if the server needs a name), or leave both unset and
+  Rhapsode picks up a server already listening on 8091, 8080, 8000, 1234 or 11434.
 - Source language is detected automatically, so a Spanish PDF read by an English
   voice is translated into English too.
 - Only sentences that need it are translated. Results are cached in the library
@@ -50,7 +53,9 @@ word cursor derived from the translated timing, so the render still follows alon
 
 Apple needs a language pack for each direction. If one is missing, Rhapsode falls
 back to the original sentence and tells you to add it in **System Settings →
-General → Language & Region → Translation Languages**.
+General → Language & Region → Translation Languages**. On Windows and Linux a
+missing `MURMUR_TRANSLATE_URL` has the same effect: the voice reads the original
+text.
 
 ## Quick Read from anywhere
 
@@ -76,10 +81,16 @@ it — handy for slides, scanned pages, and anything that refuses to be selected
 
 ## Scanned PDFs and images
 
-On macOS OCR uses **Apple Vision** (the same engine behind Live Text), so it runs on
-the Neural Engine and works offline. `pyobjc-framework-Vision` is the only
-dependency; if it is missing, text PDFs still work and scanned ones return a clear
-error. On Linux the fallback is `tesseract-ocr`.
+OCR is on-device on every platform and needs no model download:
+
+| Platform | Engine | Notes |
+|---|---|---|
+| macOS | Apple Vision | the engine behind Live Text; ships with `pyobjc-framework-Vision` |
+| Windows | `Windows.Media.Ocr` | ships with `winsdk`; reads with the language packs Windows already has |
+| Linux | Tesseract | `sudo apt install tesseract-ocr` — the one backend needing a separate install |
+
+If no backend is present, text PDFs still work and scanned ones return a clear
+error instead of an internal one. `health.ocr` tells you which case you are in.
 
 - **Mixed PDFs** are handled page by page — any page with less than 40 characters
   of text gets OCR'd, the rest use their text layer.

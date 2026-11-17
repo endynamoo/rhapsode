@@ -125,6 +125,127 @@ class VisionBackend(OcrBackend):
         return False
 
 
+class WindowsOcrBackend(OcrBackend):
+    """Windows.Media.Ocr — the engine behind Snipping Tool's text actions.
+
+    On-device, no install and no model download: the language packs Windows
+    already has for text-to-speech and the touch keyboard are what it reads
+    with. Larger images are scaled down to the engine's limit first.
+    """
+
+    name = "windows"
+
+    def _engine(self):
+        from winsdk.windows.media.ocr import OcrEngine
+
+        if _FORCED:
+            from winsdk.windows.globalization import Language
+
+            for code in _FORCED:
+                engine = OcrEngine.try_create_from_language(Language(code))
+                if engine is not None:
+                    return engine
+            raise OCRUnavailable(
+                "Windows has no OCR language pack for: " + ", ".join(_FORCED)
+            )
+        engine = OcrEngine.try_create_from_user_profile_languages()
+        if engine is None:
+            raise OCRUnavailable(
+                "Windows has no OCR language pack installed "
+                "(Settings → Time & language → Language & region)."
+            )
+        return engine
+
+    def available(self) -> bool:
+        if not sys.platform.startswith("win"):
+            return False
+        try:
+            self._engine()
+            return True
+        except Exception:
+            return False
+
+    def _prepare(self, data: bytes) -> bytes:
+        """Scale down past the engine's limit; OCR ignores detail we do not need."""
+        from winsdk.windows.media.ocr import OcrEngine
+
+        try:
+            from PIL import Image
+
+            with Image.open(io.BytesIO(data)) as image:
+                limit = OcrEngine.max_image_dimension
+                if max(image.size) <= limit:
+                    return data
+                ratio = limit / max(image.size)
+                size = (max(1, int(image.width * ratio)), max(1, int(image.height * ratio)))
+                buffer = io.BytesIO()
+                image.convert("RGB").resize(size, Image.LANCZOS).save(buffer, format="PNG")
+                return buffer.getvalue()
+        except Exception:
+            return data
+
+    def _lines(self, data: bytes):
+        import asyncio
+
+        from winsdk.windows.graphics.imaging import BitmapDecoder
+        from winsdk.windows.storage.streams import DataWriter, InMemoryRandomAccessStream
+
+        engine = self._engine()
+
+        async def recognise():
+            stream = InMemoryRandomAccessStream()
+            writer = DataWriter(stream)
+            writer.write_bytes(self._prepare(data))
+            await writer.store_async()
+            writer.detach_stream()
+            stream.seek(0)
+            decoder = await BitmapDecoder.create_async(stream)
+            bitmap = await decoder.get_software_bitmap_async()
+            result = await engine.recognize_async(bitmap)
+            return [
+                (line.text, [(word.text, word.bounding_rect) for word in line.words])
+                for line in result.lines
+            ]
+
+        return asyncio.run(recognise())
+
+    def recognize(self, data: bytes) -> str:
+        if not data:
+            return ""
+        try:
+            lines = self._lines(data)
+        except OCRUnavailable:
+            raise
+        except Exception as exc:
+            raise OCRUnavailable(f"Windows OCR could not read the image: {exc}") from exc
+        text = "\n".join(line.strip() for line, _words in lines if line.strip())
+        return re.sub(r"(\w)-\n(\w)", r"\1\2", text)
+
+    def lettering(self, data: bytes, min_height: float = 0.01, min_chars: int = 2) -> bool:
+        if not data:
+            return False
+        try:
+            from PIL import Image
+
+            with Image.open(io.BytesIO(data)) as image:
+                page_width, page_height = image.size
+        except Exception:
+            return False
+        if not page_width or not page_height:
+            return False
+        try:
+            lines = self._lines(data)
+        except Exception:
+            return False
+        for _line, words in lines:
+            for word, rect in words:
+                if len(word.strip()) < min_chars:
+                    continue
+                if rect.height / page_height >= min_height and rect.width / page_width >= 0.01:
+                    return True
+        return False
+
+
 class TesseractBackend(OcrBackend):
     """Tesseract CLI fallback for Windows and Linux (opt-in install)."""
 
@@ -202,8 +323,12 @@ def backend() -> OcrBackend:
     """Pick the best OCR backend once per process."""
     global _backend
     if _backend is None:
-        vision = VisionBackend()
-        _backend = vision if vision.available() else TesseractBackend()
+        for candidate in (VisionBackend(), WindowsOcrBackend(), TesseractBackend()):
+            if candidate.available():
+                _backend = candidate
+                break
+        else:
+            _backend = TesseractBackend()
     return _backend
 
 

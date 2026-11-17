@@ -85,6 +85,18 @@ Classify the GPU vendor from the name: `NVIDIA`, `AMD/Radeon`, `Intel`,
 - **uv** manages the virtual environment and installs dependencies.
 - **ffmpeg** is required for MP3 export and chapter films.
 - **TTS model**: ~340 MB, downloaded once by `python -m murmur.bootstrap`.
+- **OCR**: on-device on every platform, nothing to download. macOS uses Apple
+  Vision (PyObjC), Windows uses `Windows.Media.Ocr` (installed with
+  `requirements.txt` through `winsdk`, reading whatever language packs Windows
+  already has), Linux uses Tesseract — install `tesseract-ocr`, the only backend
+  that needs a separate binary.
+- **Translation**: macOS uses Apple's Translation framework (add packs in System
+  Settings). Windows and Linux use any local OpenAI-compatible server: set
+  `MURMUR_TRANSLATE_URL` (e.g. `http://127.0.0.1:8091/v1/chat/completions`) and
+  optionally `MURMUR_TRANSLATE_MODEL`; with neither set, ports 8091, 8080, 8000,
+  1234 and 11434 are probed for `/v1/models`, so a lane that is already running is
+  used as-is. Without either, `health.translate` is false and foreign voices read
+  the original text with an accent.
 - **Disk**: ~1–2 GB base; +2.5 GB for film dependencies; image models download
   separately on first film build.
 - **Data directory** (database, models, cache, films):
@@ -358,6 +370,8 @@ still loading.
 | Port 8765 in use | another Rhapsode/dev server | stop it, or accept the random port the desktop app picks |
 | `modelReady: false` forever | Kokoro weights missing | run `python -m murmur.bootstrap` |
 | `ocr: false` on Linux | Tesseract missing | install `tesseract-ocr` |
+| `ocr: false` on Windows | no language pack for `Windows.Media.Ocr`, or `winsdk` missing | add a language in Settings → Time & language, or `uv pip install winsdk` |
+| `translate: false` on Windows/Linux | `MURMUR_TRANSLATE_URL` unset | point it at a local OpenAI-compatible server, then restart |
 | No desktop window on Linux | WebKitGTK missing | install `libwebkit2gtk-4.1-0` or use browser mode |
 | No desktop window on Windows | WebView2 missing | install the Evergreen runtime |
 | `Could not render that page` | PDF source missing | re-upload the document |
