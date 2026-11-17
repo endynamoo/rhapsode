@@ -132,6 +132,8 @@ class HandRepairTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
             polish, "HANDS_ENABLED", True
         ), mock.patch.object(
+            polish, "BLOB_EDGE", 10.0
+        ), mock.patch.object(
             polish.imaging, "paint_job", side_effect=fake_paint
         ) as paint:
             path = _still(Path(tmp))
@@ -182,6 +184,29 @@ class HandRepairTests(unittest.TestCase):
             result = polish._repair_hands(path, {"hands": []}, 120, 160, 1)
             self.assertEqual("none", result["action"])
             run.assert_not_called()
+
+    def test_a_repair_that_erases_the_hand_is_reverted(self) -> None:
+        """The white-blot failure: no ink left where the hand was, so the frame is restored."""
+
+        def blot_paint(job, timeout=None):
+            import numpy as np
+            from PIL import Image
+
+            # White-ish but noisy enough to pass the size check: zero ink, real bytes.
+            rng = np.random.default_rng(2)
+            array = 250 + rng.integers(-6, 6, (160, 120, 3))
+            Image.fromarray(array.clip(0, 255).astype(np.uint8)).save(Path(job["out"]), format="PNG")
+
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
+            polish, "HANDS_ENABLED", True
+        ), mock.patch.object(polish, "BLOB_EDGE", 10.0), mock.patch.object(
+            polish.imaging, "paint_job", side_effect=blot_paint
+        ):
+            path = _still(Path(tmp))
+            before = path.read_bytes()
+            result = polish._repair_hands(path, {"hands": [(10, 10, 100, 140)]}, 120, 160, 3)
+            self.assertEqual("reverted", result["action"])
+            self.assertEqual(before, path.read_bytes(), "the original still survives")
 
     def test_hand_repair_is_off_by_default(self) -> None:
         self.assertFalse(polish.HANDS_ENABLED)

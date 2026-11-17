@@ -13,6 +13,7 @@ an unchanged still never does.
 from __future__ import annotations
 
 import hashlib
+import os
 import json
 import time
 from pathlib import Path
@@ -111,6 +112,27 @@ def _write_record(path: Path, record: dict) -> None:
 
 
 
+# Blob gate: only repair a hand region that has almost no ink structure. Above
+# this, the model drew something and the repair would replace a drawing with a
+# guess.
+BLOB_EDGE = 0.12
+# Acceptance: after the repair the region must still read as ink on paper.
+MIN_INK_KEPT = 0.6
+MIN_EDGE_KEPT = 0.5
+
+
+def _hand_stats(image, box) -> dict:
+    """Ink density and edge energy inside one hand box, 0 to 1."""
+    import numpy as np
+
+    x1, y1, x2, y2 = (int(v) for v in box)
+    crop = np.asarray(image.convert("L").crop((x1, y1, x2, y2)), dtype=np.float32) / 255.0
+    if crop.size == 0:
+        return {"ink": 0.0, "edge": 0.0}
+    edges = float(np.abs(np.diff(crop, axis=0)).mean() + np.abs(np.diff(crop, axis=1)).mean())
+    return {"ink": float((crop < 0.35).mean()), "edge": edges}
+
+
 def _hand_mask(boxes: list[tuple[float, float, float, float]], size: tuple[int, int]) -> "object":
     """A soft mask over the hand boxes; feathering is what stops a seam."""
     from PIL import Image, ImageDraw, ImageFilter
@@ -135,12 +157,33 @@ def _blend_in(base: Path, painted: Path, mask: "object") -> None:
 
 
 def _repair_hands(path: Path, info: dict, width: int, height: int, seed: int) -> dict:
-    """Mask the hands and re-draw just them, at a strength that actually repairs."""
-    if not HANDS_ENABLED:
+    """Mask the hands and re-draw just them, at a strength that actually repairs.
+
+    Two guards decide whether the result is allowed to stay: only a region with
+    almost no ink structure is worth repairing, and a repair that loses the ink
+    (a white blot where a hand was) is reverted from the copy taken beforehand.
+    """
+    if not HANDS_ENABLED and os.environ.get("MURMUR_POLISH_FORCE_HANDS") != "1":
         return {"action": "disabled", "reason": "hand repair is experimental"}
     boxes = info.get("hands") or []
     if not boxes:
         return {"action": "none"}
+
+    from PIL import Image
+
+    with Image.open(path) as image:
+        before_stats = [_hand_stats(image, box) for box in boxes]
+    bbox = [i for i, stat in enumerate(before_stats) if stat["edge"] < BLOB_EDGE]
+    if not bbox and os.environ.get("MURMUR_POLISH_FORCE_HANDS") != "1":
+        return {
+            "action": "skipped",
+            "reason": "hands already drawn",
+            "boxes": len(boxes),
+            "edge": [round(stat["edge"], 3) for stat in before_stats],
+        }
+    boxes = [boxes[i] for i in bbox] if bbox else boxes
+
+    original = path.read_bytes()
     mask = _hand_mask(boxes, (width, height))
     mask_path = path.with_suffix(".hands-mask.png")
     painted = path.with_suffix(".hands.png")
@@ -167,9 +210,29 @@ def _repair_hands(path: Path, info: dict, width: int, height: int, seed: int) ->
         if not painted.exists() or painted.stat().st_size < imaging.MIN_STILL_BYTES:
             raise RuntimeError("the hand repair produced no usable image")
         _blend_in(path, painted, mask)
+
+        # Did the repair keep ink where the hand was? A white blot means the model
+        # painted the hand away, and the frame is restored from the copy.
+        with Image.open(path) as repaired:
+            after_stats = [_hand_stats(repaired, box) for box in boxes]
+        kept = []
+        for before_stat, after_stat in zip(before_stats, after_stats, strict=False):
+            ink_ok = after_stat["ink"] >= MIN_INK_KEPT * before_stat["ink"] if before_stat["ink"] else True
+            edge_ok = after_stat["edge"] >= MIN_EDGE_KEPT * before_stat["edge"] if before_stat["edge"] else True
+            kept.append(ink_ok and edge_ok)
+        if not all(kept):
+            path.write_bytes(original)
+            return {
+                "action": "reverted",
+                "hands": len(boxes),
+                "reason": "the repair lost the ink in the hand region",
+                "before": [round(s["ink"], 3) for s in before_stats],
+                "after": [round(s["ink"], 3) for s in after_stats],
+            }
         return {"action": "repaired", "hands": len(boxes),
                 "seconds": round(time.time() - started, 1)}
     except Exception as exc:  # noqa: BLE001 - reported, never fatal
+        path.write_bytes(original)
         return {"action": "failed", "hands": len(boxes), "error": str(exc)[-300:]}
     finally:
         painted.unlink(missing_ok=True)
