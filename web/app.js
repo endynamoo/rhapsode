@@ -3053,6 +3053,11 @@ function renderSearchNote() {
     error.className = 'search-error';
     error.textContent = `Indexing stopped: ${indexing.lastError}`;
     parts.push(error);
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.textContent = 'Try again';
+    retry.addEventListener('click', () => startReindex(false));
+    parts.push(retry);
   } else if ((status.pending || 0) > 0) {
     parts.push(`${status.pending} ${status.pending === 1 ? 'book is' : 'books are'} waiting to be indexed`);
     const button = document.createElement('button');
