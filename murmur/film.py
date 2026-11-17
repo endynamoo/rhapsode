@@ -16,7 +16,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import config, engine, imaging, ocr, polish, proc, prompts, speak, store
+from . import config, engine, imaging, ocr, polish, power, proc, prompts, speak, store
 
 SCENE_SECONDS = 75.0
 SCENE_MAX_UNITS = 20
@@ -1629,7 +1629,10 @@ def _film_worker() -> None:
                 if job is not None:
                     job["state"] = "cancelled"
                 continue
-            render_chapter(doc, chapter, voice, job)
+            # A chapter holds the GPU for half an hour; let Windows sleep during
+            # one of these and the power transition can take the app with it.
+            with power.keep_awake():
+                render_chapter(doc, chapter, voice, job)
         finally:
             _FILM_QUEUE.task_done()
 
