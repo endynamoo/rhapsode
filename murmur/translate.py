@@ -263,8 +263,9 @@ class TranslatorChain:
         if self.http.available():
             return self.http.translate(text, target, source)
         raise TranslateUnavailable(
-            "Translation is unavailable: Apple's framework is macOS-only, and "
-            "MURMUR_TRANSLATE_URL is not set."
+            "Translation needs a local model on this machine: set "
+            "MURMUR_TRANSLATE_URL to an OpenAI-compatible server, or start one on "
+            "the usual ports."
         )
 
 

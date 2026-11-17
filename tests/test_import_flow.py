@@ -210,6 +210,15 @@ class ImportFlowTests(unittest.TestCase):
             response = self._upload(client, "notes.xyz", b"nonsense", "application/octet-stream")
             self.assertIn(response.status_code, (400, 415), response.text[:400])
 
+    def test_rtf_font_table_does_not_land_in_the_title(self) -> None:
+        with temp_home():
+            client = TestClient(server.app)
+            response = self._upload(client, "notes.rtf", RTF, "application/rtf")
+            self.assertEqual(200, response.status_code, response.text[:300])
+            title = response.json()["title"]
+            self.assertNotIn("Times New Roman", title)
+            self.assertIn("RTF sentence", title)
+
 
 if __name__ == "__main__":
     unittest.main()

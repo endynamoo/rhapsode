@@ -186,6 +186,7 @@ class WindowsOcrBackend(OcrBackend):
 
     def _lines(self, data: bytes):
         import asyncio
+        import threading
 
         from winsdk.windows.graphics.imaging import BitmapDecoder
         from winsdk.windows.storage.streams import DataWriter, InMemoryRandomAccessStream
@@ -207,7 +208,25 @@ class WindowsOcrBackend(OcrBackend):
                 for line in result.lines
             ]
 
-        return asyncio.run(recognise())
+        # Uploads arrive on the server's event loop, where asyncio.run() refuses to
+        # start; a private loop on its own thread works from either side.
+        outcome: dict = {}
+
+        def runner() -> None:
+            loop = asyncio.new_event_loop()
+            try:
+                outcome["value"] = loop.run_until_complete(recognise())
+            except BaseException as exc:  # noqa: BLE001 - re-raised in the caller
+                outcome["error"] = exc
+            finally:
+                loop.close()
+
+        thread = threading.Thread(target=runner, name="windows-ocr", daemon=True)
+        thread.start()
+        thread.join()
+        if "error" in outcome:
+            raise outcome["error"]
+        return outcome.get("value", [])
 
     def recognize(self, data: bytes) -> str:
         if not data:

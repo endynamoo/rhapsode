@@ -184,9 +184,13 @@ class FluxPythonBackend(ImageBackend):
         out_path.unlink(missing_ok=True)
         try:
             result = proc.run(
-                command, capture_output=True, text=True, timeout=1800,
+                command, capture_output=True, text=True, timeout=900,
                 cwd=str(config.APP_ROOT), env=env, errors="replace",
             )
+        except subprocess.TimeoutExpired as exc:
+            raise ImageError(
+                "FLUX stopped answering after 15 minutes; the still was skipped."
+            ) from exc
         except subprocess.SubprocessError as exc:
             raise ImageError(f"FLUX run failed to start: {exc}") from exc
         if result.returncode != 0 or not out_path.exists():
@@ -284,15 +288,22 @@ class FilmImages:
                  init_image: Path | None = None, strength: float = 0.5,
                  model: str | None = None,
                  reference_image: Path | None = None) -> str:
-        if out_path.exists() and out_path.stat().st_size > 1024:
-            return "cached"
+        marker = out_path.with_suffix(out_path.suffix + ".placeholder")
+        cached = out_path.exists() and out_path.stat().st_size > 1024
         with self._lock:
-            if out_path.exists() and out_path.stat().st_size > 1024:
-                return "cached"
             backend = self.backend(model)
+            # A placeholder is not a still: once a real engine exists, repaint it.
+            if cached and marker.exists() and backend.name != "placeholder":
+                cached = False
+            if cached:
+                return "cached"
             backend.generate(prompt, width, height, seed, out_path,
                              init_image=init_image, strength=strength,
                              reference_image=reference_image)
+            if backend.name == "placeholder":
+                marker.write_text("placeholder\n", "utf-8")
+            else:
+                marker.unlink(missing_ok=True)
             return backend.name
 
 

@@ -64,5 +64,26 @@ class DatabaseHandleTests(unittest.TestCase):
         )
 
 
+class BundleTests(unittest.TestCase):
+    """A frozen build only has what the spec collects."""
+
+    SPEC = ROOT / "packaging" / "Rhapsode-win.spec"
+
+    def setUp(self) -> None:
+        if not self.SPEC.exists():
+            self.skipTest("no Windows spec in this checkout")
+        self.text = self.SPEC.read_text("utf-8")
+
+    def test_trafilatura_dependencies_are_collected(self) -> None:
+        # trafilatura imports these as separate distributions; missing them makes
+        # every HTML and URL import a 500 in the installed app.
+        for module in ("justext", "htmldate", "courlan", "charset_normalizer", "lxml"):
+            self.assertIn(f'"{module}"', self.text, f"{module} is not collected")
+
+    def test_ocr_and_stills_hooks_are_present(self) -> None:
+        self.assertIn('"winsdk"', self.text, "Windows OCR needs winsdk collected")
+        self.assertIn("fluxgen.py", self.text, "image-venv needs fluxgen.py as a file")
+
+
 if __name__ == "__main__":
     unittest.main()

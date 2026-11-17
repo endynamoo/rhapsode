@@ -51,6 +51,13 @@ packages = [
     "bs4",
     "docx",
     "trafilatura",
+    # trafilatura imports these as separate distributions; without them the
+    # frozen app 500s on HTML and URL imports.
+    "justext",
+    "htmldate",
+    "courlan",
+    "charset_normalizer",
+    "lxml",
     "soundfile",
     "uvicorn",
     "misaki",

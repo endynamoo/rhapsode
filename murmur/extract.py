@@ -407,7 +407,7 @@ def _html_string(html: str) -> tuple[str, str]:
 
 
 _RTF_DESTINATION = re.compile(
-    r"\{\\\*?\\(?:fonttbl|colortbl|stylesheet|info|pict|header|footer|object|themedata|datastore)"
+    r"\{(?:\\\*)?\\(?:fonttbl|colortbl|stylesheet|info|pict|header|footer|object|themedata|datastore)"
     r"[^{}]*(?:\{[^{}]*\}[^{}]*)*\}"
 )
 _RTF_HEX = re.compile(r"\\'([0-9a-fA-F]{2})")

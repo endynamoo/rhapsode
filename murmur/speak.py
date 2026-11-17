@@ -33,6 +33,16 @@ def prepare(text: str, voice: str, enabled: bool = True) -> dict:
         result["translated"] = cached.strip() != text.strip()
         return result
 
+    if not translate.translator.available():
+        # Nothing to translate with: read the original text and say so once, in
+        # words that fit every platform.
+        result["error"] = (
+            "Translation is not set up on this machine, so the original text is "
+            "being read. Point MURMUR_TRANSLATE_URL at a local model, or turn off "
+            "Settings → Translate to voice language."
+        )
+        return result
+
     try:
         output = translate.translator.translate(text, result["target"])
     except (translate.TranslateUnavailable, translate.TranslateError) as exc:

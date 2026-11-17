@@ -102,6 +102,34 @@ class OcrBackendTests(unittest.TestCase):
         self.assertIn("Scanned pages", text)
         self.assertTrue(backend.lettering(buffer.getvalue()))
 
+    def test_windows_backend_works_inside_a_running_event_loop(self) -> None:
+        """Uploads run on the server's loop; OCR must not need asyncio.run()."""
+        backend = ocr.WindowsOcrBackend()
+        if not backend.available():
+            self.skipTest("Windows OCR is not available on this machine")
+
+        import asyncio
+        import io
+
+        from PIL import Image, ImageDraw, ImageFont
+
+        image = Image.new("RGB", (600, 160), "white")
+        draw = ImageDraw.Draw(image)
+        try:
+            font = ImageFont.truetype("georgia.ttf", 32)
+        except OSError:
+            self.skipTest("no TrueType font to render with")
+        draw.text((30, 60), "Loop safe text.", font=font, fill="black")
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+        data = buffer.getvalue()
+
+        async def inside_the_loop() -> str:
+            return backend.recognize(data)
+
+        text = asyncio.run(inside_the_loop())
+        self.assertIn("Loop safe", text)
+
 
 class TtsProviderTests(unittest.TestCase):
     def test_cpu_when_no_accelerated_runtime(self) -> None:
