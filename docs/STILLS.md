@@ -70,7 +70,13 @@ an unchanged still never does.
 - **Never destructive**: the pre-polish still is kept beside it as
   `*.pre-polish.png`, and a failed re-draw leaves the original untouched.
 
-### The hand repair
+### The hand repair (experimental, off)
+
+**Not on by default.** Measured on the lab still: at 0.75 strength the repair
+replaced the whole forearm with a white blot; at 0.5 with a tighter mask it still
+redrew the desk and duplicated the hand. A repair that damages a frame is worse
+than the blobby hand it was meant to fix, so the pass sits behind
+`polish.HANDS_ENABLED` until it can be tuned against a real hand-quality check.
 
 After the global pass, RTMDet finds the people, RTMPose locates their wrists, and
 each wrist becomes a hand box. Those boxes are painted into a feathered mask and

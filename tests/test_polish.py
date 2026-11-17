@@ -130,6 +130,8 @@ class HandRepairTests(unittest.TestCase):
             _noise(Path(job["out"]), (120, 160))
 
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
+            polish, "HANDS_ENABLED", True
+        ), mock.patch.object(
             polish.imaging, "paint_job", side_effect=fake_paint
         ) as paint:
             path = _still(Path(tmp))
@@ -173,10 +175,21 @@ class HandRepairTests(unittest.TestCase):
                 self.assertGreater(result.getpixel((5, 5))[0], 240, "outside is untouched")
 
     def test_repair_without_hands_does_nothing(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(polish.imaging, "paint_job") as run:
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
+            polish, "HANDS_ENABLED", True
+        ), mock.patch.object(polish.imaging, "paint_job") as run:
             path = _still(Path(tmp))
             result = polish._repair_hands(path, {"hands": []}, 120, 160, 1)
             self.assertEqual("none", result["action"])
+            run.assert_not_called()
+
+    def test_hand_repair_is_off_by_default(self) -> None:
+        self.assertFalse(polish.HANDS_ENABLED)
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
+            polish.imaging, "paint_job"
+        ) as run:
+            result = polish._repair_hands(_still(Path(tmp)), {"hands": [(0, 0, 9, 9)]}, 120, 160, 1)
+            self.assertEqual("disabled", result["action"])
             run.assert_not_called()
 
 

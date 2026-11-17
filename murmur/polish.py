@@ -30,7 +30,12 @@ STEPS = 1
 
 # The hand repair is different: it has to actually change pixels inside a mask, so
 # it takes a real strength and two steps.
-HAND_STRENGTH = 0.75
+HAND_STRENGTH = 0.5
+# Off by default. Measured on the lab still: at 0.75 the repair replaced the whole
+# forearm with a white blot, and at 0.5 with a tighter mask it still redrew the desk
+# and duplicated the hand. The mechanism is kept for tuning; a repair that damages
+# a frame is worse than the blobby hand it was meant to fix.
+HANDS_ENABLED = False
 HAND_STEPS = 2
 
 CLEAN_SUFFIX = (
@@ -113,7 +118,7 @@ def _hand_mask(boxes: list[tuple[float, float, float, float]], size: tuple[int, 
     mask = Image.new("L", size, 0)
     draw = ImageDraw.Draw(mask)
     for x1, y1, x2, y2 in boxes:
-        pad = max(6.0, min(x2 - x1, y2 - y1) * 0.28)
+        pad = max(4.0, min(x2 - x1, y2 - y1) * 0.15)
         draw.ellipse([x1 - pad, y1 - pad, x2 + pad, y2 + pad], fill=255)
     return mask.filter(ImageFilter.GaussianBlur(radius=max(4, int(min(size) * 0.012))))
 
@@ -131,6 +136,8 @@ def _blend_in(base: Path, painted: Path, mask: "object") -> None:
 
 def _repair_hands(path: Path, info: dict, width: int, height: int, seed: int) -> dict:
     """Mask the hands and re-draw just them, at a strength that actually repairs."""
+    if not HANDS_ENABLED:
+        return {"action": "disabled", "reason": "hand repair is experimental"}
     boxes = info.get("hands") or []
     if not boxes:
         return {"action": "none"}
