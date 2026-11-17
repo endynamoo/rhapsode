@@ -1,0 +1,71 @@
+name: macos
+
+# A clean macOS runner: build the .app, self-test it, wrap it in a
+# drag-install DMG, and attach the DMG to the release when a v* tag is pushed.
+# The bundle is ad-hoc signed (no Developer ID), so the first launch needs
+# right-click -> Open. Stills generation is installed per-user at runtime.
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - "build_app.sh"
+      - "packaging/Rhapsode.spec"
+      - "packaging/entry.py"
+      - "native/**"
+      - "scripts/make_dmg.sh"
+      - "requirements*.txt"
+      - ".github/workflows/macos.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build + dmg (macos-latest)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build the app
+        env:
+          MURMUR_BUNDLE_MODELS: "0"
+          MURMUR_SKIP_FILM: "1"
+        run: ./build_app.sh
+
+      - name: Self-test the bundle
+        run: |
+          line="$(dist/Rhapsode.app/Contents/MacOS/Rhapsode --selftest)"
+          echo "$line"
+          case "$line" in
+            ok\ http://127.0.0.1:*) ;;
+            *) echo "the bundle did not report healthy" >&2; exit 1 ;;
+          esac
+
+      - name: Build the DMG
+        run: ./scripts/make_dmg.sh
+
+      - name: Upload the DMG as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rhapsode-macos-dmg
+          path: dist/*.dmg
+          if-no-files-found: error
+
+      - name: Attach the DMG to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${GITHUB_REF_NAME}" dist/*.dmg --clobber

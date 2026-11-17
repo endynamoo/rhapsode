@@ -24,9 +24,15 @@ if command -v swiftc >/dev/null 2>&1; then
     native/translate.swift -o bin/murmur-translate
   echo "Built translation helper"
   if [ -f native/prompts.swift ]; then
-    swiftc -O -parse-as-library -framework FoundationModels \
-      native/prompts.swift -o bin/murmur-prompts
-    echo "Built prompt helper"
+    if swiftc -O -parse-as-library -framework FoundationModels \
+        native/prompts.swift -o bin/murmur-prompts 2>"build_assets/prompts-build.log"; then
+      echo "Built prompt helper"
+    else
+      # Foundation Models needs the macOS 26 SDK. Older toolchains still build a
+      # working app; prompt writing falls back to the built-in writer.
+      echo "warning: prompt helper not built (needs the macOS 26 SDK); using the fallback." >&2
+      sed -n '1,5p' "build_assets/prompts-build.log" >&2 || true
+    fi
   fi
 else
   echo "swiftc is required to build the native helpers (install Xcode Command Line Tools)." >&2

@@ -1,10 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
 """PyInstaller spec: Rhapsode.app (native window + bundled Murmur engine)."""
 import os
+import sys
 
 from PyInstaller.utils.hooks import collect_all
 
 ROOT = os.path.abspath(os.getcwd())
+sys.path.insert(0, ROOT)
+
+from murmur import __version__ as VERSION  # noqa: E402
 
 datas = [(os.path.join(ROOT, "web"), "web")]
 binaries = []
@@ -112,11 +116,11 @@ app = BUNDLE(
     coll,
     name="Rhapsode.app",
     icon=os.path.join(ROOT, "packaging", "Rhapsode.icns"),
-    bundle_identifier="local.rhapsode",
+    bundle_identifier="com.endynamoo.rhapsode",
     info_plist={
         "CFBundleName": "Rhapsode",
         "CFBundleDisplayName": "Rhapsode",
-        "CFBundleShortVersionString": "0.2.0-alpha",
+        "CFBundleShortVersionString": VERSION,
         "CFBundleVersion": "1",
         "LSMinimumSystemVersion": "13.0",
         "NSHighResolutionCapable": True,

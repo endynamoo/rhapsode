@@ -46,6 +46,7 @@ are local files. Nothing is uploaded.
 ```bash
 ./run.sh              # venv, deps, ~340 MB model, then opens http://127.0.0.1:8765
 ./build_app.sh        # optional: a real .app bundle
+./scripts/make_dmg.sh # optional: drag-install DMG in dist/
 ```
 
 **Windows 10/11** (preview). The installer is per-user — no admin prompt — and
@@ -94,8 +95,8 @@ verification checklist live in **[AGENTS.md](AGENTS.md)**.
 
 | Platform | Read / TTS / highlight | Chapter stills → MP4 | Native bundle |
 |---|---|---|---|
-| macOS 13+ (Apple Silicon) | supported | supported (MPS + MLX) | `.app` |
-| macOS Intel | supported | CPU only, opt-in | `.app` |
+| macOS 13+ (Apple Silicon) | supported | supported (MPS + MLX) | `.app` + DMG |
+| macOS Intel | supported | CPU only, opt-in | `.app` + DMG |
 | Windows 10/11 x64 | preview, installer or source | NVIDIA CUDA or AMD ROCm; CPU opt-in | Inno Setup installer (preview) |
 | Linux x64 | preview, source install | NVIDIA CUDA or AMD ROCm; CPU opt-in | not yet |
 
@@ -138,6 +139,8 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 **Added**
 
+- macOS release builds on clean runners: `.github/workflows/macos.yml` builds and self-tests the `.app` for arm64 (`macos-latest`) and x86_64 (`macos-15-intel`), wraps each in a drag-install DMG, and attaches both to a `v*` release; the Windows installer workflow attaches its Setup.exe the same way.
+- `scripts/make_dmg.sh` for a local drag-install DMG.
 - Search across your whole library with `Ctrl+F` / `⌘F` or the magnifier: results grouped by book, the matching passage marked, and a jump straight to that sentence, chapter or page. Keywords work with nothing extra installed; the optional 23 MB meaning model (Apache-2.0, CPU only) is offered as a download in the panel and can be switched off with `MURMUR_SEMANTIC=off`.
 - "Read this week" and "Read this month" filters for search, based on when a book was actually opened or its position saved.
 - Live progress for library indexing and the model download, plus an Index library button; an interrupted index resumes where it stopped instead of duplicating rows.
@@ -146,12 +149,9 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 **Changed**
 
-- The front page, the third-party notices and the app's copyright string say "license", not "licence".
-- Opening or resuming a book now records reading activity, so recent-only search can tell a book you read last week from one you imported and never touched.
-- The README front page states what actually ships: the per-user Windows installer, ROCm stills, and the real test count.
-- The generated changelog block no longer repeats the "Changelog" heading above it.
-- `AGENTS.md` is plain UTF-8 text again, so its arrows and dashes render as arrows and dashes.
+- The Windows installer and the macOS `.app` read their version from `murmur.__version__`, so a version bump is one line instead of three files.
+- The macOS bundle identifier is `com.endynamoo.rhapsode`, not `local.rhapsode`.
 
-*...and 24 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 31 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
