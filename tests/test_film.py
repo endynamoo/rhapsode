@@ -100,17 +100,33 @@ class CacheTests(unittest.TestCase):
             prompt="manga", seed=1,
         )
 
+    def _write_still(self, path: Path, bright_band: bool = False) -> bytes:
+        """A real PNG, big enough to pass the still check, with a tonal trap."""
+        import numpy as np
+        from PIL import Image
+
+        rng = np.random.default_rng(0)
+        array = rng.integers(40, 170, (720, 1280), dtype=np.uint8)
+        if bright_band:
+            # Bright patch across half the width: artwork, not a panel gutter.
+            array[300:320, :] = 120
+            array[320:330, :640] = 240
+        Image.fromarray(array, "L").save(path, format="PNG")
+        return path.read_bytes()
+
     def test_existing_scene_image_is_not_regenerated(self) -> None:
+        """A cache hit must be inert: no model call, no rewrite, no crop."""
         with tempfile.TemporaryDirectory() as tmp:
             with mock.patch.object(film.config, "FILM_DIR", Path(tmp)):
                 doc = self._doc()
                 path = film.scene_image_path(doc["id"], 0, 0)
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_bytes(b"x" * 60_000)  # a real still is far bigger than a card
+                before = self._write_still(path, bright_band=True)
                 with mock.patch.object(film.imaging.image_gen, "generate") as generate:
                     generate.side_effect = AssertionError("should not regenerate")
                     result = film.ensure_scene_image(doc, 0, self._scene())
                 self.assertEqual(result, path)
+                self.assertEqual(before, path.read_bytes(), "the still was rewritten")
 
     def test_placeholder_card_is_repainted(self) -> None:
         """An 8 KB prompt card from before the engine existed is not a still."""
@@ -196,6 +212,34 @@ class GutterTests(unittest.TestCase):
             self.assertGreater(result.width, 1700)
             self.assertGreater(result.height, 1000)
             self.assertIsNone(film._find_gutter(np.asarray(result)))
+
+
+class GutterDetectorTests(unittest.TestCase):
+    def _png(self, tmp: Path, array) -> Path:
+        from PIL import Image
+
+        path = tmp / "still.png"
+        Image.fromarray(array, "L").save(path, format="PNG")
+        return path
+
+    def test_a_bright_patch_is_not_a_gutter(self) -> None:
+        import numpy as np
+
+        rng = np.random.default_rng(1)
+        array = rng.integers(40, 160, (720, 1280), dtype=np.uint8)
+        array[300:320, :] = 120
+        array[320:330, :640] = 240
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertFalse(film._has_gutter(self._png(Path(tmp), array)))
+
+    def test_a_real_full_width_gutter_is_detected(self) -> None:
+        import numpy as np
+
+        rng = np.random.default_rng(2)
+        array = rng.integers(40, 140, (720, 1280), dtype=np.uint8)
+        array[350:356, :] = 250
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertTrue(film._has_gutter(self._png(Path(tmp), array)))
 
 
 class ClipTests(unittest.TestCase):

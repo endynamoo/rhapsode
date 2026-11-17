@@ -759,6 +759,12 @@ def _find_gutter(data: np.ndarray) -> tuple[str, int] | None:
                 continue
             if before.std() < 8 or after.std() < 8:
                 continue
+            # Flanks that are solid black or solid white are more artwork, not a
+            # gutter between two panels.
+            if not (40.0 <= float(before.mean()) <= 210.0):
+                continue
+            if not (40.0 <= float(after.mean()) <= 210.0):
+                continue
             distance = abs(center - middle)
             if best is None or distance < best[0]:
                 best = (distance, center)
@@ -770,7 +776,12 @@ def _find_gutter(data: np.ndarray) -> tuple[str, int] | None:
         flags: list[bool] = []
         for position in range(offset, int(span * 0.75)):
             line = data[position, :] if axis == "h" else data[:, position]
-            flags.append(bool((line > 232).mean() >= 0.5))
+            # A panel gutter is a near-uniform band all the way across; a bright
+            # patch of artwork is not. 50% coverage with no variance test flagged
+            # ordinary tonal bands and sent stills back through the model.
+            flags.append(
+                bool((line > 232).mean() >= 0.98 and float(line.std()) < 8.0)
+            )
         for start, end in runs(flags):
             length = end - start
             if length < 2 or length > 40:
@@ -779,7 +790,10 @@ def _find_gutter(data: np.ndarray) -> tuple[str, int] | None:
             after = data[offset + end:offset + end + 2, :] if axis == "h" else data[:, offset + end:offset + end + 2]
             if before.size == 0 or after.size == 0:
                 continue
-            if before.mean() >= 180 or after.mean() >= 180:
+            # The rows either side must be ink, not more paper.
+            if before.mean() >= 120 or after.mean() >= 120:
+                continue
+            if before.std() < 8 or after.std() < 8:
                 continue
             return (axis, offset + (start + end) // 2)
         return None
@@ -871,20 +885,11 @@ def ensure_scene_image(doc: dict, chapter: int, scene: Scene,
                        seed: int | None = None) -> Path:
     model, width, height = film_model()
     path = scene_image_path(doc["id"], chapter, scene.index, model)
-    try:
-        if still_ready(path):
-            if _has_gutter(path):
-                if model.startswith("flux"):
-                    _clean_lettering(path, scene, model, width, height)
-                    _finish_still(path)
-                if _has_gutter(path):
-                    _crop_gutter(path)
-            if model.startswith("flux") and _has_lettering(path):
-                _clean_lettering(path, scene, model, width, height)
-                _finish_still(path)
-            return path
-    except OSError:
-        pass
+    # A still that is already on disk is done. The cleanup below runs at paint
+    # time; doing it here meant every chapter render re-painted and re-cropped
+    # stills whose gutter detector misfired, which never converged.
+    if still_ready(path):
+        return path
     if prompt_override:
         cast = doc_cast(doc, chapter)
         cast_text = "; ".join(
