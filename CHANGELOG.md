@@ -24,6 +24,7 @@ fails when that copy is stale.
 
 ### Fixed
 
+- `scripts\build_installer.ps1` builds on a clean machine without `.venv`, and survives PyInstaller's stderr logging under Windows PowerShell, so the installer workflow on CI can run it.
 - Painting refuses to start without enough free system RAM, and reports what was left instead of dying mid-still.
 - A resident painter survives an out-of-memory kill instead of dying, and is reaped with the app, including the one-shot fallback.
 - A still that is already painted is never repainted on a later session.
