@@ -243,14 +243,15 @@ def hands(image_bgr: np.ndarray) -> list[tuple[float, float, float, float]]:
             continue
         by_name = {point["name"]: point for point in points}
         body = max(48.0, (person[2] - person[0]) * 0.18)
-        nose = by_name.get("nose")
         for side in ("left", "right"):
             wrist = by_name.get(f"{side}_wrist")
             elbow = by_name.get(f"{side}_elbow")
             if not wrist:
                 continue
             # A wrist outside the person's box is a decode failure, not a hand.
-            if not (person[0] - body <= wrist["x"] <= person[2] + body):
+            margin = (person[2] - person[0]) * 0.08
+            if not (person[0] - margin <= wrist["x"] <= person[2] + margin
+                    and person[1] - margin <= wrist["y"] <= person[3] + margin):
                 continue
             size = body
             if elbow:
@@ -264,8 +265,6 @@ def hands(image_bgr: np.ndarray) -> list[tuple[float, float, float, float]]:
                 wrist["x"] + size / 2,
                 wrist["y"] + size / 2,
             ))
-        if nose is not None and not found:
-            continue
     kept: list[tuple[float, float, float, float]] = []
     for box in found:
         clipped = (max(0.0, box[0]), max(0.0, box[1]),
@@ -297,7 +296,7 @@ def anatomy_flags(image_bgr: np.ndarray) -> list[str]:
             if upper < 1 or lower < 1:
                 continue
             ratio = upper / lower
-            if ratio > 2.2 or ratio < 0.45:
+            if ratio > 2.6 or ratio < 0.35:
                 flags.append(f"person {index}: {side} arm segments out of proportion ({ratio:.2f})")
             if _distance(shoulder, wrist) > height * 1.1:
                 flags.append(f"person {index}: {side} arm longer than the body")
