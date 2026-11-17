@@ -162,6 +162,7 @@ class FluxWorker:
             env=self._env(),
         )
         ready = self._read_line(process.stdout, self.READY_TIMEOUT)
+        self.ready_info = ready or {}
         if not ready or not ready.get("ready"):
             process.kill()
             detail = (ready or {}).get("error", "no answer from the painter")
