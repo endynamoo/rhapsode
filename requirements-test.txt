@@ -1,0 +1,14 @@
+# What the test suite imports — not the app's runtime stack.
+# Deliberately excludes the TTS weights, misaki/pyopenjtalk and the film stack,
+# so CI installs in seconds and the suite stays a unit/integration check.
+fastapi>=0.115
+uvicorn>=0.34
+python-multipart>=0.0.20
+httpx>=0.28
+pydantic>=2.7
+pypdfium2>=4.30
+python-docx>=1.1
+trafilatura>=2.0
+beautifulsoup4>=4.12
+pillow>=10.4
+numpy>=2.0

@@ -7,6 +7,8 @@ import subprocess
 import sys
 import time
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -69,6 +71,22 @@ def _conn() -> sqlite3.Connection:
     return conn
 
 
+@contextmanager
+def _db() -> Iterator[sqlite3.Connection]:
+    """One short-lived connection per operation.
+
+    `with sqlite3.connect(...)` only commits — it never closes — so every call
+    used to leak a handle. On Windows that keeps murmur.db locked and WAL files
+    open long after the request that needed them.
+    """
+    conn = _conn()
+    try:
+        with conn:
+            yield conn
+    finally:
+        conn.close()
+
+
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp", ".heic", ".heif"}
 BROWSER_IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
@@ -98,7 +116,7 @@ def _convert_to_png(source: Path, target: Path) -> bool:
 
     if sys.platform == "darwin":
         try:
-            result = subprocess.run(
+            result = proc.run(
                 ["sips", "-s", "format", "png", str(source), "--out", str(target)],
                 capture_output=True,
                 timeout=60,
@@ -128,7 +146,7 @@ def save_source(doc_id: str, suffix: str, data: bytes) -> str:
 
 
 def doc_file(doc_id: str) -> Path | None:
-    with _conn() as conn:
+    with _db() as conn:
         row = conn.execute("SELECT file FROM docs WHERE id = ?", (doc_id,)).fetchone()
     if not row or not row["file"]:
         return None
@@ -137,7 +155,7 @@ def doc_file(doc_id: str) -> Path | None:
 
 def init() -> None:
     config.ensure_dirs()
-    with _conn() as conn:
+    with _db() as conn:
         conn.executescript(SCHEMA)
         # Migrate libraries created before page rendering existed.
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(docs)")}
@@ -189,13 +207,13 @@ def _row_to_doc(row: sqlite3.Row, include_units: bool = True) -> dict:
 
 
 def list_docs() -> list[dict]:
-    with _conn() as conn:
+    with _db() as conn:
         rows = conn.execute("SELECT * FROM docs ORDER BY updated DESC").fetchall()
     return [_row_to_doc(r, include_units=False) for r in rows]
 
 
 def get_doc(doc_id: str) -> dict | None:
-    with _conn() as conn:
+    with _db() as conn:
         row = conn.execute("SELECT * FROM docs WHERE id = ?", (doc_id,)).fetchone()
     return _row_to_doc(row) if row else None
 
@@ -221,7 +239,7 @@ def create_doc(
     doc_id = uuid.uuid4().hex[:12]
     title = (title or "Untitled").strip()[:200]
     words = textmod.word_count(" ".join(units))
-    with _conn() as conn:
+    with _db() as conn:
         conn.execute(
             "INSERT INTO docs (id,title,source,kind,body,units,unit_pages,toc,chapter_files,"
             "file,page_count,created,updated,position,voice,speed,chars,words)"
@@ -251,18 +269,18 @@ def update_doc(doc_id: str, **fields: Any) -> dict | None:
         allowed["units"] = json.dumps(allowed["units"], ensure_ascii=False)
     allowed["updated"] = time.time()
     sets = ", ".join(f"{k} = ?" for k in allowed)
-    with _conn() as conn:
+    with _db() as conn:
         conn.execute(f"UPDATE docs SET {sets} WHERE id = ?", (*allowed.values(), doc_id))
     return get_doc(doc_id)
 
 
 def touch(doc_id: str) -> None:
-    with _conn() as conn:
+    with _db() as conn:
         conn.execute("UPDATE docs SET updated = ? WHERE id = ?", (time.time(), doc_id))
 
 
 def delete_doc(doc_id: str) -> bool:
-    with _conn() as conn:
+    with _db() as conn:
         row = conn.execute("SELECT file FROM docs WHERE id = ?", (doc_id,)).fetchone()
         cur = conn.execute("DELETE FROM docs WHERE id = ?", (doc_id,))
     if cur.rowcount > 0:
@@ -275,7 +293,7 @@ def delete_doc(doc_id: str) -> bool:
 
 def get_settings() -> dict:
     settings = dict(DEFAULT_SETTINGS)
-    with _conn() as conn:
+    with _db() as conn:
         for row in conn.execute("SELECT key, value FROM settings"):
             try:
                 settings[row["key"]] = json.loads(row["value"])
@@ -285,7 +303,7 @@ def get_settings() -> dict:
 
 
 def set_settings(patch: dict) -> dict:
-    with _conn() as conn:
+    with _db() as conn:
         for key, value in patch.items():
             if key in DEFAULT_SETTINGS:
                 conn.execute(
@@ -297,7 +315,7 @@ def set_settings(patch: dict) -> dict:
 
 
 def translation_get(key: str) -> str | None:
-    with _conn() as conn:
+    with _db() as conn:
         row = conn.execute(
             "SELECT translated FROM translations WHERE key = ?", (key,)
         ).fetchone()
@@ -305,7 +323,7 @@ def translation_get(key: str) -> str | None:
 
 
 def translation_put(key: str, source: str, target: str, original: str, translated: str) -> None:
-    with _conn() as conn:
+    with _db() as conn:
         conn.execute(
             "INSERT INTO translations(key,source,target,original,translated,created)"
             " VALUES(?,?,?,?,?,?)"

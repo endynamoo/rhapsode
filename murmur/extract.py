@@ -10,6 +10,7 @@ import posixpath
 import re
 import socket
 import subprocess
+import sys
 import tempfile
 import zipfile
 from pathlib import Path
@@ -405,14 +406,52 @@ def _html_string(html: str) -> tuple[str, str]:
     return title, _paragraphs(_tidy(body))
 
 
+_RTF_DESTINATION = re.compile(
+    r"\{\\\*?\\(?:fonttbl|colortbl|stylesheet|info|pict|header|footer|object|themedata|datastore)"
+    r"[^{}]*(?:\{[^{}]*\}[^{}]*)*\}"
+)
+_RTF_HEX = re.compile(r"\\'([0-9a-fA-F]{2})")
+_RTF_UNICODE = re.compile(r"\\u(-?\d+)\s?\??")
+_RTF_CONTROL = re.compile(r"\\[a-zA-Z]+-?\d*\s?")
+
+
+def _rtf_to_text(data: bytes) -> str:
+    """Strip RTF down to plain text without `textutil` (Windows and Linux)."""
+    text = data.decode("latin-1", "replace")
+    for _ in range(4):  # tables nest; peel the destination groups off one at a time
+        stripped = _RTF_DESTINATION.sub("", text)
+        if stripped == text:
+            break
+        text = stripped
+    text = _RTF_HEX.sub(
+        lambda m: bytes([int(m.group(1), 16)]).decode("cp1252", "replace"), text
+    )
+    text = _RTF_UNICODE.sub(lambda m: chr(int(m.group(1)) % 0x10000), text)
+    for name, replacement in (
+        ("\\par", "\n"), ("\\line", "\n"), ("\\tab", "\t"),
+        ("\\emdash", "—"), ("\\endash", "–"), ("\\lquote", "‘"),
+        ("\\rquote", "’"), ("\\ldblquote", "“"), ("\\rdblquote", "”"),
+    ):
+        text = text.replace(name, replacement)
+    text = _RTF_CONTROL.sub("", text)
+    text = text.replace("\\{", "{").replace("\\}", "}").replace("\\\\", "\\")
+    return text.replace("{", "").replace("}", "")
+
+
 def _rtf(path: Path) -> str:
+    tool = config.find_tool("textutil") if sys.platform == "darwin" else None
+    if tool:
+        try:
+            out = proc.run(
+                [tool, "-convert", "txt", "-stdout", str(path)],
+                capture_output=True, text=True, timeout=30, check=True,
+            )
+            return _tidy(out.stdout)
+        except Exception:
+            pass  # fall through to the built-in reader
     try:
-        out = proc.run(
-            ["textutil", "-convert", "txt", "-stdout", str(path)],
-            capture_output=True, text=True, timeout=30, check=True,
-        )
-        return _tidy(out.stdout)
-    except Exception as exc:
+        return _tidy(_rtf_to_text(path.read_bytes()))
+    except OSError as exc:
         raise ExtractError("Could not read that RTF file.") from exc
 
 
