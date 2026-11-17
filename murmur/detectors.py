@@ -311,11 +311,15 @@ def _distance(a: dict, b: dict) -> float:
     return ((a["x"] - b["x"]) ** 2 + (a["y"] - b["y"]) ** 2) ** 0.5
 
 
-def inspect(image_bgr: np.ndarray) -> dict:
-    """Everything the polisher needs to decide whether a still is worth repair."""
+def inspect(image_bgr: np.ndarray, face_threshold: float = 0.45) -> dict:
+    """Everything the polisher needs to decide whether a still is worth repair.
+
+    The face threshold sits below YuNet's default: clean ink linework scores lower
+    than a photograph, so 0.6 misses faces that are plainly there.
+    """
     result = {"faces": [], "people": [], "hands": [], "flags": [], "error": None}
     try:
-        result["faces"] = faces(image_bgr)
+        result["faces"] = faces(image_bgr, threshold=face_threshold)
     except DetectorUnavailable as exc:
         result["error"] = str(exc)
     try:

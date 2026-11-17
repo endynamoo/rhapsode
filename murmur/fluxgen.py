@@ -35,6 +35,60 @@ def _device(torch) -> str:
     return "cpu"
 
 
+def _vram(torch) -> tuple[float, float]:
+    """(free MiB, total MiB) on this device; (0, 0) when the backend cannot say."""
+    try:
+        free, total = torch.cuda.mem_get_info()
+        return free / 2**20, total / 2**20
+    except Exception:
+        return 0.0, 0.0
+
+
+def _reserve_mib(torch) -> float:
+    """Headroom left for the desktop, the remote-desktop encoder and the browser.
+
+    This machine's card is 16 GB and undeclared overcommit does not degrade
+    gracefully: Windows starts paging the GPU, the whole session stalls, and a
+    remote session (Sunshine) loses the desktop with it. Reserve generously.
+    """
+    try:
+        return float(os.environ.get("MURMUR_FLUX_RESERVE_MB", "2500"))
+    except ValueError:
+        return 2500.0
+
+
+def _decide(torch, device: str, requested_offload: bool) -> tuple[bool, str]:
+    """Pick full residency or CPU offload, and refuse when neither fits.
+
+    Full residency of klein-4B is ~15.5 GiB of a 16 GB card, which leaves nothing
+    for the desktop or a remote-desktop encoder — that is how this machine locks
+    up. Offload keeps one component resident (~9 GiB) and streams the rest, which
+    costs time but not the session.
+    """
+    if device != "cuda":
+        return requested_offload, "non-cuda device"
+    free, total = _vram(torch)
+    reserve = _reserve_mib(torch)
+    full = float(os.environ.get("MURMUR_FLUX_FULL_VRAM_MIB", "15500"))
+    offload_need = float(os.environ.get("MURMUR_FLUX_OFFLOAD_MIB", "9000"))
+    if free <= 0:
+        return requested_offload, "VRAM unknown"
+    if requested_offload:
+        return True, "offload requested"
+    if free >= full + reserve:
+        return False, f"{free:.0f} MiB free: full residency with {reserve:.0f} MiB spare"
+    if free >= offload_need + reserve:
+        return True, (
+            f"only {free:.0f} MiB free ({total:.0f} total, {reserve:.0f} reserved): "
+            "CPU offload, so the desktop keeps its memory"
+        )
+    raise SystemExit(
+        f"refusing to load: {free:.0f} MiB of {total:.0f} MiB is free and "
+        f"{reserve:.0f} MiB is reserved for the desktop and the remote session. "
+        "Close the other GPU job (or lower MURMUR_FLUX_RESERVE_MB knowingly)."
+    )
+
+
 def _load(torch, device: str, offload: bool):
     from diffusers import Flux2KleinPipeline
 
@@ -136,7 +190,8 @@ def generate(
     if device == "cpu" and not os.environ.get("MURMUR_ALLOW_CPU_FILM"):
         raise SystemExit("no GPU is visible to torch; refusing to paint on the CPU")
 
-    offload = os.environ.get("MURMUR_FLUX_OFFLOAD") == "1"
+    offload, why = _decide(torch, device, os.environ.get("MURMUR_FLUX_OFFLOAD") == "1")
+    print(f"fluxgen: {why}", file=sys.stderr, flush=True)
     try:
         pipe = _load(torch, device, offload)
     except RuntimeError as exc:
@@ -155,16 +210,95 @@ def generate(
     )
 
 
+def _parent_alive(pid: int) -> bool:
+    """True while the process that spawned us is still there."""
+    if pid <= 0:
+        return False
+    try:
+        import ctypes
+
+        SYNCHRONIZE = 0x00100000
+        WAIT_TIMEOUT = 0x00000102
+        handle = ctypes.windll.kernel32.OpenProcess(SYNCHRONIZE, False, pid)
+        if not handle:
+            return False
+        try:
+            return ctypes.windll.kernel32.WaitForSingleObject(handle, 0) == WAIT_TIMEOUT
+        finally:
+            ctypes.windll.kernel32.CloseHandle(handle)
+    except Exception:
+        return True  # never take the painter down over a broken probe
+
+
+def _watch_parent(parent: int) -> None:
+    """Exit when the app dies: a 15 GiB orphan is what wedges this box."""
+    import threading
+    import time
+
+    def watch() -> None:
+        while True:
+            time.sleep(5.0)
+            if not _parent_alive(parent):
+                os._exit(0)
+
+    threading.Thread(target=watch, name="parent-watch", daemon=True).start()
+
+
+def _claim_lock() -> Path | None:
+    """Only one painter per machine: two 15 GiB loads cannot share a 16 GB card.
+
+    The lock records the painter's pid *and* its parent's, so a stale file left by a
+    killed server is not mistaken for a live painter.
+    """
+    root = Path(os.environ.get("MURMUR_HOME", str(Path.home())))
+    lock = root / "flux-painter.lock"
+    try:
+        lock.parent.mkdir(parents=True, exist_ok=True)
+        if lock.exists():
+            entries = lock.read_text("utf-8", errors="replace").split()
+            other = int(entries[0]) if entries and entries[0].isdigit() else 0
+            parent = int(entries[1]) if len(entries) > 1 and entries[1].isdigit() else 0
+            if other and _parent_alive(other) and (parent == 0 or _parent_alive(parent)):
+                print(json.dumps({
+                    "ready": False,
+                    "error": f"another painter is running (pid {other})",
+                }), flush=True)
+                return None
+        lock.write_text(f"{os.getpid()} {os.getppid()}", "utf-8")
+        return lock
+    except OSError:
+        return None
+
+
 def serve() -> int:
     """Resident mode: load once, then answer jobs on stdin."""
     import torch
 
+    _watch_parent(os.getppid())
     device = _device(torch)
     if device == "cpu" and not os.environ.get("MURMUR_ALLOW_CPU_FILM"):
         print(json.dumps({"ready": False, "error": "no GPU visible to torch"}), flush=True)
         return 2
 
-    offload = os.environ.get("MURMUR_FLUX_OFFLOAD") == "1"
+    lock = _claim_lock()
+    if lock is None:
+        return 2
+    try:
+        return _serve_loop(torch, device)
+    finally:
+        try:
+            if lock.exists() and lock.read_text("utf-8", errors="replace").split()[:1] == [str(os.getpid())]:
+                lock.unlink()
+        except OSError:
+            pass
+
+
+def _serve_loop(torch, device: str) -> int:
+    try:
+        offload, why = _decide(torch, device, os.environ.get("MURMUR_FLUX_OFFLOAD") == "1")
+    except SystemExit as exc:
+        print(json.dumps({"ready": False, "error": str(exc)}), flush=True)
+        return 2
     try:
         pipe = _load(torch, device, offload)
     except RuntimeError as exc:
@@ -172,7 +306,8 @@ def serve() -> int:
             raise
         torch.cuda.empty_cache()
         pipe = _load(torch, device, True)
-    print(json.dumps({"ready": True, "model": MODEL_ID}), flush=True)
+        why += "; retried with CPU offload after an OOM"
+    print(json.dumps({"ready": True, "model": MODEL_ID, "vram": why}), flush=True)
 
     cache: dict = {}
     for line in sys.stdin:

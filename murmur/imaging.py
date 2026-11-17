@@ -345,8 +345,25 @@ class FluxPythonBackend(ImageBackend):
 
 
 def paint_job(job: dict, timeout: float = 900.0) -> None:
-    """Send one raw job to the resident painter (the polish pass uses this)."""
-    FluxPythonBackend().worker().run(job, timeout=timeout)
+    """Send one raw job to the resident painter, falling back to a one-shot run.
+
+    A second painter is refused by the machine-wide lock, so the fallback keeps a
+    hand repair working while another server on this box owns the painter.
+    """
+    backend = FluxPythonBackend()
+    try:
+        backend.worker().run(job, timeout=timeout)
+        return
+    except Exception as exc:  # noqa: BLE001 - try the slow path instead
+        if not config.IMAGE_PYTHON.exists():
+            raise
+        script = backend.script
+        if script is None:
+            raise
+        backend._run_once(script, job)  # noqa: SLF001 - same module's backend
+        return
+    finally:
+        pass
 
 
 class FluxKleinBackend(ImageBackend):
