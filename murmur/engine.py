@@ -14,9 +14,12 @@ from pathlib import Path
 
 import numpy as np
 
-from . import config, text as textmod
+from . import cache, config, text as textmod
 from .backends import tts as tts_backends
 from .voices import DEFAULT_VOICE, VOICES, lang_for_voice
+
+# The clip sidecars are read once per sentence in a chapter; keep the hot ones in RAM.
+_CLIP_META = cache.LRUCache(maxsize=1024, name="clips")
 
 
 class TTSEngine:
@@ -115,12 +118,19 @@ class TTSEngine:
         wav_path = config.CACHE_DIR / f"{key}.wav"
         meta_path = config.CACHE_DIR / f"{key}.json"
 
+        cached = _CLIP_META.get(key)
+        if cached is not None and cached.get("text") == text:
+            if wav_path.exists():
+                os.utime(wav_path, None)
+                return dict(cached)
+
         if wav_path.exists() and meta_path.exists():
             try:
                 meta = json.loads(meta_path.read_text("utf-8"))
                 meta["path"] = str(wav_path)
                 meta["key"] = key
                 if meta.get("text") == text:
+                    _CLIP_META.put(key, dict(meta))
                     os.utime(wav_path, None)
                     return meta
             except (json.JSONDecodeError, OSError):
@@ -173,6 +183,7 @@ class TTSEngine:
         tmp_meta.write_text(json.dumps(meta, ensure_ascii=False), "utf-8")
         os.replace(tmp_wav, wav_path)
         os.replace(tmp_meta, meta_path)
+        _CLIP_META.put(key, dict(meta, path=str(wav_path), key=key))
         return meta
 
     def warm_async(self) -> None:
