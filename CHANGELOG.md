@@ -36,6 +36,7 @@ fails when that copy is stale.
 - Both halves of the app log to file, because the window and the server have each died silently.
 - The engine switch posts JSON — the shared api helper sets no content type.
 - The image-runtime interpreter is built the same way on every platform, so a macOS or Linux install starts instead of failing with a `TypeError` while importing `config`.
+- RTF import falls back to the built-in reader when `textutil` cannot parse the file, so an unclosed RTF no longer arrives as an empty document.
 
 ## [0.2.0-alpha] - 2026-11-17
 

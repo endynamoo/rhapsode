@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -247,6 +248,43 @@ class UploadTempFileTests(unittest.TestCase):
             extract.extract_upload("notes.xyz", b"unsupported")
         after = set(Path(tempfile.gettempdir()).glob("rhapsode-upload-*"))
         self.assertEqual(before, after)
+
+
+class RtfExtractionTests(unittest.TestCase):
+    """An unclosed RTF is still readable; textutil disagrees without saying so."""
+
+    RTF = (
+        b"{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Times New Roman;}}"
+        b"\\f0\\fs24 An unclosed but readable sentence.\\par"
+    )
+
+    def test_falls_back_when_textutil_prints_nothing(self) -> None:
+        # textutil exits 0 on a malformed file, writes the complaint to stderr
+        # and leaves stdout empty, so an empty result has to mean "try again".
+        from murmur import extract
+
+        empty = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="bad RTF")
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "notes.rtf"
+            path.write_bytes(self.RTF)
+            with mock.patch("sys.platform", "darwin"), mock.patch.object(
+                extract.config, "find_tool", return_value="/usr/bin/textutil"
+            ), mock.patch.object(extract.proc, "run", return_value=empty):
+                self.assertIn("unclosed but readable", extract._rtf(path))
+
+    def test_keeps_textutil_output_when_it_has_some(self) -> None:
+        from murmur import extract
+
+        good = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="Converted by textutil.\n", stderr=""
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "notes.rtf"
+            path.write_bytes(self.RTF)
+            with mock.patch("sys.platform", "darwin"), mock.patch.object(
+                extract.config, "find_tool", return_value="/usr/bin/textutil"
+            ), mock.patch.object(extract.proc, "run", return_value=good):
+                self.assertEqual(extract._rtf(path), "Converted by textutil.")
 
 
 if __name__ == "__main__":

@@ -446,7 +446,11 @@ def _rtf(path: Path) -> str:
                 [tool, "-convert", "txt", "-stdout", str(path)],
                 capture_output=True, text=True, timeout=30, check=True,
             )
-            return _tidy(out.stdout)
+            text = _tidy(out.stdout)
+            # textutil exits 0 on a malformed file: the complaint goes to stderr
+            # and stdout stays empty, so only trust it when it produced text.
+            if text:
+                return text
         except Exception:
             pass  # fall through to the built-in reader
     try:
