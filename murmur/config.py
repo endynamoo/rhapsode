@@ -40,6 +40,14 @@ EXPORT_DIR = HOME / "exports"
 FILM_DIR = HOME / "film"
 DB_PATH = HOME / "murmur.db"
 
+# The engine profile (data dir/engine.json) decides precision, where the text
+# encoder runs and how much VRAM the painter must leave. It is read here so the
+# child interpreter inherits the decision through the environment.
+from . import profile as _profile  # noqa: E402  (after HOME exists)
+
+PROFILE = _profile.load(HOME)
+_profile.apply_env(PROFILE)
+
 # Keep downloaded image models with the rest of Murmur, not in ~/.cache.
 os.environ.setdefault("HF_HOME", str(HOME / "models" / "hf"))
 

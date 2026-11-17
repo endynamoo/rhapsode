@@ -47,8 +47,13 @@ are local files. Nothing is uploaded.
 **Windows 10/11** (preview; needs `uv` and `ffmpeg`, Python 3.12):
 
 ```powershell
-.\run.ps1             # same first run; add -Desktop for a native WebView2 window
+.\scripts\setup.ps1        # reader + stills engine + profile, auto-detected from the card
+.\run.ps1                  # add -Desktop for a native WebView2 window
 ```
+
+`setup.ps1` reads the card, picks an engine profile, downloads the q4 transformer
+and the detectors, and writes `%LOCALAPPDATA%\Rhapsode\engine.json`. Override it
+whenever you like: `.\scripts\setup.ps1 -Profile lite` (or `balanced`, `max`, `cpu`).
 
 **Linux** (preview; needs `uv` and `ffmpeg`):
 
