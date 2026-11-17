@@ -36,6 +36,46 @@ def _device(torch) -> str:
     return "cpu"
 
 
+def _ram() -> tuple[float, float]:
+    """(available MiB, total MiB) of physical memory.
+
+    Loading 15.5 GiB of bf16 weights, or moving an 8 GiB encoder, needs system RAM as
+    well as VRAM. This box has 32 GiB and a 36 GiB page file, and a chapter render
+    that pushed both to the floor hard-locked it three times in one day (Kernel-Power
+    41, no bugcheck dump, no Resource-Exhaustion event).
+    """
+    try:
+        import ctypes
+
+        class MEMORYSTATUSEX(ctypes.Structure):
+            _fields_ = [
+                ("dwLength", ctypes.c_uint32),
+                ("dwMemoryLoad", ctypes.c_uint32),
+                ("ullTotalPhys", ctypes.c_uint64),
+                ("ullAvailPhys", ctypes.c_uint64),
+                ("ullTotalPageFile", ctypes.c_uint64),
+                ("ullAvailPageFile", ctypes.c_uint64),
+                ("ullTotalVirtual", ctypes.c_uint64),
+                ("ullAvailVirtual", ctypes.c_uint64),
+                ("ullAvailExtendedVirtual", ctypes.c_uint64),
+            ]
+
+        status = MEMORYSTATUSEX()
+        status.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+        if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+            return 0.0, 0.0
+        return status.ullAvailPhys / 2**20, status.ullTotalPhys / 2**20
+    except Exception:
+        return 0.0, 0.0
+
+
+def _ram_floor_mib() -> float:
+    try:
+        return float(os.environ.get("MURMUR_FLUX_RAM_FLOOR_MB", "6000"))
+    except ValueError:
+        return 6000.0
+
+
 def _vram(torch) -> tuple[float, float]:
     """(free MiB, total MiB) on this device; (0, 0) when the backend cannot say."""
     try:
