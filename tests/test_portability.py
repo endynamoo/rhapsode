@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import stat
 import subprocess
 import tempfile
 import unittest
@@ -285,6 +286,18 @@ class RtfExtractionTests(unittest.TestCase):
                 extract.config, "find_tool", return_value="/usr/bin/textutil"
             ), mock.patch.object(extract.proc, "run", return_value=good):
                 self.assertEqual(extract._rtf(path), "Converted by textutil.")
+
+
+class ScriptModeTests(unittest.TestCase):
+    """AGENTS.md says `./run.sh`; a checkout made from a Windows push needs the bit back."""
+
+    def test_documented_entry_points_are_executable(self) -> None:
+        if os.name == "nt":
+            self.skipTest("Windows has no executable bit to check")
+        root = Path(__file__).resolve().parent.parent
+        for name in ("run.sh", "build_app.sh"):
+            mode = (root / name).stat().st_mode
+            self.assertTrue(mode & stat.S_IXUSR, f"{name} is not executable")
 
 
 if __name__ == "__main__":

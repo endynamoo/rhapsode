@@ -37,6 +37,7 @@ fails when that copy is stale.
 - The engine switch posts JSON — the shared api helper sets no content type.
 - The image-runtime interpreter is built the same way on every platform, so a macOS or Linux install starts instead of failing with a `TypeError` while importing `config`.
 - RTF import falls back to the built-in reader when `textutil` cannot parse the file, so an unclosed RTF no longer arrives as an empty document.
+- `run.sh`, `build_app.sh` and `scripts/*.sh` carry the executable bit again, so the documented `./run.sh` works from a fresh checkout instead of failing with `permission denied`.
 
 ## [0.2.0-alpha] - 2026-11-17
 
