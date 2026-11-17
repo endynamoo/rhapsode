@@ -13,6 +13,16 @@ from murmur import config, ocr, store
 from murmur.backends import detect, tts
 
 
+class ImageInterpreterTests(unittest.TestCase):
+    def test_image_python_is_a_path_with_the_platform_suffix(self) -> None:
+        # config.py builds this at import time. A str/str division here crashed
+        # every macOS and Linux start before the CI build could selftest.
+        self.assertIsInstance(config.IMAGE_PYTHON, Path)
+        if not os.environ.get("MURMUR_IMAGE_PYTHON"):
+            expected = "Scripts\\python.exe" if os.name == "nt" else "bin/python"
+            self.assertTrue(str(config.IMAGE_PYTHON).endswith(expected))
+
+
 class DataHomeTests(unittest.TestCase):
     def test_macos_keeps_legacy_home(self) -> None:
         with mock.patch("sys.platform", "darwin"):

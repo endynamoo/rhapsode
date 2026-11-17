@@ -152,6 +152,6 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 - The Windows installer and the macOS `.app` read their version from `murmur.__version__`, so a version bump is one line instead of three files.
 - The macOS bundle identifier is `com.endynamoo.rhapsode`, not `local.rhapsode`.
 
-*...and 31 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 32 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->

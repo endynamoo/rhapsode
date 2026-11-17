@@ -34,6 +34,7 @@ fails when that copy is stale.
 
 ### Fixed
 
+- Importing the app on macOS and Linux no longer crashes in `config.py` (a `str / str` while building the stills interpreter path); Windows never hit it because it takes the other branch.
 - `./run.sh`, `./build_app.sh` and the other shell scripts are executable in git again; a fresh macOS or Linux checkout could not run them.
 - `scripts\build_installer.ps1` builds on a clean machine without `.venv`, and survives PyInstaller's stderr logging under Windows PowerShell, so the installer workflow on CI can run it.
 - Painting refuses to start without enough free system RAM, and reports what was left instead of dying mid-still.
