@@ -12,7 +12,7 @@ from unittest import mock
 import numpy as np
 from PIL import Image, ImageDraw
 
-from murmur import film
+from murmur import config, film
 
 
 def setUpModule() -> None:
@@ -155,6 +155,10 @@ class GutterTests(unittest.TestCase):
 
 
 class ClipTests(unittest.TestCase):
+    @unittest.skipUnless(
+        config.find_tool("ffmpeg") and config.find_tool("ffprobe"),
+        "ffmpeg is not installed",
+    )
     def test_scene_clip_is_steady_1080p(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
