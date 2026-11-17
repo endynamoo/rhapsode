@@ -338,19 +338,26 @@ class FluxPythonBackend(ImageBackend):
             command += ["--strength", str(job["strength"])]
         out_path = Path(job["out"])
         try:
-            result = proc.run(
-                command, capture_output=True, text=True, timeout=900,
-                cwd=str(config.APP_ROOT), env=env, errors="replace",
+            # Popen + adopt: a one-shot painter left running after the app exits
+            # pins ~13 GiB of VRAM, and atexit only covers the resident worker.
+            child = proc.spawn(
+                command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                stdin=subprocess.DEVNULL, text=True, cwd=str(config.APP_ROOT),
+                env=env, errors="replace",
             )
-        except subprocess.TimeoutExpired as exc:
-            raise ImageError(
-                "FLUX stopped answering after 15 minutes; the still was skipped."
-            ) from exc
+            try:
+                out_text, err_text = child.communicate(timeout=900)
+            except subprocess.TimeoutExpired as exc:
+                child.kill()
+                child.communicate()
+                raise ImageError(
+                    "FLUX stopped answering after 15 minutes; the still was skipped."
+                ) from exc
+            if child.returncode != 0 or not out_path.exists():
+                tail = (err_text or out_text or "FLUX generation failed")[-900:]
+                raise ImageError(tail.strip())
         except subprocess.SubprocessError as exc:
             raise ImageError(f"FLUX run failed to start: {exc}") from exc
-        if result.returncode != 0 or not out_path.exists():
-            tail = (result.stderr or result.stdout or "FLUX generation failed")[-900:]
-            raise ImageError(tail.strip())
 
     def worker(self) -> "FluxWorker":
         """The process-wide painter.

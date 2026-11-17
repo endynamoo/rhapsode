@@ -16,12 +16,14 @@ from murmur import imaging
 
 class RunOnceCommandTests(unittest.TestCase):
     def _command(self, job: dict) -> list[str]:
+        child = mock.MagicMock()
+        child.returncode = 1
+        child.communicate.return_value = ("", "stop")
         backend = imaging.FluxPythonBackend()
-        with mock.patch.object(imaging.proc, "run") as run:
-            run.return_value = mock.MagicMock(returncode=1, stdout="", stderr="stop")
+        with mock.patch.object(imaging.proc, "spawn", return_value=child) as spawn:
             with self.assertRaises(imaging.ImageError):
                 backend._run_once(Path("fluxgen.py"), job)
-        return list(run.call_args.args[0])
+        return list(spawn.call_args.args[0])
 
     def test_mask_and_strength_are_forwarded(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
