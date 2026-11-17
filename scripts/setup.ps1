@@ -56,86 +56,11 @@ if (-not (Test-Path "$homeDir\models\kokoro-v1.0.onnx")) {
     "   already present"
 }
 
-# ---------------------------------------------------------------- image venv
-Step 'stills engine (image-venv)'
-if (-not (Test-Path $python)) {
-    $base = ''
-    foreach ($candidate in @(
-        $env:MURMUR_TORCH_PYTHON,
-        "$env:USERPROFILE\.unsloth\studio\unsloth_studio\Scripts\python.exe"
-    )) {
-        if (-not $candidate -or -not (Test-Path $candidate)) { continue }
-        $gpu = & $candidate -c "import torch;print(torch.cuda.is_available())" 2>$null
-        if ($gpu -eq 'True') { $base = $candidate; break }
-    }
-    if ($base) {
-        "   reusing the GPU torch already installed at $base"
-        & $base -m venv --system-site-packages (Join-Path $homeDir 'image-venv')
-    } else {
-        "   creating a plain image-venv (torch will be installed into it)"
-        & py -3.12 -m venv (Join-Path $homeDir 'image-venv')
-    }
-    & $python -m pip install --quiet --upgrade pip
-    & $python -m pip install --quiet "diffusers>=0.42" "transformers>=4.49" "accelerate>=1.3" `
-        "safetensors>=0.5" "huggingface_hub>=0.28" "pillow>=10.4" "gguf>=0.10"
-    if (-not $base) {
-        "   installing torch (the big download)"
-        & $python -m pip install --quiet "torch>=2.6"
-    }
-    # A venv built from a trampoline interpreter sees the base Python, not the
-    # ROCm torch in the layer above it; point it at the real site-packages.
-    $visible = & $python -c "import torch;print(torch.cuda.is_available())" 2>$null
-    if ($visible -ne 'True' -and $base) {
-        $baseSite = & $base -c "import torch, os; print(os.path.dirname(os.path.dirname(torch.__file__)))" 2>$null
-        if ($baseSite) {
-            & $python -m pip uninstall -y torch --quiet
-            Set-Content -Path (Join-Path $homeDir 'image-venv\Lib\site-packages\_torch_layer.pth') -Value $baseSite -Encoding ASCII
-        }
-    }
-} else {
-    "   already present"
-}
-$env:HF_HOME = Join-Path $homeDir 'models\hf'
-
-# ---------------------------------------------------------------- weights
-Step 'weights'
-if ($NoGguf) {
-    "   skipping the q4 transformer (-NoGguf)"
-} else {
-    $gguf = Get-ChildItem (Join-Path $env:HF_HOME 'hub') -Recurse -Filter '*klein*Q4_K_M*.gguf' -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($gguf) {
-        "   q4 transformer already present"
-    } else {
-        "   fetching the q4 transformer (2.4 GB)"
-        & $python -c "from huggingface_hub import hf_hub_download; print(hf_hub_download('unsloth/FLUX.2-klein-4B-GGUF', 'flux-2-klein-4b-Q4_K_M.gguf'))"
-    }
-}
-
-Step 'detectors'
-& $venvPy -c @"
-from murmur import detectors
-for name in (detectors.FACES_MODEL, detectors.PERSON_MODEL, detectors.POSE_MODEL):
-    try:
-        path = detectors._fetch(name)
-        print(f'   {name}: {path.name}')
-    except Exception as exc:
-        print(f'   {name}: FAILED {exc}')
-"@
-
-# ---------------------------------------------------------------- profile
-Step 'engine profile'
-$profilePath = Join-Path $homeDir 'engine.json'
-$chosen = $Profile
-if ($chosen -eq 'auto') {
-    $vram = & $venvPy -c "from murmur import profile; print(profile._detect_vram() or 0)" 2>$null
-    $chosen = & $venvPy -c "from murmur import profile; print(profile.recommend(float('$vram')))" 2>$null
-    $chosen = ($chosen | Select-Object -Last 1).Trim()
-    "   detected VRAM: $vram GB -> profile '$chosen'"
-    "   if this card is shared (remote desktop, another agent), use -Profile lite: ~5 GiB instead of ~13"
-
-}
-& $venvPy -c "from pathlib import Path; from murmur import profile; print(profile.save(Path(r'$homeDir'), '$chosen'))"
-Get-Content $profilePath
+# ---------------------------------------------------------------- engine
+Step 'stills engine'
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\setup_engine.ps1" -Profile $Profile $(if ($NoGguf) { '-SkipWeights' })
+$engineExit = $LASTEXITCODE
+if ($engineExit) { "   the engine setup reported a problem (exit $engineExit); the reader still works" }
 
 # ---------------------------------------------------------------- smoke
 if (-not $SkipSmoke) {
@@ -145,10 +70,9 @@ from murmur import config, detectors, profile
 print('   profile :', profile.describe(config.PROFILE))
 print('   ocr     :', __import__('murmur.ocr', fromlist=['backend_name']).backend_name())
 print('   detectors:', detectors.available())
-print('   git tag :', 'n/a')
 "@
 }
 
 Step 'done'
 "   Start it with:  .\run.ps1"
-"   Change the engine anytime:  .\scripts\setup.ps1 -Profile lite   (or edit $profilePath)"
+"   Change the engine anytime:  .\scripts\setup.ps1 -Profile lite"

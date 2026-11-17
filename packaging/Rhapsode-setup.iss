@@ -41,12 +41,14 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+Name: "engine"; Description: "Set up the stills engine (Python environment, torch, ~3 GB of models)"; GroupDescription: "Stills:"; Flags: checkedonce
 
 [Files]
 Source: "{#SourceDir}\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\THIRD_PARTY.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\scripts\setup_engine.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"
@@ -54,6 +56,11 @@ Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 
 [Run]
+; The engine setup runs the same script the repo uses, so an AMD or NVIDIA user can
+; click one thing: it creates image-venv, picks the right torch wheel, fetches the q4
+; transformer and the detectors, and writes the engine profile. It is a visible
+; console window on purpose - a 3 GB download should show progress.
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\scripts\setup_engine.ps1"""; WorkingDir: "{app}"; Description: "Set up the stills engine now (~3 GB download)"; Flags: postinstall nowait runascurrentuser skipifsilent; Tasks: engine
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
