@@ -227,6 +227,7 @@ function bindUI() {
   );
   $('#themeBtn').addEventListener('click', toggleTheme);
   $('#settingsBtn').addEventListener('click', openSettings);
+  wireEngine();
   $('#focusBtn').addEventListener('click', toggleFocus);
   $('#focusExit').addEventListener('click', () => setFocus(false));
   $('#menuBtn').addEventListener('click', (e) => {
@@ -2912,6 +2913,54 @@ function openSettings() {
   $('#settingsModal').hidden = false;
   loadNetwork();
   loadFonts();
+  refreshEngine();
+}
+
+async function refreshEngine() {
+  let state;
+  try {
+    state = await api('/api/engine');
+  } catch (_) {
+    $('#engineSummary').textContent = 'Engine state unavailable.';
+    return;
+  }
+  $('#engineSummary').textContent = state.summary || state.profile || '';
+  $$('#setEngineProfile button').forEach((button) => {
+    button.classList.toggle('is-active', button.dataset.engineProfile === state.profile);
+    button.setAttribute('aria-checked', String(button.dataset.engineProfile === state.profile));
+  });
+  const painter = state.painter || {};
+  const job = painter.last_job || {};
+  const bits = [];
+  bits.push(painter.running ? 'painter running' : 'painter idle');
+  if (job.seconds) bits.push(`last still ${job.seconds}s (${job.width}x${job.height}, ${job.steps} steps)`);
+  if (job.peak_gib) bits.push(`${job.peak_gib} GiB peak`);
+  if (job.free_gib) bits.push(`${job.free_gib} GiB free after`);
+  $('#engineStatus').textContent = bits.join(' · ');
+}
+
+async function setEngineProfile(name) {
+  try {
+    await api('/api/engine/profile', { method: 'POST', body: JSON.stringify({ profile: name }) });
+    toast(`Engine switched to ${name}`);
+  } catch (err) {
+    toast(`Could not switch engine: ${err.message}`, 'error');
+  }
+  refreshEngine();
+}
+
+function wireEngine() {
+  $$('#setEngineProfile button').forEach((button) =>
+    button.addEventListener('click', () => setEngineProfile(button.dataset.engineProfile)));
+  $('#restartEngine')?.addEventListener('click', async () => {
+    try {
+      await api('/api/engine/restart', { method: 'POST' });
+      toast('Engine restarted - the next still loads the active profile');
+    } catch (err) {
+      toast(`Restart failed: ${err.message}`, 'error');
+    }
+    refreshEngine();
+  });
 }
 
 async function loadNetwork() {

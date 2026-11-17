@@ -119,6 +119,24 @@ def apply_env(profile: dict) -> None:
         os.environ["MURMUR_FLUX_RESERVE_MB"] = str(profile["reserve_mib"])
 
 
+def activate(home: Path, name: str, **overrides) -> dict:
+    """Switch the engine now: save the profile, hand it to the environment, seed
+    the reading defaults, and let the caller restart the painter."""
+    from . import config, store  # local: config imports this module
+
+    saved = save(home, name, **overrides)
+    loaded = load(home)
+    apply_env(loaded)
+    config.PROFILE = loaded
+    patch = {}
+    if "quality" in loaded:
+        patch["filmQuality"] = loaded["quality"]
+    if "polish" in loaded:
+        patch["polishStills"] = bool(loaded["polish"])
+    if patch:
+        store.set_settings(patch)
+    return loaded
+
 def _detect_vram() -> float | None:
     """VRAM in GB from the display-adapter key, without importing torch."""
     try:

@@ -360,6 +360,20 @@ class FluxPythonBackend(ImageBackend):
             return _SHARED_WORKER
 
 
+def restart_painter() -> dict:
+    """Drop the resident painter so the next job loads the current profile.
+
+    The child inherits its precision from the environment at spawn, so changing the
+    profile only takes effect on a fresh process; this is what the Restart Engine
+    button calls.
+    """
+    global _SHARED_WORKER
+    with FluxPythonBackend._probe_lock:  # noqa: SLF001 - module-level intent
+        worker, _SHARED_WORKER = _SHARED_WORKER, None
+    if worker is not None:
+        worker.stop()
+    return painter_info()
+
 def painter_info() -> dict:
     """What the resident painter decided (precision, VRAM headroom) for the UI."""
     backend = FluxPythonBackend()

@@ -185,6 +185,73 @@ def health() -> dict:
     }
 
 
+class EngineProfileIn(BaseModel):
+    profile: str
+    precision: str | None = None
+    text_device: str | None = None
+    reserve_mib: int | None = None
+    quality: str | None = None
+    polish: bool | None = None
+
+
+def _engine_state() -> dict:
+    from . import profile as engine_profile
+
+    active = config.PROFILE
+    return {
+        "profile": active.get("profile"),
+        "summary": engine_profile.describe(active),
+        "settings": {
+            key: active.get(key)
+            for key in ("precision", "text_device", "reserve_mib", "quality", "polish")
+        },
+        "profiles": [
+            {
+                "name": name,
+                "why": preset.get("why", ""),
+                "precision": preset.get("precision"),
+                "text_device": preset.get("text_device"),
+                "quality": preset.get("quality"),
+                "polish": preset.get("polish"),
+            }
+            for name, preset in engine_profile.PROFILES.items()
+        ],
+        "painter": imaging.painter_info(),
+    }
+
+
+@app.get("/api/engine")
+def read_engine() -> dict:
+    """Which profile is active, what it means, and what the painter is doing."""
+    return _engine_state()
+
+
+@app.post("/api/engine/profile")
+def write_engine_profile(payload: EngineProfileIn) -> dict:
+    """Switch profile: save it, seed the reading defaults, restart the painter."""
+    from . import profile as engine_profile
+
+    if payload.profile not in engine_profile.PROFILES:
+        raise HTTPException(status_code=400, detail=f"unknown profile {payload.profile}")
+    engine_profile.activate(
+        config.HOME,
+        payload.profile,
+        precision=payload.precision,
+        text_device=payload.text_device,
+        reserve_mib=payload.reserve_mib,
+        quality=payload.quality,
+        polish=payload.polish,
+    )
+    imaging.restart_painter()
+    return _engine_state()
+
+
+@app.post("/api/engine/restart")
+def restart_engine() -> dict:
+    """Drop the resident painter so the next still reloads the active profile."""
+    return {"painter": imaging.restart_painter()}
+
+
 @app.get("/api/network")
 def network_info(request: Request, response: Response) -> dict:
     """Connection details, including the token — only for local callers."""

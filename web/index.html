@@ -303,6 +303,22 @@
           <button data-film-quality="high">High</button>
         </div>
       </div>
+      <div class="setting engine-block">
+        <div>
+          <label>Engine</label>
+          <p id="engineSummary">Reading the engine profile…</p>
+          <p id="engineStatus" class="engine-status"></p>
+        </div>
+        <div class="engine-actions">
+          <div class="segmented" id="setEngineProfile" role="radiogroup" aria-label="Engine profile">
+            <button data-engine-profile="lite">Lite</button>
+            <button data-engine-profile="balanced">Balanced</button>
+            <button data-engine-profile="max">Max</button>
+            <button data-engine-profile="cpu">CPU</button>
+          </div>
+          <button class="btn-ghost" id="restartEngine" type="button">Restart engine</button>
+        </div>
+      </div>
       <div class="setting">
         <div><label>Polish stills</label><p>Re-draw each painted still once to settle hands, faces and ink; doubles painting time</p></div>
         <button class="switch" id="setPolish" role="switch" aria-checked="true"><i></i></button>
