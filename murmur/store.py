@@ -319,6 +319,20 @@ def touch(doc_id: str) -> None:
         conn.execute("UPDATE docs SET updated = ? WHERE id = ?", (time.time(), doc_id))
 
 
+def doc_stats() -> list[dict]:
+    """One row per document without its body or units.
+
+    The search index needs to notice a changed book cheaply; parsing every
+    ``units`` JSON array just to compare signatures would make a no-op index
+    pass as expensive as the first one.
+    """
+    with _db() as conn:
+        rows = conn.execute(
+            "SELECT id, title, updated, chars, words, page_count FROM docs"
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def delete_doc(doc_id: str) -> bool:
     with _db() as conn:
         row = conn.execute("SELECT file FROM docs WHERE id = ?", (doc_id,)).fetchone()

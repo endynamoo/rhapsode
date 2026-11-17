@@ -29,6 +29,10 @@ no account, no cloud, no per-word billing.
   model is involved.
 - **Quick Read** — one hotkey reads whatever is selected in any app; with no
   selection it OCRs the clipboard image.
+- **Library search** — find a passage across every book you have imported, by
+  words or by meaning, with the snippet marked and a jump straight to that
+  sentence (`Ctrl+F`). Keyword search needs nothing extra; the 23 MB meaning
+  model is optional, off by default, and downloads only when you ask.
 - 54 voices · 9 languages · 0.75–3× speed · 20 themes · your place remembered per
   document.
 
@@ -76,6 +80,7 @@ verification checklist live in **[AGENTS.md](AGENTS.md)**.
 | Doc | Contents |
 |---|---|
 | [docs/USAGE.md](docs/USAGE.md) | Keyboard map, Quick Read, translation, OCR knobs, remote access, where your data lives, troubleshooting |
+| [docs/SEARCH.md](docs/SEARCH.md) | Cross-library search: index, ranking, recency, the optional model, API |
 | [docs/STILLS.md](docs/STILLS.md) | Manga stills, chapter stills, the Murmur engine sidecar |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | VRAM and RAM guards, where the logs are, failure modes already fixed |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module map, pipelines, API surface, security model, UML |
@@ -106,7 +111,7 @@ supervised sessions. Architecture, standards, and the decision about what ships
 stayed with one person, who keeps that director's role in every program here.
 
 That director reviewed the work as thoroughly as they could, and the repo is built
-so the claims are checkable rather than taken on faith: 120 tests in `tests/`, the
+so the claims are checkable rather than taken on faith: 158 tests in `tests/`, the
 end-to-end checklist in [AGENTS.md](AGENTS.md) §6, and an architecture document
 that spells out the API surface and the security model.
 
@@ -133,31 +138,20 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 **Added**
 
+- Search across your whole library with `Ctrl+F` / `⌘F` or the magnifier: results grouped by book, the matching passage marked, and a jump straight to that sentence, chapter or page. Keywords work with nothing extra installed; the optional 23 MB meaning model (Apache-2.0, CPU only) is offered as a download in the panel and can be switched off with `MURMUR_SEMANTIC=off`.
+- "Read this week" and "Read this month" filters for search, based on when a book was actually opened or its position saved.
+- Live progress for library indexing and the model download, plus an Index library button; an interrupted index resumes where it stopped instead of duplicating rows.
 - Troubleshooting page in the app: the three guards, where the logs live, and what was already fixed.
 - The RAM probe the painting guard calls, and the RAM it measured shown in Settings.
 
 **Changed**
 
 - The front page, the third-party notices and the app's copyright string say "license", not "licence".
+- Opening or resuming a book now records reading activity, so recent-only search can tell a book you read last week from one you imported and never touched.
 - The README front page states what actually ships: the per-user Windows installer, ROCm stills, and the real test count.
 - The generated changelog block no longer repeats the "Changelog" heading above it.
 - `AGENTS.md` is plain UTF-8 text again, so its arrows and dashes render as arrows and dashes.
 
-**Fixed**
-
-- `scripts\build_installer.ps1` builds on a clean machine without `.venv`, and survives PyInstaller's stderr logging under Windows PowerShell, so the installer workflow on CI can run it.
-- Painting refuses to start without enough free system RAM, and reports what was left instead of dying mid-still.
-- A resident painter survives an out-of-memory kill instead of dying, and is reaped with the app, including the one-shot fallback.
-- A still that is already painted is never repainted on a later session.
-- Both halves of the app log to file, because the window and the server have each died silently.
-- The engine switch posts JSON — the shared api helper sets no content type.
-
-### 0.2.0-alpha - 2026-11-17
-
-**Added**
-
-- Named engine profiles (`lite`, `balanced`, `max`, `cpu`) with auto-install, and an Engine panel in Settings: profile summary, painter status and Restart engine.
-
-*...and 17 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 24 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
