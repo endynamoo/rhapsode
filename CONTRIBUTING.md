@@ -86,6 +86,7 @@ evidence is not done.
 
 - `AGENTS.md` — install paths, supported platforms, and the rules an agent must not break.
 - `docs/BRANCHING.md` — the ladder, hotfixes, rollback.
+- `docs/CONCURRENCY.md` — several agents, one repo: worktrees, who pushes, how to untangle.
 - `docs/ARCHITECTURE.md` — modules, API, security model.
 - `docs/PLATFORMS.md`, `docs/STILLS.md` — GPU/packaging plan and the stills pipeline.
 - `THIRD_PARTY.md` — licences for weights and bundled assets.

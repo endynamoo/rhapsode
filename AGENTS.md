@@ -1,4 +1,4 @@
-# Rhapsode agent install guide
+﻿# Rhapsode agent install guide
 
 This file is written for an automated agent (or a careful user) installing and
 building Rhapsode. Read it fully before running commands. Prefer non-interactive
@@ -28,10 +28,10 @@ Rules:
   placeholder until a GPU backend is configured.
 - `packaging/Rhapsode-win.spec` (community Windows build, 2026-11-16): from the repo
   root with `.venv` on PATH run `.venv\Scripts\pyinstaller.exe --noconfirm packaging\Rhapsode-win.spec`
-  → `dist\Rhapsode\Rhapsode.exe` (one-folder). Then robocopy `web` into
+  â†’ `dist\Rhapsode\Rhapsode.exe` (one-folder). Then robocopy `web` into
   `dist\Rhapsode\_internal\web` (spec embeds web/ at Analysis time). Linux remains source-install only.
 - Remote access must stay **off** unless the user explicitly asks to enable it
-  (Settings → Remote access). Never bind `0.0.0.0` by default.
+  (Settings â†’ Remote access). Never bind `0.0.0.0` by default.
 
 ---
 
@@ -88,7 +88,7 @@ Classify the GPU vendor from the name: `NVIDIA`, `AMD/Radeon`, `Intel`,
 - **OCR**: on-device on every platform, nothing to download. macOS uses Apple
   Vision (PyObjC), Windows uses `Windows.Media.Ocr` (installed with
   `requirements.txt` through `winsdk`, reading whatever language packs Windows
-  already has), Linux uses Tesseract — install `tesseract-ocr`, the only backend
+  already has), Linux uses Tesseract â€” install `tesseract-ocr`, the only backend
   that needs a separate binary.
 - **Translation**: macOS uses Apple's Translation framework (add packs in System
   Settings). Windows and Linux use any local OpenAI-compatible server: set
@@ -97,7 +97,7 @@ Classify the GPU vendor from the name: `NVIDIA`, `AMD/Radeon`, `Intel`,
   1234 and 11434 are probed for `/v1/models`, so a lane that is already running is
   used as-is. Without either, `health.translate` is false and foreign voices read
   the original text with an accent.
-- **Disk**: ~1–2 GB base; +2.5 GB for film dependencies; image models download
+- **Disk**: ~1â€“2 GB base; +2.5 GB for film dependencies; image models download
   separately on first film build.
 - **Data directory** (database, models, cache, films):
   - macOS: `~/.murmur` (kept for compatibility)
@@ -109,7 +109,7 @@ Classify the GPU vendor from the name: `NVIDIA`, `AMD/Radeon`, `Intel`,
 
 ---
 
-## 3. Section A — macOS
+## 3. Section A â€” macOS
 
 ### A1. Development install (fastest)
 
@@ -143,7 +143,7 @@ Expected selftest line:
 ok http://127.0.0.1:<port> (bind 127.0.0.1)
 ```
 
-The bundle is ad-hoc signed, not notarized. On another Mac, right-click → Open
+The bundle is ad-hoc signed, not notarized. On another Mac, right-click â†’ Open
 the first time.
 
 ### A3. Verify
@@ -164,7 +164,7 @@ curl -s http://127.0.0.1:8765/api/network
 
 ---
 
-## 4. Section B — Windows (preview, source install)
+## 4. Section B â€” Windows (preview, source install)
 
 ### B1. Install prerequisites (PowerShell)
 
@@ -217,7 +217,7 @@ It prints the data directory. Expected:
 `run.ps1` creates the venv, installs dependencies, downloads the voice model, and
 starts the server hidden. It only reports success when `/api/health` answers, and
 writes each attempt to `server-<timestamp>.log` / `server-<timestamp>.err.log` in
-the data directory — if it says the app did not start, those files hold the
+the data directory â€” if it says the app did not start, those files hold the
 reason. `-Desktop` opens the pywebview window instead of a browser tab.
 
 Browser/server mode by hand:
@@ -273,7 +273,7 @@ highlight moves with the voice.
 
 ---
 
-## 5. Section C — Linux (preview, source install)
+## 5. Section C â€” Linux (preview, source install)
 
 ### C1. Packages (Ubuntu/Debian; adapt for Fedora/Arch)
 
@@ -350,7 +350,7 @@ install `tesseract-ocr`.
 ## 6. End-to-end verification (all platforms)
 
 1. Open the UI. Book is the default view.
-2. Add a text document (Add document → Paste text) and press play.
+2. Add a text document (Add document â†’ Paste text) and press play.
 3. Confirm the current word highlights and advances.
 4. Open Settings:
    - 20 themes are listed and changing one recolors the app.
@@ -367,7 +367,7 @@ curl -s -X POST http://127.0.0.1:8765/api/tts \
 Expect JSON with `url` and `duration`. A `503` means the model is missing or
 still loading.
 
-7. Optional film smoke test: open a document → Manga → Review scenes. If the
+7. Optional film smoke test: open a document â†’ Manga â†’ Review scenes. If the
    image backend is unavailable, frames stay as placeholders; that is expected
    on unsupported GPUs.
 
@@ -380,7 +380,7 @@ still loading.
 | Port 8765 in use | another Rhapsode/dev server | stop it, or accept the random port the desktop app picks |
 | `modelReady: false` forever | Kokoro weights missing | run `python -m murmur.bootstrap` |
 | `ocr: false` on Linux | Tesseract missing | install `tesseract-ocr` |
-| `ocr: false` on Windows | no language pack for `Windows.Media.Ocr`, or `winsdk` missing | add a language in Settings → Time & language, or `uv pip install winsdk` |
+| `ocr: false` on Windows | no language pack for `Windows.Media.Ocr`, or `winsdk` missing | add a language in Settings â†’ Time & language, or `uv pip install winsdk` |
 | `translate: false` on Windows/Linux | `MURMUR_TRANSLATE_URL` unset | point it at a local OpenAI-compatible server, then restart |
 | No desktop window on Linux | WebKitGTK missing | install `libwebkit2gtk-4.1-0` or use browser mode |
 | No desktop window on Windows | WebView2 missing | install the Evergreen runtime |
@@ -389,7 +389,7 @@ still loading.
 | `ONNX_PROVIDER ... not available` | provider mismatch | unset `MURMUR_TTS_PROVIDER` or install the matching onnxruntime build |
 | CUDA out of memory | model too large for VRAM | use Fast quality, close other GPU apps, or set `MURMUR_FLUX_OFFLOAD=1` |
 | `Permission denied` writing data | sandboxed install | set `MURMUR_HOME` to a writable directory |
-| Remote URL asks for token | remote access enabled | use the link with `?token=…` from Settings → Remote access |
+| Remote URL asks for token | remote access enabled | use the link with `?token=â€¦` from Settings â†’ Remote access |
 
 Logs go to the terminal that started the server. The desktop app writes to
 stdout; run it from a terminal to see errors.
@@ -405,7 +405,7 @@ stdout; run it from a terminal to see errors.
 3. **Do not use the system Python**; always use the project `.venv`.
 4. **Do not run as root** on Linux. Use a normal user and `sudo` only for
    system packages.
-5. **Do not delete** the data directory to “fix” an install; back it up first.
+5. **Do not delete** the data directory to â€œfixâ€ an install; back it up first.
    The library and settings live there.
 6. **Do not run `build_app.sh`** outside macOS.
 7. **Do not claim GPU support** that the preview does not have: NVIDIA CUDA and
@@ -417,9 +417,9 @@ stdout; run it from a terminal to see errors.
 
 ## 9. Where to read more
 
-- `docs/ARCHITECTURE.md` — modules, UML diagrams, API, security model.
-- `docs/PLATFORMS.md` — Windows/Linux/GPU plan, backend interfaces, packaging.
-- `README.md` — feature overview and developer quick start.
+- `docs/ARCHITECTURE.md` â€” modules, UML diagrams, API, security model.
+- `docs/PLATFORMS.md` â€” Windows/Linux/GPU plan, backend interfaces, packaging.
+- `README.md` â€” feature overview and developer quick start.
 
 ---
 
@@ -427,6 +427,10 @@ stdout; run it from a terminal to see errors.
 
 Sections 0-9 are about installing and running. This section is about changing the code.
 
+- **More than one agent.** Another session may be working in this repository. Take your own
+  worktree (`git worktree add ..\rhapsode-<slug> feat/<slug>`) instead of `git switch` in a
+  checkout someone else is using, never `git add -A` in a shared checkout, and run
+  `.\scripts\check-ladder.ps1` when you finish. See `docs/CONCURRENCY.md`.
 - **Branches.** Cut `feat/<slug>` or `fix/<slug>` from `main`; merge to `main` only. Never
   push to `testing` or `stable`, and never create `known-good-*` tags - promotion is the
   user's decision, via `scripts/promote.ps1`. Details: `docs/BRANCHING.md`.
@@ -440,3 +444,4 @@ Sections 0-9 are about installing and running. This section is about changing th
   "fix" a problem; back up first and say so.
 - **Scope.** Do not reformat or tidy files outside the task, and do not add dependencies
   without a reason in the commit body.
+
