@@ -420,3 +420,23 @@ stdout; run it from a terminal to see errors.
 - `docs/ARCHITECTURE.md` — modules, UML diagrams, API, security model.
 - `docs/PLATFORMS.md` — Windows/Linux/GPU plan, backend interfaces, packaging.
 - `README.md` — feature overview and developer quick start.
+
+---
+
+## 10. Working on the code (not installing it)
+
+Sections 0-9 are about installing and running. This section is about changing the code.
+
+- **Branches.** Cut `feat/<slug>` or `fix/<slug>` from `main`; merge to `main` only. Never
+  push to `testing` or `stable`, and never create `known-good-*` tags - promotion is the
+  user's decision, via `scripts/promote.ps1`. Details: `docs/BRANCHING.md`.
+- **Tests.** `python -m unittest discover -s tests -v`. Quote the summary line in your
+  report. The suite excludes the TTS weights, the film stack, pywebview and `winsdk`, so
+  green CI does not prove the app runs - say which manual step you did instead of implying
+  it was verified.
+- **Report shape.** What changed (files), what you ran, what the output was, and what you
+  did **not** verify. Never describe unverified work as working.
+- **Data.** Never delete or rewrite the library directory, `*.db`, or downloaded weights to
+  "fix" a problem; back up first and say so.
+- **Scope.** Do not reformat or tidy files outside the task, and do not add dependencies
+  without a reason in the commit body.

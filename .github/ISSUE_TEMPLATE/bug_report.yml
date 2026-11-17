@@ -1,0 +1,77 @@
+name: Bug report
+description: Something breaks, or behaves differently from what the docs say
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        One bug per issue — if two things are broken, file two issues.
+
+        If this is a question, an install problem, or an idea, read `AGENTS.md` first, then use
+        the feature request template for ideas.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: The behaviour you saw, and what you expected instead.
+      placeholder: |
+        Expected:
+        Actual:
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps from launching the app, using the smallest input that triggers it.
+      placeholder: |
+        1. Launch with `.\run.ps1`
+        2. Open a book, go to chapter 3
+        3. Click Play / Render film
+        ...
+    validations:
+      required: true
+  - type: dropdown
+    id: build
+    attributes:
+      label: Which build were you running?
+      description: The rung of the ladder — see `docs/BRANCHING.md`.
+      options:
+        - stable (a promoted build)
+        - testing (a QA candidate)
+        - main (built from source)
+        - not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: The `v*` or `known-good-*` tag if there is one, otherwise `git rev-parse --short HEAD`. The engine reports `__version__` on `/api/health`.
+  - type: input
+    id: machine
+    attributes:
+      label: Machine
+      description: OS and version, Python version, GPU + driver + VRAM (or "no GPU"), and whether films were on.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - reading / highlighting
+        - text to speech / audio export
+        - chapter film / stills
+        - ingest (PDF, EPUB, OCR)
+        - window / packaging / install
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: The tail of `server.log` (or the console) around the failure, 10–30 lines. Images can be pasted in.
+      render: text

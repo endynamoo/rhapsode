@@ -1,0 +1,48 @@
+name: Feature request
+description: A capability the app should have, or a workflow it should stop fighting you on
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and where does the app get in the way? Describe the situation, not the solution.
+      placeholder: |
+        When a chapter has two speakers, the narrator voice ...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you think it should do
+      description: Sketch of the behaviour. Rough is fine — this is where the design gets argued about.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and workarounds
+      description: What you do today instead, and why that is not good enough.
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope check
+      description: |
+        What is explicitly **not** part of this? Naming the edges now is what keeps the change reviewable.
+        Anything that touches the film pipeline, the engine sidecar, or packaging needs its own issue.
+  - type: dropdown
+    id: size
+    attributes:
+      label: Rough size
+      options:
+        - small — one file, one behaviour
+        - medium — one area, a few files, needs tests
+        - large — several areas, probably its own milestone
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        Definition of done: the behaviour is covered by a test that fails without the change,
+        `windows.yml` is green on `main`, and the docs that describe the old behaviour are updated.
