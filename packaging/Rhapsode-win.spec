@@ -17,7 +17,10 @@ ROOT = os.path.abspath(os.getcwd())
 WITH_FILM = os.environ.get("RHAPSODE_WITH_FILM") == "1"
 
 datas = [(os.path.join(ROOT, "web"), "web"),
-         (os.path.join(ROOT, "branding", "rhapsode.ico"), "branding")]
+         (os.path.join(ROOT, "branding", "rhapsode.ico"), "branding"),
+         # Handed to image-venv's interpreter to paint a still (FLUX.2 runs there,
+         # never inside this bundle).
+         (os.path.join(ROOT, "murmur", "fluxgen.py"), ".")]
 binaries = []
 hiddenimports = [
     "webview.platforms.winforms",
@@ -59,6 +62,10 @@ if WITH_FILM:
                  "safetensors", "huggingface_hub", "tokenizers", "pyopenjtalk"]
 else:
     hiddenimports.append("pyopenjtalk")  # optional language path; harmless if missing
+
+# Windows.Media.Ocr ships as compiled namespaces; PyInstaller cannot infer them.
+if os.name == "nt":
+    packages.append("winsdk")
 
 for package in packages:
     try:

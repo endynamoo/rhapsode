@@ -126,6 +126,21 @@ class FluxPythonBackend(ImageBackend):
     def python(self) -> Path:
         return config.IMAGE_PYTHON
 
+    @property
+    def script(self) -> Path | None:
+        """fluxgen.py as a plain file, so a frozen build can hand it to image-venv.
+
+        The server cannot run `-m murmur.fluxgen` once it is a bundle: there is no
+        interpreter, and the package lives inside the archive.
+        """
+        for candidate in (
+            config.ASSET_ROOT / "fluxgen.py",
+            Path(__file__).with_name("fluxgen.py"),
+        ):
+            if candidate.exists():
+                return candidate
+        return None
+
     def available(self) -> bool:
         if not self.python.exists():
             return False
@@ -148,11 +163,13 @@ class FluxPythonBackend(ImageBackend):
                  init_image: Path | None = None, strength: float = 0.5,
                  reference_image: Path | None = None) -> None:
         spec = MODELS[self.model_key]
+        script = self.script
+        if script is None:
+            raise ImageError("fluxgen.py is missing from the installation.")
         env = dict(os.environ)
-        env["PYTHONPATH"] = str(config.APP_ROOT)
         env.setdefault("HF_HOME", str(config.HOME / "models" / "hf"))
         command = [
-            str(self.python), "-m", "murmur.fluxgen",
+            str(self.python), str(script),
             "--prompt", prompt,
             "--width", str(width), "--height", str(height),
             "--seed", str(int(seed)),
