@@ -131,6 +131,8 @@ if ($chosen -eq 'auto') {
     $chosen = & $venvPy -c "from murmur import profile; print(profile.recommend(float('$vram')))" 2>$null
     $chosen = ($chosen | Select-Object -Last 1).Trim()
     "   detected VRAM: $vram GB -> profile '$chosen'"
+    "   if this card is shared (remote desktop, another agent), use -Profile lite: ~5 GiB instead of ~13"
+
 }
 & $venvPy -c "from pathlib import Path; from murmur import profile; print(profile.save(Path(r'$homeDir'), '$chosen'))"
 Get-Content $profilePath
