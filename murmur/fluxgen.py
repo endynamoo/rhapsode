@@ -461,7 +461,23 @@ def _serve_loop(torch, device: str) -> int:
             _path, stats = _paint(pipe, torch, device, job, cache)
             print(json.dumps({"id": job.get("id"), "ok": True, **stats}), flush=True)
         except Exception as exc:  # noqa: BLE001 - reported, never fatal
-            print(json.dumps({"id": job.get("id"), "ok": False, "error": str(exc)[-500:]}), flush=True)
+            # Running out of memory once should not kill the resident painter: move
+            # the text encoder to the CPU and try the same job again. Losing the
+            # worker costs a full reload, and the fallback leaves the GPU pinned.
+            message = str(exc)
+            if "out of memory" in message.lower() and getattr(pipe, "text_encoder", None) is not None:
+                try:
+                    pipe.text_encoder.to("cpu")
+                    if device == "cuda":
+                        torch.cuda.empty_cache()
+                    print(json.dumps({"notice": "oom: text encoder moved to the CPU, retrying"}),
+                          file=sys.stderr, flush=True)
+                    _path, stats = _paint(pipe, torch, device, job, cache)
+                    print(json.dumps({"id": job.get("id"), "ok": True, **stats}), flush=True)
+                    continue
+                except Exception as retry_exc:  # noqa: BLE001
+                    message = f"OOM (retry with the encoder on the CPU failed: {retry_exc})"
+            print(json.dumps({"id": job.get("id"), "ok": False, "error": message[-500:]}), flush=True)
     return 0
 
 
