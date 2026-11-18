@@ -1742,8 +1742,8 @@ body.focus .focus-exit { display: inline-flex; }
 @keyframes pulse { 50% { opacity: .35; } }
 @keyframes breathe { 50% { transform: scale(1.05); } }
 @keyframes markGlow {
-  0%, 100% { box-shadow: 0 0 8px 2px var(--glow), 0 0 20px 6px rgba(95, 216, 245, .12); }
-  50% { box-shadow: 0 0 14px 5px var(--glow), 0 0 34px 12px rgba(95, 216, 245, .22); }
+  0%, 100% { box-shadow: 0 0 8px 2px var(--glow), 0 0 20px 6px rgba(139, 123, 255, .18); }
+  50% { box-shadow: 0 0 14px 5px var(--glow), 0 0 34px 12px rgba(139, 123, 255, .3); }
 }
 
 @keyframes fade { from { opacity: 0; } }
