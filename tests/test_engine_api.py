@@ -48,7 +48,7 @@ class EngineApiTests(unittest.TestCase):
             self.assertIn("painter", body)
 
     def test_switching_profile_updates_settings_and_restarts(self) -> None:
-        with temp_home(), mock.patch.object(server.imaging, "restart_painter") as restart:
+        with temp_home(), mock.patch("murmur.imaging.restart_painter") as restart:
             client = TestClient(server.app)
             response = client.post("/api/engine/profile", json={"profile": "lite"})
             self.assertEqual(200, response.status_code, response.text)
@@ -73,7 +73,7 @@ class EngineApiTests(unittest.TestCase):
             self.assertIn("running", response.json()["painter"])
 
     def test_overrides_beat_the_preset(self) -> None:
-        with temp_home(), mock.patch.object(server.imaging, "restart_painter"):
+        with temp_home(), mock.patch("murmur.imaging.restart_painter"):
             client = TestClient(server.app)
             body = client.post(
                 "/api/engine/profile",

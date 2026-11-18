@@ -1,22 +1,17 @@
 """FastAPI backend for Murmur."""
 from __future__ import annotations
 
-import asyncio
-import hmac
 import html
-import ipaddress
 import json
 import mimetypes
 import posixpath
 import re
 import shutil
-import subprocess
 import threading
 import time
 import uuid
 import zipfile
 from pathlib import Path
-from urllib.parse import urlsplit
 
 import numpy as np
 from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile
@@ -24,56 +19,38 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import config, extract, film, fonts, imaging, netinfo, ocr, polish, proc, search, speak, store, translate
-from .backends import detect
-from .engine import cache_stats, clip_cache_stats, engine, prune_cache
+from . import access, config, extract, film, ocr, proc, search, speak, store
+from .engine import engine, prune_cache
 from .film_api import router as film_router
 from .search_api import router as search_router
-from .voices import DEFAULT_VOICE, VOICES, voice_groups
+from .system_api import router as system_router
+from .voices import DEFAULT_VOICE
 
 app = FastAPI(title="Murmur", docs_url=None, redoc_url=None)
 # PDFium is not thread-safe; the page image and word-box endpoints share one lock.
 _PDF_LOCK = threading.Lock()
 app.include_router(film_router)
 app.include_router(search_router)
+app.include_router(system_router)
 
 MAX_UPLOAD = 120 * 1024 * 1024
 
 # Network exposure. Loopback requests (the desktop window, Quick Read) are always
 # allowed; other devices must present the token once.
-PUBLIC = config.PUBLIC if config.PUBLIC is not None else (config.HOST not in config.LOOPBACK)
-TOKEN = config.access_token() if PUBLIC else ""
-
-
-def _client_host(request: Request) -> str:
-    return request.client.host if request.client else ""
+PUBLIC = access.PUBLIC
+TOKEN = access.TOKEN
 
 
 def _is_local(request: Request) -> bool:
-    host = _client_host(request)
-    return host in config.LOOPBACK or host.startswith("127.")
+    return access.is_local(request)
 
 
 def _local_host_ok(request: Request) -> bool:
-    """Reject DNS-rebinding requests that reach the loopback server by name."""
-    raw = request.headers.get("host", "")
-    try:
-        host = (urlsplit(f"//{raw}").hostname or "").lower()
-    except ValueError:
-        return False
-    if host in config.LOOPBACK:
-        return True
-    try:
-        return ipaddress.ip_address(host).is_loopback
-    except ValueError:
-        return False
+    return access.local_host_ok(request)
 
 
 def _matches(value: str, expected: str) -> bool:
-    try:
-        return bool(expected) and hmac.compare_digest(value, expected)
-    except TypeError:
-        return False
+    return access.matches(value, expected)
 
 
 @app.middleware("http")
@@ -116,11 +93,6 @@ class UrlIn(BaseModel):
     title: str = ""
 
 
-class TTSIn(BaseModel):
-    text: str
-    voice: str = DEFAULT_VOICE
-
-
 class DocPatch(BaseModel):
     title: str | None = None
     position: int | None = None
@@ -158,233 +130,10 @@ def _startup() -> None:
     search.start_background(delay=2.0)
     if PUBLIC:
         print("Murmur is available on the network:")
-        for item in netinfo.access_urls(config.PORT, TOKEN):
+        for item in access.access_urls():
             if item["label"] != "This Mac":
                 print(f"  {item['label']}: {item['url']}")
         print(f"  token file: {config.HOME / 'access_token'}", flush=True)
-
-
-# ---------------------------------------------------------------- basics
-@app.get("/api/health")
-def health() -> dict:
-    engine.recheck()
-    return {
-        "ok": True,
-        "modelReady": engine.ready,
-        "modelError": engine.last_error,
-        "voices": len(VOICES),
-        "ocr": ocr.available(),
-        "ocrBackend": ocr.backend_name(),
-        "translate": translate.translator.available(),
-        "profile": {
-            "name": config.PROFILE.get("profile"),
-            "summary": __import__("murmur.profile", fromlist=["describe"]).describe(config.PROFILE),
-        },
-        "polish": polish.status(),
-        "painter": imaging.painter_info(),
-        "caches": {
-            "clips": {**cache_stats(), "hot": clip_cache_stats()},
-            "translations": store._translations.stats(),
-        },
-        "platform": detect.snapshot(),
-        "cache": cache_stats(),
-    }
-
-
-class EngineProfileIn(BaseModel):
-    profile: str
-    precision: str | None = None
-    text_device: str | None = None
-    reserve_mib: int | None = None
-    quality: str | None = None
-    polish: bool | None = None
-
-
-def _engine_state() -> dict:
-    from . import profile as engine_profile
-
-    active = config.PROFILE
-    return {
-        "profile": active.get("profile"),
-        "summary": engine_profile.describe(active),
-        "settings": {
-            key: active.get(key)
-            for key in ("precision", "text_device", "reserve_mib", "quality", "polish")
-        },
-        "profiles": [
-            {
-                "name": name,
-                "why": preset.get("why", ""),
-                "precision": preset.get("precision"),
-                "text_device": preset.get("text_device"),
-                "quality": preset.get("quality"),
-                "polish": preset.get("polish"),
-            }
-            for name, preset in engine_profile.PROFILES.items()
-        ],
-        "painter": imaging.painter_info(),
-    }
-
-
-@app.get("/api/engine")
-def read_engine() -> dict:
-    """Which profile is active, what it means, and what the painter is doing."""
-    return _engine_state()
-
-
-@app.post("/api/engine/profile")
-def write_engine_profile(payload: EngineProfileIn) -> dict:
-    """Switch profile: save it, seed the reading defaults, restart the painter."""
-    from . import profile as engine_profile
-
-    if payload.profile not in engine_profile.PROFILES:
-        raise HTTPException(status_code=400, detail=f"unknown profile {payload.profile}")
-    engine_profile.activate(
-        config.HOME,
-        payload.profile,
-        precision=payload.precision,
-        text_device=payload.text_device,
-        reserve_mib=payload.reserve_mib,
-        quality=payload.quality,
-        polish=payload.polish,
-    )
-    imaging.restart_painter()
-    return _engine_state()
-
-
-@app.post("/api/engine/restart")
-def restart_engine() -> dict:
-    """Drop the resident painter so the next still reloads the active profile."""
-    return {"painter": imaging.restart_painter()}
-
-
-@app.get("/api/network")
-def network_info(request: Request, response: Response) -> dict:
-    """Connection details, including the token — only for local callers."""
-    if not _is_local(request):
-        raise HTTPException(status_code=403, detail="Local access only")
-    response.headers["Cache-Control"] = "no-store"
-    settings = store.get_settings()
-    urls = netinfo.access_urls(config.PORT, TOKEN if PUBLIC else None)
-    if not PUBLIC:
-        # Avoid advertising LAN/Tailscale addresses while remote access is off.
-        urls = [item for item in urls if item["label"] == "This Mac"]
-    return {
-        "enabled": PUBLIC,
-        "host": config.HOST,
-        "port": config.PORT,
-        "token": TOKEN if PUBLIC else "",
-        "remoteAccess": bool(settings.get("remoteAccess")),
-        "tailscale": netinfo.tailscale_state(),
-        "urls": urls,
-    }
-
-
-@app.get("/api/voices")
-def voices() -> dict:
-    return {"groups": voice_groups(), "default": DEFAULT_VOICE}
-
-
-@app.get("/api/fonts")
-def font_list() -> dict:
-    """Font families installed on this machine (cached for a week)."""
-    return {"fonts": fonts.system_fonts()}
-
-
-@app.get("/api/settings")
-def read_settings() -> dict:
-    return store.get_settings()
-
-
-@app.put("/api/settings")
-def write_settings(patch: dict) -> dict:
-    return store.set_settings(patch)
-
-
-@app.post("/api/cache/prune")
-def prune() -> dict:
-    removed = prune_cache()
-    return {"removed": removed, **cache_stats()}
-
-
-# ---------------------------------------------------------------- speech
-@app.post("/api/tts")
-def synthesize(payload: TTSIn) -> dict:
-    voice = payload.voice if payload.voice in VOICES else DEFAULT_VOICE
-    settings = store.get_settings()
-    prepared = speak.prepare(
-        payload.text,
-        voice,
-        bool(settings.get("translateToVoice", True)),
-    )
-    try:
-        meta = engine.synthesize(prepared["text"], voice)
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:  # pragma: no cover
-        raise HTTPException(status_code=500, detail=f"Speech synthesis failed: {exc}") from exc
-    return {
-        "key": meta["key"],
-        "url": f"/api/audio/{meta['key']}.wav",
-        "duration": meta["duration"],
-        "sampleRate": meta["sample_rate"],
-        "words": meta["words"],
-        "spoken": prepared["text"],
-        "translated": prepared["translated"],
-        "sourceLang": prepared["source"],
-        "targetLang": prepared["target"],
-        "translateError": prepared["error"],
-    }
-
-
-@app.get("/api/audio/{name}")
-def audio(name: str, request: Request):
-    if not re.fullmatch(r"[0-9a-f]{8,40}\.wav", name):
-        raise HTTPException(status_code=404)
-    path = config.CACHE_DIR / name
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="Audio not found")
-
-    size = path.stat().st_size
-    range_header = request.headers.get("range")
-    base_headers = {
-        "Accept-Ranges": "bytes",
-        "Cache-Control": "public, max-age=31536000, immutable",
-    }
-
-    if not range_header:
-        return FileResponse(path, media_type="audio/wav", headers=base_headers)
-
-    match = re.match(r"bytes=(\d*)-(\d*)", range_header)
-    if not match:
-        raise HTTPException(status_code=416, headers={"Content-Range": f"bytes */{size}"})
-    start = int(match.group(1)) if match.group(1) else 0
-    end = int(match.group(2)) if match.group(2) else size - 1
-    end = min(end, size - 1)
-    if start > end or start >= size:
-        raise HTTPException(status_code=416, headers={"Content-Range": f"bytes */{size}"})
-
-    length = end - start + 1
-
-    def stream():
-        with open(path, "rb") as handle:
-            handle.seek(start)
-            remaining = length
-            while remaining > 0:
-                chunk = handle.read(min(64 * 1024, remaining))
-                if not chunk:
-                    break
-                remaining -= len(chunk)
-                yield chunk
-
-    headers = {
-        **base_headers,
-        "Content-Range": f"bytes {start}-{end}/{size}",
-        "Content-Length": str(length),
-    }
-    return StreamingResponse(stream(), status_code=206, media_type="audio/wav", headers=headers)
 
 
 # ---------------------------------------------------------------- documents
@@ -849,99 +598,6 @@ def remove_doc(doc_id: str) -> dict:
     film.painter.clear(doc_id)
     shutil.rmtree(config.FILM_DIR / doc_id, ignore_errors=True)
     return {"ok": True}
-
-
-_subscribers: set[asyncio.Queue] = set()
-
-
-def _broadcast(message: dict) -> bool:
-    """Push a message to every open Murmur tab. Returns whether any tab got it."""
-    delivered = False
-    for queue in list(_subscribers):
-        try:
-            queue.put_nowait(message)
-            delivered = True
-        except Exception:
-            _subscribers.discard(queue)
-    return delivered
-
-
-@app.post("/api/quick-read")
-async def quick_read(request: Request) -> dict:
-    raw = (await request.body()).decode("utf-8", errors="replace").strip()
-    if not raw:
-        raise HTTPException(status_code=400, detail="No text was provided.")
-    lines = [line for line in raw.splitlines() if line.strip()]
-    first = re.sub(r"\s+", " ", lines[0])[:70] if lines else "Quick read"
-    title = first or "Quick read"
-    if len(raw) > 80:
-        title += "…"
-    try:
-        doc = store.create_doc(title, raw, kind="quick")
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    search.note_document(doc["id"])
-    return {"id": doc["id"], "delivered": _broadcast({"type": "quick", "id": doc["id"]})}
-
-
-@app.post("/api/ocr-clipboard")
-async def ocr_clipboard() -> dict:
-    """OCR the image on the macOS clipboard and queue it for reading."""
-    if not ocr.available():
-        raise HTTPException(
-            status_code=503,
-            detail="OCR is unavailable — on macOS install pyobjc-framework-Vision; on Linux/Windows install Tesseract.",
-        )
-    data = ocr.clipboard_image()
-    if not data:
-        raise HTTPException(status_code=400, detail="There is no image on the clipboard.")
-    try:
-        raw = ocr.recognize_bytes(data)
-    except ocr.OCRUnavailable as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    text = extract.clean_ocr(raw)
-    if not text.strip():
-        raise HTTPException(status_code=400, detail="No readable text was found in that image.")
-
-    first = next(
-        (re.sub(r"\s+", " ", line).strip() for line in raw.splitlines() if line.strip()), ""
-    )
-    title = f"Screenshot — {first[:50]}…" if first else "Screenshot"
-    try:
-        doc = store.create_doc(title[:120], text, kind="ocr")
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    search.note_document(doc["id"])
-    return {
-        "id": doc["id"],
-        "chars": len(text),
-        "delivered": _broadcast({"type": "quick", "id": doc["id"]}),
-    }
-
-
-@app.get("/api/events")
-async def events():
-    """Server-sent events so an open tab can pick up quick-read requests."""
-    queue: asyncio.Queue = asyncio.Queue()
-    _subscribers.add(queue)
-
-    async def stream():
-        try:
-            yield ": connected\n\n"
-            while True:
-                try:
-                    message = await asyncio.wait_for(queue.get(), timeout=20)
-                    yield f"data: {json.dumps(message)}\n\n"
-                except asyncio.TimeoutError:
-                    yield ": ping\n\n"
-        finally:
-            _subscribers.discard(queue)
-
-    return StreamingResponse(
-        stream(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
-    )
 
 
 # ---------------------------------------------------------------- export

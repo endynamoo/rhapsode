@@ -60,8 +60,8 @@ flowchart LR
 The desktop window and the server share one process. `python -m
 murmur.engine_api` starts only the film router plus health and version, for a
 frontend that is not the bundled window; the desktop app itself mounts that same
-router in-process (`server.py` includes `film_api.router` and
-`search_api.router`).
+router in-process (`server.py` includes `film_api.router`,
+`search_api.router` and `system_api.router`).
 
 ---
 
@@ -184,8 +184,11 @@ Grouped by job, not by import order. Sizes are rough line counts at 0.2.0-alpha.
 | `murmur/bootstrap.py` | downloads the Kokoro weights (`python -m murmur.bootstrap`) |
 | `murmur/fluxgen.py` | the stills child process (`--gguf`, `--serve`, `--once`); never imported by the server |
 
-**Server and API** — `server.py` (1.1k) holds the app, the access guard and most
-routes; `film_api.py` and `search_api.py` are routers mounted into it; `runtime.py`
+**Server and API** - `server.py` (735) holds the app, the static mounts, the access
+guard and the document/export routes; `system_api.py` holds health, the engine
+profile, settings, speech and the event bus; `access.py` is the one place that
+reads `PUBLIC`/`TOKEN` and decides whether a caller is local; `film_api.py` and
+`search_api.py` are the other two routers. `runtime.py`
 resolves the bind host; `netinfo.py` builds the LAN/Tailscale URLs; `proc.py`
 hides child console windows and adopts children into a kill-on-close job.
 
@@ -693,7 +696,7 @@ quick-read notifications.
 
 | Want to… | Touch |
 | --- | --- |
-| add an HTTP endpoint | `server.py` (or `film_api.py` / `search_api.py` if it belongs to that group), then `web/app.js` |
+| add an HTTP endpoint | the matching router (`system_api.py` for health/settings/speech, `film_api.py`, `search_api.py`) or `server.py` for documents and exports, then `web/app.js` |
 | add a voice | `voices.py` (`VOICES`, `DEFAULT_VOICE`); the UI reads `/api/voices` |
 | change how sentences are split | `text.py:split_units` — everything downstream is measured in units |
 | change speech quality or caching | `engine.py` (`_key`, `synthesize`), `cache.py` |
@@ -728,7 +731,7 @@ natural targets for a refactor:
 | Area | Size | Why it is hard |
 | --- | --- | --- |
 | `web/app.js` | 3.7k lines | one file: state, API wrappers, library, reader, player, search, cinema, settings, scene editor. No JS tests. |
-| `murmur/server.py` | 1.1k lines | app setup, access guard, and ~30 of the ~45 routes in one module; `film_api.py` and `search_api.py` already show the router pattern. |
+| `murmur/server.py` | 735 lines | app setup, access guard, and the document/export routes; `system_api.py`, `film_api.py` and `search_api.py` carry the rest. |
 | `murmur/film.py` | 1.7k lines | planning, prompt writing, painting, polish, and ffmpeg rendering share one module and one queue. |
 | `tests/` | 163 cases | Python only; the UI is verified by hand. |
 
