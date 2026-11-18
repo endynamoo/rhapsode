@@ -144,9 +144,8 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 **Changed**
 
-- The server's system routes (health, engine profile, settings, voices, fonts, speech, audio, the event stream, quick read and clipboard OCR) moved out of `server.py` into `murmur/system_api.py`, and the "is this caller local, and which token did it present" logic into `murmur/access.py`. `server.py` is 1,080 lines down to 735 and keeps the app, the guard, documents and exports. No route, status code or response body changed.
-- Auto Generate is two switches instead of one: **Scenes** (on by default — stills are painted a few scenes ahead while you read) and **Chapter films** (off by default — the remaining chapters queue when one finishes). An install that had the old single switch on keeps chapter films on.
-- Theme is a dropdown in Settings — grouped Dark and Light, with a live preview of the selected palette beside it — instead of a scrollable grid of twenty swatches.
+- The server's system routes (health, engine profile, settings, voices, fonts, speech, audio, the event stream, quick read and clipboard OCR) moved out of `server.py` into `murmur/system_api.py`, and the "is this caller local, and which token did it present" logic into `murmur/access.py`.
+- The `/api/docs` routes — add text, upload a file, import a URL, PDF page images and word boxes, EPUB chapters and assets, patch and delete — moved into `murmur/library_api.py`, with the PDFium lock and the chapter theming helpers. `server.py` is 1,080 lines down to 253: the app, the access guard, audio export and the static mounts. No route, status code or response body changed by either move.
 
 ### 0.2.0-alpha - 2026-11-18
 
@@ -154,6 +153,12 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - Linux is verified on a clean runner: `.github/workflows/linux.yml` runs the unit suite, then a real `python -m murmur` server with Tesseract as the OCR backend, asserting `/api/health` is healthy and remote access is off.
 
-*...and 48 more entries in [CHANGELOG.md](CHANGELOG.md).*
+### 0.1.0-alpha - 2026-11-16
+
+**Added**
+
+- First Windows-capable build of the reader and stills app: PDF, EPUB, DOCX, RTF, TXT, Markdown and HTML imports.
+
+*...and 49 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
