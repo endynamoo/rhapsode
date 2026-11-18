@@ -27,6 +27,7 @@ def temp_home():
             FILES_DIR=base / "files",
             EXPORT_DIR=base / "exports",
             FILM_DIR=base / "film",
+            DB_PATH=base / "murmur.db",
         ):
             config.ensure_dirs()
             store.close()
