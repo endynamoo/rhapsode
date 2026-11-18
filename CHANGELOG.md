@@ -18,6 +18,7 @@ fails when that copy is stale.
 
 ### Changed
 
+- The server's system routes (health, engine profile, settings, voices, fonts, speech, audio, the event stream, quick read and clipboard OCR) moved out of `server.py` into `murmur/system_api.py`, and the "is this caller local, and which token did it present" logic into `murmur/access.py`. `server.py` is 1,080 lines down to 735 and keeps the app, the guard, documents and exports. No route, status code or response body changed.
 - Auto Generate is two switches instead of one: **Scenes** (on by default — stills are painted a few scenes ahead while you read) and **Chapter films** (off by default — the remaining chapters queue when one finishes). An install that had the old single switch on keeps chapter films on.
 - Theme is a dropdown in Settings — grouped Dark and Light, with a live preview of the selected palette beside it — instead of a scrollable grid of twenty swatches.
 - Settings → Engine is now **Stills engine** and reads the same activity object as Cinema, so the two can no longer disagree about what is running.

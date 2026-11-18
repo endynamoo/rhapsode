@@ -16,7 +16,7 @@ from unittest import mock
 
 from fastapi.testclient import TestClient
 
-from murmur import config, engine as engine_module, server, store
+from murmur import config, engine as engine_module, server, store, system_api
 from murmur.engine import TTSEngine
 
 MISSING = "Kokoro model files are missing. Run `python -m murmur.bootstrap`."
@@ -98,7 +98,7 @@ class HealthTests(unittest.TestCase):
         with temp_home():
             fake = TTSEngine()
             fake.last_error = MISSING
-            with mock.patch.object(server, "engine", fake), \
+            with mock.patch.object(system_api, "engine", fake), \
                     mock.patch.object(fake, "warm_async") as warm:
                 body = TestClient(server.app).get("/api/health").json()
                 self.assertFalse(body["modelReady"])
