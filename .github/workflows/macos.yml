@@ -1,0 +1,87 @@
+name: macos
+
+# A clean macOS runner: build the .app, self-test it, wrap it in a
+# drag-install DMG, and attach the DMG to the release when a v* tag is pushed.
+# Two legs: arm64 on macos-latest and x86_64 on macos-15-intel; each DMG is
+# named with its arch. The bundle is ad-hoc signed (no Developer ID), so the
+# first launch needs right-click -> Open. Stills are installed per-user later.
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - "build_app.sh"
+      - "packaging/Rhapsode.spec"
+      - "packaging/entry.py"
+      - "native/**"
+      - "scripts/make_dmg.sh"
+      - "requirements*.txt"
+      - ".github/workflows/macos.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build + dmg (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      # The arm64 pool is frequently congested; a slow Apple Silicon leg must not
+      # cancel a valid Intel build. Each leg ships the DMG for its own arch.
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swiftc --version
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build the app
+        env:
+          MURMUR_BUNDLE_MODELS: "0"
+          MURMUR_SKIP_FILM: "1"
+        run: ./build_app.sh
+
+      - name: Self-test the bundle
+        run: |
+          line="$(dist/Rhapsode.app/Contents/MacOS/Rhapsode --selftest)"
+          echo "$line"
+          case "$line" in
+            ok\ http://127.0.0.1:*) ;;
+            *) echo "the bundle did not report healthy" >&2; exit 1 ;;
+          esac
+
+      - name: Build the DMG
+        run: ./scripts/make_dmg.sh
+
+      - name: Upload the DMG as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rhapsode-macos-dmg-${{ matrix.arch }}
+          path: dist/*.dmg
+          if-no-files-found: error
+
+      - name: Attach the DMG to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${GITHUB_REF_NAME}" dist/*.dmg --clobber

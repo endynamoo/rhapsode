@@ -70,7 +70,7 @@ FLUX_GENERATE = FLUX_VENV / "bin" / "mflux-generate-flux2"
 FLUX_EDIT = FLUX_VENV / "bin" / "mflux-generate-flux2-edit"
 IMAGE_PYTHON = Path(
     os.environ.get("MURMUR_IMAGE_PYTHON")
-    or FLUX_VENV / ("Scripts/python.exe" if os.name == "nt" else "bin" / "python")
+    or FLUX_VENV / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 )
 
 if FROZEN:

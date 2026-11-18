@@ -78,7 +78,7 @@ $iscc = @(
 if (-not $iscc) { Fail 'ISCC.exe not found: install Inno Setup 6 or 7' }
 Say "compiling with $iscc"
 $isccLog = "$env:TEMP\iscc_build.log"
-$code = Invoke-Native $iscc @('packaging\Rhapsode-setup.iss') $isccLog
+$code = Invoke-Native $iscc @("/DAppVersion=$version", 'packaging\Rhapsode-setup.iss') $isccLog
 if ($code) { Fail "ISCC failed ($code), see $isccLog" }
 
 # ---- prove the artifact is this version ---------------------------------------

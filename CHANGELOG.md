@@ -13,6 +13,8 @@ fails when that copy is stale.
 
 ### Added
 
+- macOS release builds on clean runners: `.github/workflows/macos.yml` builds and self-tests the `.app` for arm64 (`macos-latest`) and x86_64 (`macos-15-intel`), wraps each in a drag-install DMG, and attaches both to a `v*` release; the Windows installer workflow attaches its Setup.exe the same way.
+- `scripts/make_dmg.sh` for a local drag-install DMG.
 - Search across your whole library with `Ctrl+F` / `⌘F` or the magnifier: results grouped by book, the matching passage marked, and a jump straight to that sentence, chapter or page. Keywords work with nothing extra installed; the optional 23 MB meaning model (Apache-2.0, CPU only) is offered as a download in the panel and can be switched off with `MURMUR_SEMANTIC=off`.
 - "Read this week" and "Read this month" filters for search, based on when a book was actually opened or its position saved.
 - Live progress for library indexing and the model download, plus an Index library button; an interrupted index resumes where it stopped instead of duplicating rows.
@@ -21,6 +23,9 @@ fails when that copy is stale.
 
 ### Changed
 
+- The Windows installer and the macOS `.app` read their version from `murmur.__version__`, so a version bump is one line instead of three files.
+- The macOS bundle identifier is `com.endynamoo.rhapsode`, not `local.rhapsode`.
+- The prompt helper and the translation helper are optional at build time: a toolchain without Foundation Models or the macOS 26 Translation SDK still produces a working app, without that helper.
 - The front page, the third-party notices and the app's copyright string say "license", not "licence".
 - Opening or resuming a book now records reading activity, so recent-only search can tell a book you read last week from one you imported and never touched.
 - The README front page states what actually ships: the per-user Windows installer, ROCm stills, and the real test count.
@@ -29,6 +34,8 @@ fails when that copy is stale.
 
 ### Fixed
 
+- Importing the app on macOS and Linux no longer crashes in `config.py` (a `str / str` while building the stills interpreter path); Windows never hit it because it takes the other branch.
+- `./run.sh`, `./build_app.sh` and the other shell scripts are executable in git again; a fresh macOS or Linux checkout could not run them.
 - `scripts\build_installer.ps1` builds on a clean machine without `.venv`, and survives PyInstaller's stderr logging under Windows PowerShell, so the installer workflow on CI can run it.
 - Painting refuses to start without enough free system RAM, and reports what was left instead of dying mid-still.
 - A resident painter survives an out-of-memory kill instead of dying, and is reaped with the app, including the one-shot fallback.

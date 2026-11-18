@@ -12,8 +12,8 @@ Repository root = the directory containing this file.
 
 | Platform | Read / TTS / highlight | Chapter films | Native app bundle | Path to use |
 | --- | --- | --- | --- | --- |
-| macOS 13+, Apple Silicon | supported | supported (MPS + MLX) | supported (`.app`) | Section A |
-| macOS Intel | supported | CPU only, opt-in | supported (`.app`) | Section A |
+| macOS 13+, Apple Silicon | supported | supported (MPS + MLX) | supported (`.app` + DMG) | Section A |
+| macOS Intel | supported | CPU only, opt-in | supported (`.app` + DMG) | Section A |
 | Windows 10/11 x64 | **preview** (installer or source) | FLUX.2 [klein] via diffusers (CUDA or ROCm); CPU opt-in | **preview** (Inno Setup installer) | Section B |
 | Linux x64 | **preview** (source install) | NVIDIA CUDA / AMD ROCm / CPU opt-in | **not yet** | Section C |
 
@@ -139,8 +139,15 @@ Open `http://127.0.0.1:8765`.
 cd "/path/to/murmur"
 ./build_app.sh
 ./dist/Rhapsode.app/Contents/MacOS/Rhapsode --selftest
+./scripts/make_dmg.sh        # optional: dist/Rhapsode-<version>-<arch>.dmg
 open dist/Rhapsode.app
 ```
+
+`scripts/make_dmg.sh` wraps the built app with an `Applications` symlink.
+`.github/workflows/macos.yml` runs the same steps on `macos-latest` (arm64) and
+`macos-15-intel` (x86_64), self-tests each bundle, and attaches both DMGs to a
+`v*` release. Apple translation and prompt writing need the macOS 26 SDK; an
+older toolchain warns and builds the app without those helpers.
 
 Expected selftest line:
 
