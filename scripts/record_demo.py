@@ -6,7 +6,9 @@ screen-record this by hand every release. This script boots the app the way
 the journeys a reader takes, records the whole session, and writes:
 
     <out>/demo.webm        the raw take from playwright
-    <out>/demo.mp4         h264, yuv420p, faststart - what the site embeds
+    <out>/demo-audio.webm  the voice, tapped off the app's own audio element
+    <out>/demo.mp4         h264 + aac, the take with its sound - what you show people
+    <out>/demo-muted.mp4   the same picture, no audio - what the site can autoplay
     <out>/still-1-library.png
     <out>/still-2-reading.png
     <out>/still-3-search.png
@@ -14,9 +16,13 @@ the journeys a reader takes, records the whole session, and writes:
     <out>/still-5-cinema.png      only when a stills engine is present
     <out>/still-6-settings.png
 
-It is silent on purpose: playwright records the page, not the sound card. The
-voice is already demonstrated by `tools/make_reader_audio.py` on the site, and a
-muted video autoplays where a sound-on one does not.
+Playwright records pixels only, so the voice is captured separately: an init
+script routes the app's <audio> element through a WebAudio graph that has both
+the speakers and a MediaRecorder on it, and the recording starts on the first
+play() call. The mix shifts that track by the measured delay between the video's
+zero point and the first play, so the speech lands on the highlighted sentence
+rather than a guess. Keep `demo-muted.mp4` for autoplaying contexts, where a
+sound-on video would be blocked.
 
 The TTS weights are ~340 MB and the stills weights are several GB. Point
 `--models-from` at a directory that already has `kokoro-v1.0.onnx`; the script
@@ -33,6 +39,7 @@ progress that would wreck a 65 second take.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import shutil
@@ -72,6 +79,55 @@ SECOND_BODY = (
     "water keeps. Most of the difficulty is deciding which to believe, and the "
     "rest is deciding what to do when they disagree.\n"
 )
+
+AUDIO_HOOK = r"""
+(() => {
+  const state = { ctx: null, dest: null, recorder: null, chunks: [], firstPlay: null };
+  const seen = new WeakSet();
+  function ensure(el) {
+    if (!state.ctx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      state.ctx = new Ctx();
+      state.dest = state.ctx.createMediaStreamDestination();
+      state.recorder = new MediaRecorder(state.dest.stream, {
+        mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 128000,
+      });
+      state.recorder.ondataavailable = (e) => { if (e.data && e.data.size) state.chunks.push(e.data); };
+      state.recorder.start(200);
+    }
+    if (seen.has(el)) return;
+    seen.add(el);
+    const node = state.ctx.createMediaElementSource(el);
+    node.connect(state.ctx.destination);   // keep it audible
+    node.connect(state.dest);              // and on the recording graph
+  }
+  const play = HTMLMediaElement.prototype.play;
+  HTMLMediaElement.prototype.play = function () {
+    try {
+      ensure(this);
+      if (state.firstPlay === null) {
+        state.firstPlay = performance.timeOrigin + performance.now();
+      }
+      if (state.ctx.state === 'suspended') state.ctx.resume();
+    } catch (_) { /* never let the hook break playback */ }
+    return play.apply(this, arguments);
+  };
+  window.__demoAudioStop = () => new Promise((resolve) => {
+    if (!state.recorder) { resolve(null); return; }
+    state.recorder.onstop = async () => {
+      const blob = new Blob(state.chunks, { type: 'audio/webm' });
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      let binary = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      }
+      resolve({ startEpochMs: state.firstPlay, base64: btoa(binary), bytes: bytes.length });
+    };
+    state.recorder.stop();
+  });
+})();
+"""
+
 
 
 def free_port() -> int:
@@ -331,8 +387,16 @@ def main() -> int:
             record_video_size={"width": args.width, "height": args.height},
             device_scale_factor=1,
         )
+        # Playwright's video clock starts here, so this is t=0 for the mix below.
+        context_started = time.time()
         page = context.new_page()
         page.set_default_timeout(30000)
+
+        # Playwright records pixels, not the sound card, so the take was silent.
+        # Hook the app's single <audio> element through WebAudio: its own output
+        # stays audible, and a MediaRecorder on the same graph captures exactly
+        # what the reader hears, starting at the moment playback starts.
+        page.add_init_script(AUDIO_HOOK)
 
         def beat(seconds: float) -> None:
             page.wait_for_timeout(int(seconds * 1000))
@@ -404,6 +468,12 @@ def main() -> int:
         page.keyboard.press("Escape")
         beat(1.4)
 
+        sound = None
+        try:
+            sound = page.evaluate("window.__demoAudioStop()")
+        except Exception as exc:  # noqa: BLE001 - a silent take beats no take
+            print(f"audio capture failed ({exc}); the take stays silent")
+
         video = page.video
         context.close()
         recorded = Path(video.path())
@@ -427,6 +497,36 @@ def main() -> int:
             raise SystemExit("ffmpeg could not encode the take")
         print(f"\n{raw.name}: {raw.stat().st_size / 1e6:.1f} MB")
         print(f"{mp4.name}: {mp4.stat().st_size / 1e6:.1f} MB")
+
+        # Put the voice back on it. The recording starts on the first play() call,
+        # so it lags the video's zero point by however long the opening beats took;
+        # adelay shifts it by exactly that much, and apad keeps the tail so
+        # -shortest trims to the picture instead of to the speech.
+        if sound and sound.get("base64"):
+            audio_raw = out / "demo-audio.webm"
+            audio_raw.write_bytes(base64.b64decode(sound["base64"]))
+            delay = max(0.0, sound["startEpochMs"] / 1000.0 - context_started)
+            muted = out / "demo-muted.mp4"
+            if muted.exists():
+                muted.unlink()
+            mp4.rename(muted)
+            mux = subprocess.run(
+                [ffmpeg, "-y", "-i", str(muted), "-i", str(audio_raw),
+                 "-filter_complex", f"[1:a]adelay={int(delay * 1000)}:all=1,apad[a]",
+                 "-map", "0:v", "-map", "[a]", "-c:v", "copy",
+                 "-c:a", "aac", "-b:a", "128k", "-shortest",
+                 "-movflags", "+faststart", str(mp4)],
+                capture_output=True, text=True,
+            )
+            if mux.returncode != 0:
+                print(mux.stderr[-1200:])
+                print("mux failed; keeping the silent mp4 as the deliverable")
+                muted.rename(mp4)
+            else:
+                print(f"demo-audio.webm: {audio_raw.stat().st_size / 1e3:.0f} kB "
+                      f"(starts {delay:.2f}s into the take)")
+                print(f"{mp4.name} with sound: {mp4.stat().st_size / 1e6:.1f} MB "
+                      f"(silent copy: {muted.name})")
         for png in sorted(out.glob("still-*.png")):
             print(f"{png.name}: {png.stat().st_size / 1e3:.0f} kB")
         return 0
