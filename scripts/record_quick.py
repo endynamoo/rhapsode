@@ -40,6 +40,7 @@ import shutil
 import subprocess
 import sys
 import time
+import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -51,12 +52,25 @@ import record_demo as demo  # noqa: E402  (helpers, no side effects)
 # PLAYWRIGHT_CHANNEL=msedge reuses the installed Edge instead of a download.
 CHANNEL = os.environ.get("PLAYWRIGHT_CHANNEL") or None
 
+# The same sentence, read by three voices: the app translates into the voice's
+# language before it speaks, so the clip shows the feature working, not a montage.
+LANGUAGES = (
+    ("English — Kokoro, on this machine", None),
+    ("Español — translated and read on this machine", "ef_dora"),
+    ("日本語 — translated and read on this machine", "jf_alpha"),
+)
+
+# Latin and Japanese glyphs in one file; drawtext cannot fall back per glyph.
+LABEL_FONT = os.environ.get("MURMUR_DEMO_FONT", "C:/Windows/Fonts/YuGothM.ttc")
+
 TITLE = "The Lantern-Keeper's Ledger"
 
 # One chapter, ~640 words, three movements: the count, the storm, the answer.
 # plan_chapter splits on estimated reading time (SCENE_SECONDS = 75), so this
 # lands on three scenes - one per movement - which is what the manga clip needs.
-STORY = """The lantern keeper counted the ships the way her mother had counted them, one for every hour of the watch, and wrote each one in the ledger with the date in the corner. She had done it for eleven years. In that time she had written down eleven winters and eleven summers, four hundred ships with names like Morning Tide and Second Sister, and the fog that came in over the harbour wall every evening at six as though someone had opened a door.
+STORY = """The harbour was quiet before the dawn came.
+
+She counted them the way her mother had counted them, one for every hour of the watch, and wrote each one in the ledger with the date in the corner. She had done it for eleven years. In that time she had written down eleven winters and eleven summers, four hundred ships with names like Morning Tide and Second Sister, and the fog that came in over the harbour wall every evening at six as though someone had opened a door.
 
 The count began before dawn. Marta took the lantern down from its hook, trimmed the wick, and walked the length of the harbour wall to where the old bell hung green with salt. The water was flat and black and full of small sounds. The first ship came out of the mist without a noise, only a shadow growing until it had masts, and then a name she could just make out in the grey. She wrote it down. The second came behind it, and the third, and by the time the sun had cleared the far pier she had filled a page.
 
@@ -85,24 +99,50 @@ CARD = """<!doctype html>
     display: grid; place-items: center; text-align: center;
   }}
   .wrap {{ display: grid; gap: 26px; justify-items: center; }}
-  .mark {{ width: 132px; height: 132px; filter: drop-shadow(0 0 42px rgba(139,108,255,.55)); }}
-  h1 {{ margin: 0; font-size: 76px; font-weight: 500; letter-spacing: -0.5px; }}
-  p {{ margin: 0; font-size: 25px; color: #b9b2d6; font-family: ui-sans-serif, system-ui, sans-serif; }}
+  .mark {{ width: 132px; height: 132px; filter: drop-shadow(0 0 42px rgba(139,108,255,.55));
+          animation: settle 1.6s cubic-bezier(.2,.7,.2,1) both; }}
+  @keyframes settle {{
+    from {{ opacity: 0; transform: scale(.86); filter: drop-shadow(0 0 0 rgba(139,108,255,0)); }}
+    to   {{ opacity: 1; transform: scale(1); }}
+  }}
+  @keyframes rise {{ from {{ opacity: 0; transform: translateY(14px); }} to {{ opacity: 1; transform: none; }} }}
+  @keyframes breathe {{
+    0%, 100% {{ filter: drop-shadow(0 0 34px rgba(139,108,255,.45)); }}
+    50%      {{ filter: drop-shadow(0 0 56px rgba(139,108,255,.72)); }}
+  }}
+  h1 {{ margin: 0; font-size: 76px; font-weight: 500; letter-spacing: -0.5px;
+        animation: rise 1.1s cubic-bezier(.2,.7,.2,1) .25s both; }}
+  p {{ margin: 0; font-size: 25px; color: #b9b2d6; font-family: ui-sans-serif, system-ui, sans-serif;
+       animation: rise 1.1s cubic-bezier(.2,.7,.2,1) .5s both; }}
   .rule {{ width: 72px; height: 2px; background: #8b6cff; opacity: .8; }}
-  .foot {{ font-size: 15px; letter-spacing: .16em; text-transform: uppercase; color: #6f6890; font-family: ui-sans-serif, system-ui, sans-serif; }}
+  .foot {{ font-size: 15px; letter-spacing: .16em; text-transform: uppercase; color: #6f6890;
+          font-family: ui-sans-serif, system-ui, sans-serif;
+          animation: rise 1.2s cubic-bezier(.2,.7,.2,1) .8s both; }}
+  .rule {{ animation: rise 1s ease .4s both; }}
 </style></head>
 <body><div class="wrap">
   <div class="mark">{mark}</div>
   <h1>Rhapsode</h1>
   <div class="rule"></div>
-  <p>reads anything aloud, and paints it — entirely on your machine</p>
+  <p>reads aloud, translates live, paints the book — all on your machine</p>
   <div class="foot">no cloud · no account · no telemetry</div>
 </div></body></html>
 """
 
 
-def run(command: list[str], *, capture: bool = True) -> subprocess.CompletedProcess:
-    result = subprocess.run(command, capture_output=capture, text=True)
+def first_sentence(text: str) -> str:
+    """The opening sentence: short enough to say three times inside one clip."""
+    head = text.strip().split("\n\n")[0].strip()
+    for end in (". ", "! ", "? "):
+        if end in head:
+            return head.split(end)[0] + end.strip()
+    return head
+
+
+def run(command: list[str], *, capture: bool = True,
+        workdir: Path | None = None) -> subprocess.CompletedProcess:
+    result = subprocess.run(command, capture_output=capture, text=True,
+                            cwd=str(workdir) if workdir else None)
     if result.returncode != 0:
         tail = (result.stderr or result.stdout or "")[-1200:]
         raise SystemExit(f"{command[0]} failed:\n{tail}")
@@ -130,13 +170,14 @@ def probe_seconds(path: Path) -> float:
 
 
 def normalise(source: Path, target: Path, *, width: int, height: int, audio: bool) -> None:
-    """One size, one rate, one codec - so the concat filter cannot fight itself."""
+    """One size, one rate, one codec - so the xfade filter cannot fight itself."""
+    scale = (f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
+             f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black")
     command = [ffmpeg_path(), "-y", "-i", str(source)]
     if not audio:
         command += ["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000"]
     command += [
-        "-vf", f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
-               f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,fps=30,setsar=1",
+        "-vf", f"{scale},fps=30,setsar=1",
         "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2",
         "-movflags", "+faststart", "-shortest", str(target),
@@ -144,14 +185,108 @@ def normalise(source: Path, target: Path, *, width: int, height: int, audio: boo
     run(command)
 
 
-def mux_with_voice(video: Path, audio: Path, start_offset: float, target: Path) -> None:
-    """Shift the captured voice onto the video's timeline, then pad it out."""
-    run([
-        ffmpeg_path(), "-y", "-i", str(video), "-i", str(audio),
-        "-filter_complex", f"[1:a]adelay={int(start_offset * 1000)}:all=1,apad[a]",
-        "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
-        "-shortest", "-movflags", "+faststart", str(target),
-    ])
+def synth_clip(base: str, text: str, voice: str, out: Path) -> tuple[Path, float, str]:
+    """The app's own speech for one sentence and one voice, saved as a file.
+
+    This is the same endpoint the reader calls, so the audio in the cut is the
+    audio the app would play - the browser capture was dropped because changing
+    the voice detaches the MediaElementSource and the tap goes silent.
+    """
+    info = demo.post_json(f"{base}/api/tts", {"text": text, "voice": voice})
+    duration = float(info.get("duration") or 0.0)
+    spoken = info.get("spoken") or ""
+    if info.get("translateError"):
+        raise SystemExit(f"translation failed for {voice}: {info['translateError']}")
+    (out / f"voice-{voice}.json").write_text(
+        json.dumps(info, ensure_ascii=False, indent=2), "utf-8")
+    target = out / f"voice-{voice}.mp3"
+    with urllib.request.urlopen(base + str(info["url"]), timeout=180) as response:
+        target.write_bytes(response.read())
+    if duration <= 0:
+        duration = probe_seconds(target)
+    return target, duration, spoken
+
+
+def wait_for_playback(page, timeout: float = 30.0) -> float:
+    """Block until the reader's <audio> is moving again; return the epoch.
+
+    The app answers a voice change by re-synthesising the sentence, so the delay
+    between the click and the first sample is a translation plus a cache lookup.
+    Polling the element is what keeps the labels honest instead of guessing.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            state = page.evaluate(
+                "(() => { const a = document.querySelector('audio');"
+                " return a ? { paused: a.paused, t: a.currentTime } : null; })()"
+            )
+        except Exception:  # noqa: BLE001 - a navigation in flight is not fatal
+            state = None
+        if state and not state["paused"] and state["t"] > 0.02:
+            return time.time()
+        page.wait_for_timeout(90)
+    raise SystemExit("the reader never started playing")
+
+
+def compose_voice(video: Path, parts: list, target: Path, *,
+                  size: tuple[int, int] = (1440, 900), tail: float = 0.8) -> float:
+    """Lay the per-language clips on the recorded video where they actually played.
+
+    `parts` is [(path, seconds-into-clip, duration, label)]. Every clip is placed
+    with adelay on a silent bed and mixed, and the labels are written as an ASS
+    file: it carries UTF-8 text, timing and position, and avoids drawtext's
+    colon-and-comma escaping on a Windows path.
+    """
+    width, height = size
+    total = max(at + duration for _, at, duration, _ in parts) + tail
+
+    stamp = lambda seconds: (  # noqa: E731 - ASS wants H:MM:SS.cc
+        f"{int(seconds // 3600)}:{int(seconds % 3600 // 60):02d}:{seconds % 60:05.2f}"
+    )
+    events = []
+    for index, (_, at, duration, label) in enumerate(parts):
+        end = at + duration
+        events.append(
+            f"Dialogue: 0,{stamp(at)},{stamp(max(at + 0.4, end - 0.1))},Label,,0,0,0,,"
+            f"{{\\fad(200,200)}}{label}"
+        )
+    (target.parent / "labels.ass").write_text(
+        "[Script Info]\n"
+        "ScriptType: v4.00+\n"
+        f"PlayResX: {width}\nPlayResY: {height}\n"
+        "WrapStyle: 2\n\n"
+        "[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, "
+        "BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, "
+        "BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+        "Style: Label,Yu Gothic,27,&H00FFFFFF,&H00FFFFFF,&H00000000,&H99000000,"
+        "0,0,0,0,100,100,0.4,0,1,2.2,0,1,26,40,158,1\n\n"
+        "[Events]\n"
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+        + "\n".join(events) + "\n",
+        "utf-8",
+    )
+
+    inputs = [ffmpeg_path(), "-y", "-i", str(video.resolve())]
+    for part_path, _, _, _ in parts:
+        inputs += ["-i", str(part_path.resolve())]
+    graph = [f"anullsrc=channel_layout=stereo:sample_rate=48000:d={total:.3f}[bed]"]
+    for index, (_, at, _, _) in enumerate(parts):
+        ms = int(at * 1000)
+        graph.append(f"[{index + 1}:a]aresample=48000,adelay={ms}|{ms}[v{index}]")
+    mix = "[bed]" + "".join(f"[v{i}]" for i in range(len(parts)))
+    graph.append(f"{mix}amix=inputs={len(parts) + 1}:duration=first:normalize=0[raw]")
+    graph.append("[raw]loudnorm=I=-16:TP=-1.5:LRA=11[a]")
+    graph.append("[0:v]ass=labels.ass[v]")
+    run(inputs + [
+        "-filter_complex", ";".join(graph),
+        "-map", "[v]", "-map", "[a]",
+        "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", "160k", "-ar", "48000",
+        "-t", f"{total:.3f}", "-movflags", "+faststart", str(target.name),
+    ], workdir=target.parent)
+    return total
 
 
 def record_title(playwright, page_html: Path, out: Path, width: int, height: int, seconds: float) -> Path:
@@ -171,8 +306,13 @@ def record_title(playwright, page_html: Path, out: Path, width: int, height: int
     return out
 
 
-def record_app_clip(playwright, base: str, out: Path, width: int, height: int, drive) -> tuple[Path, dict | None]:
-    """Record one app segment; `drive(page)` does the acting."""
+def record_app_clip(playwright, base: str, out: Path, width: int, height: int, drive,
+                    marks: list | None = None) -> tuple[Path, dict | None, list]:
+    """Record one app segment; `drive(page)` does the acting.
+
+    `marks` collects (label, epoch) as the segment goes; they come back as
+    (label, seconds-into-the-clip) so the edit can letter them in at the right frame.
+    """
     browser = playwright.chromium.launch(headless=True, channel=CHANNEL, args=["--hide-scrollbars"])
     context = browser.new_context(viewport={"width": width, "height": height},
                                   record_video_dir=str(out.parent / "raw"),
@@ -196,7 +336,81 @@ def record_app_clip(playwright, base: str, out: Path, width: int, height: int, d
     recorded = Path(video.path())
     browser.close()
     shutil.move(str(recorded), str(out))
-    return out, sound
+    offsets = [(label, max(0.0, epoch - started)) for label, epoch in (marks or [])]
+    return out, sound, offsets
+
+
+def cut_segment(source: Path, target: Path, start: float, end: float, *,
+                width: int, height: int) -> None:
+    """One window out of a take, re-encoded to the film's size and rate."""
+    if end - start < 0.4:
+        raise SystemExit(f"degenerate cut window {start:.2f}-{end:.2f}s for {target.name}")
+    run([
+        ffmpeg_path(), "-y", "-ss", f"{max(0.0, start):.3f}", "-to", f"{end:.3f}",
+        "-i", str(source),
+        "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000",
+        "-vf", (f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
+                f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,fps=30,setsar=1"),
+        "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+        "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-shortest", str(target),
+    ])
+
+
+def concat_segments(segments: list[Path], target: Path) -> None:
+    """Hard cuts between takes. The screen barely moves across them, so a cut
+    reads as a jump cut on the sentence, which is what it is."""
+    for segment in segments:
+        streams = run([ffprobe_path(), "-v", "error", "-show_entries", "stream=codec_type",
+                       "-of", "csv=p=0", str(segment)]).stdout.split()
+        if "video" not in streams:
+            raise SystemExit(f"{segment.name} has no video stream (streams: {streams})")
+    inputs: list[str] = []
+    for segment in segments:
+        inputs += ["-i", str(segment)]
+    graph = "".join(f"[{i}:v][{i}:a]" for i in range(len(segments)))
+    run([ffmpeg_path(), "-y", *inputs,
+         "-filter_complex", f"{graph}concat=n={len(segments)}:v=1:a=1[v][a]",
+         "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+         "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", str(target)])
+
+
+def assemble_language_takes(raw: Path, takes: list, out: Path, *, width: int,
+                            height: int, lead_in: float = 2.2,
+                            switch_lead: float = 0.35, tail: float = 0.55):
+    """Keep each sentence and cut the waiting between takes.
+
+    A voice change makes the app translate and synthesise before it can speak, so
+    the raw take has seconds of nothing between the three sentences. The demo
+    keeps every spoken word and cuts only the pause: each window runs from just
+    before the switch (so the voice chip is seen changing) to just after the last
+    word, and the takes are joined on hard cuts.
+    """
+    windows = []
+    for index, take in enumerate(takes):
+        if index == 0:
+            start = max(0.0, take["start"] - lead_in)
+        else:
+            start = max(0.0, take["switch"] - switch_lead)
+        windows.append((start, take["start"] + take["duration"] + tail))
+
+    segments = []
+    for index, (start, end) in enumerate(windows):
+        segment = out / f"seg-{index}.mp4"
+        cut_segment(raw, segment, start, end, width=width, height=height)
+        segments.append(segment)
+    joined = out / "clip-2-takes.mp4"
+    concat_segments(segments, joined)
+
+    parts, offsets, cursor = [], [], 0.0
+    for index, take in enumerate(takes):
+        start, end = windows[index]
+        at = cursor + (take["start"] - start)
+        parts.append((take["path"], at, take["duration"], take["label"]))
+        offsets.append((take["label"], at))
+        cursor += end - start
+
+    total = compose_voice(joined, parts, out / "clip-2-voice.mp4", size=(width, height))
+    return total, offsets
 
 
 def paint_scenes(base: str, doc_id: str, wanted: int, post) -> list[dict]:
@@ -237,6 +451,12 @@ def main() -> int:
                         help="stills engine profile: lite, balanced, max or cpu (default: leave as is)")
     parser.add_argument("--scenes", type=int, default=0,
                         help="scenes to paint first (0 = every planned scene)")
+    parser.add_argument("--lead-in", type=float, default=0.5,
+                        help="seconds of reader before the first word is spoken")
+    parser.add_argument("--hold", type=float, default=3.9,
+                        help="seconds each language gets in the reading clip")
+    parser.add_argument("--xfade", type=float, default=0.5,
+                        help="crossfade between clips in seconds (0 = hard cuts)")
     parser.add_argument("--keep-server", action="store_true")
     parser.add_argument("--reuse-home", action="store_true",
                         help="keep the generated data directory from a previous run")
@@ -272,9 +492,27 @@ def main() -> int:
     print(f"server on {base} (pid {server.pid})", flush=True)
     try:
         health = demo.wait_for_health(base)
-        print(f"  ocr={health.get('ocr')} voices={health.get('voices')}", flush=True)
-        doc = demo.post_json(f"{base}/api/docs", {"title": TITLE, "text": STORY})
-        doc_id = doc.get("id") or (doc.get("doc") or {}).get("id")
+        print(f"  ocr={health.get('ocr')} voices={health.get('voices')} "
+              f"translate={health.get('translate')}", flush=True)
+        if not health.get("translate"):
+            raise SystemExit(
+                "no local translation lane: start an OpenAI-compatible server on "
+                "8091/8080/8000/1234/11434, or set MURMUR_TRANSLATE_URL. Without one "
+                "the foreign voices would read English with an accent, which is not "
+                "the feature this clip exists to show."
+            )
+        doc_id = None
+        if args.reuse_home:
+            existing = demo.get_json(f"{base}/api/docs")
+            for item in existing.get("docs") or existing:
+                if isinstance(item, dict) and item.get("title") == TITLE:
+                    doc_id = item.get("id")
+                    break
+        if doc_id:
+            print(f"  reusing document {doc_id}", flush=True)
+        else:
+            doc = demo.post_json(f"{base}/api/docs", {"title": TITLE, "text": STORY})
+            doc_id = doc.get("id") or (doc.get("doc") or {}).get("id")
         print(f"  document {doc_id} ({len(STORY.split())} words)", flush=True)
         if args.profile:
             chosen = demo.post_json(f"{base}/api/engine/profile", {"profile": args.profile})
@@ -288,28 +526,76 @@ def main() -> int:
 
         with sync_playwright() as playwright:
             # 1 - title card
-            clip1 = record_title(playwright, card, out / "clip-1-title.mp4", args.width, args.height, 3.4)
+            clip1 = record_title(playwright, card, out / "clip-1-title.mp4", args.width, args.height, 3.8)
             print(f"  clip 1: {clip1.stat().st_size / 1e6:.1f} MB", flush=True)
 
-            # 2 - the voice: open the book and let it read
+            # 2 - the voice: the same sentence in three languages. The app
+            # translates into the voice's language before speaking it, so this is
+            # the feature working, not a montage of accents.
+            sentence = first_sentence(STORY)
+            cuts = []
+            for label, voice in LANGUAGES:
+                path, duration, spoken = synth_clip(base, sentence, voice or "af_heart", out)
+                cuts.append({"label": label, "voice": voice or "af_heart",
+                             "path": path, "duration": duration, "spoken": spoken})
+                print(f"  voice {cuts[-1]['voice']}: {duration:.2f}s "
+                      f"({path.stat().st_size / 1e3:.0f} kB) says: {spoken}", flush=True)
+
+            marks: list[tuple[str, float]] = []
+
             def drive_voice(page) -> None:
                 page.wait_for_selector(".lib-item")
-                page.wait_for_timeout(500)
+                page.wait_for_timeout(320)
                 page.click(".lib-item")
                 page.wait_for_selector("#reader .unit")
-                page.wait_for_timeout(400)
+                page.wait_for_timeout(160)
+                page.select_option("#voiceSel", cuts[0]["voice"])
+                page.wait_for_timeout(180)
+                page.evaluate(
+                    "document.querySelectorAll('#toasts .toast').forEach(el => el.remove())"
+                )
                 page.click("#playBtn")
-                page.wait_for_timeout(13000)
+                for index, cut in enumerate(cuts):
+                    if index:
+                        # Changing the voice is what re-reads the sentence in the
+                        # new language, but only while paused: the app resumes by
+                        # itself solely if it was playing. Pause, switch, then
+                        # click the sentence to start it again from the top.
+                        marks.append(("__switch", time.time()))
+                        page.click("#playBtn")
+                        page.wait_for_timeout(220)
+                        page.select_option("#voiceSel", cut["voice"])
+                        page.wait_for_timeout(160)
+                        page.evaluate(
+                            "document.querySelectorAll('#toasts .toast').forEach(el => el.remove())"
+                        )
+                    page.click(".unit[data-i='0']")
+                    cut["start"] = wait_for_playback(page)
+                    marks.append((cut["label"], cut["start"]))
+                    page.wait_for_timeout(int(cut["duration"] * 1000) + 380)
 
-            clip2, sound = record_app_clip(playwright, base, out / "clip-2-voice-raw.mp4",
-                                           args.width, args.height, drive_voice)
-            if not (sound and sound.get("base64")):
-                raise SystemExit("no audio captured from the reading clip")
-            voice = out / "clip-2-voice.webm"
-            voice.write_bytes(base64.b64decode(sound["base64"]))
-            mux_with_voice(clip2, voice, sound.get("start_offset", 0.0), out / "clip-2-voice.mp4")
-            print(f"  clip 2: voice {sound['bytes'] / 1e3:.0f} kB, "
-                  f"starts {sound.get('start_offset', 0):.2f}s into the clip", flush=True)
+            clip2, _, offsets = record_app_clip(
+                playwright, base, out / "clip-2-voice-raw.mp4",
+                args.width, args.height, drive_voice, marks)
+            pending_switch, take_index = None, 0
+            for label, at in offsets:
+                if label == "__switch":
+                    pending_switch = at
+                    continue
+                cuts[take_index]["start"] = at
+                cuts[take_index]["switch"] = pending_switch
+                pending_switch = None
+                take_index += 1
+            if take_index != len(cuts):
+                raise SystemExit(
+                    f"expected {len(cuts)} playback marks, recorded {take_index}")
+            total, offsets = assemble_language_takes(
+                clip2, cuts, out, width=args.width, height=args.height,
+                lead_in=args.lead_in)
+            offsets = [(label, at) for label, at in offsets if label != "__switch"]
+            print("  labels: " + ", ".join(
+                f"{label.split(' \u2014')[0]}@{at:.2f}s" for label, at in offsets), flush=True)
+            print(f"  clip 2: {total:.1f}s with {len(cuts)} language cuts", flush=True)
 
             # 3 - the manga view: one finished still, then the grid
             def drive_manga(page) -> None:
@@ -326,26 +612,46 @@ def main() -> int:
                 page.click(".scene-tile[data-index='0']")
                 page.wait_for_timeout(4600)
 
-            clip3, _ = record_app_clip(playwright, base, out / "clip-3-manga.mp4",
-                                       args.width, args.height, drive_manga)
+            clip3, _, _ = record_app_clip(playwright, base, out / "clip-3-manga.mp4",
+                                          args.width, args.height, drive_manga)
             print(f"  clip 3: {clip3.stat().st_size / 1e6:.1f} MB", flush=True)
 
         parts = []
-        for name, has_voice in (("clip-1-title.mp4", False), ("clip-2-voice.mp4", True),
+        for name, has_voice in (("clip-1-title.mp4", False),
+                                ("clip-2-voice.mp4", True),
                                 ("clip-3-manga.mp4", False)):
             source = out / name
             normal = out / f"norm-{name}"
-            normalise(source, normal, width=args.width, height=args.height, audio=has_voice)
+            normalise(source, normal, width=args.width, height=args.height,
+                      audio=has_voice)
             parts.append(normal)
 
         joined = out / "quick-joined.mp4"
-        filters = "".join(f"[{i}:v][{i}:a]" for i in range(len(parts)))
         inputs: list[str] = []
         for part in parts:
             inputs += ["-i", str(part)]
+        # Dissolve between clips rather than cutting: 0.5 s is long enough to
+        # read as a transition and short enough to keep 29 s feeling quick.
+        fade = max(0.0, args.xfade)
+        if fade > 0 and len(parts) > 1:
+            chain = []
+            video, sound = "[0:v]", "[0:a]"
+            elapsed = probe_seconds(parts[0])
+            for index in range(1, len(parts)):
+                offset = elapsed - fade
+                chain.append(
+                    f"{video}[{index}:v]xfade=transition=fade:duration={fade}:offset={offset:.3f}[v{index}]"
+                )
+                chain.append(f"{sound}[{index}:a]acrossfade=d={fade}[a{index}]")
+                video, sound = f"[v{index}]", f"[a{index}]"
+                elapsed += probe_seconds(parts[index]) - fade
+            graph = ";".join(chain) + f";{video}null[v];{sound}anull[a]"
+        else:
+            graph = "".join(f"[{i}:v][{i}:a]" for i in range(len(parts)))
+            graph = f"{graph}concat=n={len(parts)}:v=1:a=1[v][a]"
         run([
             ffmpeg_path(), "-y", *inputs,
-            "-filter_complex", f"{filters}concat=n={len(parts)}:v=1:a=1[v][a]",
+            "-filter_complex", graph,
             "-map", "[v]", "-map", "[a]",
             "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
             "-c:a", "aac", "-b:a", "160k", "-ar", "48000",

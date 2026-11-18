@@ -62,5 +62,39 @@ class QuickDemoStoryTest(unittest.TestCase):
         self.assertEqual([scene.index for scene in self.scenes], [0, 1, 2])
 
 
+class QuickDemoLanguageTest(unittest.TestCase):
+    """The reading clip shows one sentence in three languages.
+
+    The demo synthesises that sentence through `/api/tts` and splices the three
+    takes together, so two things have to hold or the clip is wrong on screen:
+    the sentence has to be the reader's *own* first speech unit (otherwise the
+    highlighted text and the voice disagree), and the languages have to be three
+    distinct voices (otherwise "translation" is one accent three times).
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.demo = load_script()
+
+    def test_the_sentence_is_the_first_speech_unit(self):
+        sentence = self.demo.first_sentence(self.demo.STORY)
+        units = split_units(self.demo.STORY)
+        self.assertEqual(
+            units[0].strip(), sentence.strip(),
+            "the demo speaks first_sentence(); the reader's first unit is "
+            f"{units[0][:60]!r}, so the audio and the highlight would differ",
+        )
+
+    def test_three_languages_with_three_distinct_voices(self):
+        voices = [voice or "af_heart" for _, voice in self.demo.LANGUAGES]
+        self.assertEqual(len(self.demo.LANGUAGES), 3)
+        self.assertEqual(len(set(voices)), 3, f"repeated voice in {voices}")
+
+    def test_every_language_is_labelled(self):
+        for label, _ in self.demo.LANGUAGES:
+            self.assertTrue(label.strip())
+            self.assertLessEqual(len(label), 60, "a label has to fit the sidebar")
+
+
 if __name__ == "__main__":
     unittest.main()
