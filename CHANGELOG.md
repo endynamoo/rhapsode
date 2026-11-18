@@ -25,6 +25,7 @@ fails when that copy is stale.
 ### Fixed
 
 - RTF import falls back to the built-in reader when `textutil` cannot parse the file, so an unclosed RTF no longer arrives as an empty document.
+- The Windows installer's two task checkboxes share one left edge; splitting them into two group headings had pushed the stills row out of line.
 
 ## [0.2.0-alpha] - 2026-11-18
 
