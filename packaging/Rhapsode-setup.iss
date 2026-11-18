@@ -42,8 +42,12 @@ MinVersion=10.0
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "engine"; Description: "Set up the stills engine (Python environment, torch, ~3 GB of models)"; GroupDescription: "Stills:"; Flags: checkedonce
+; One group on purpose: Inno indents the first row of each group differently
+; when descriptions differ in length, which left these two checkboxes on
+; different left edges. The engine row says what it is, so the second heading
+; was only adding a ragged edge.
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "Additional tasks:"; Flags: unchecked
+Name: "engine"; Description: "Set up the stills engine (Python environment, torch, ~3 GB of models)"; GroupDescription: "Additional tasks:"; Flags: checkedonce
 
 [Files]
 Source: "{#SourceDir}\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion

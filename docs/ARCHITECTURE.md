@@ -8,8 +8,12 @@ telemetry.
 - **Rhapsode** — the desktop app and reader UI.
 - **Murmur** — the speech / film engine (also available as a sidecar service).
 
-This document describes the current macOS implementation. The cross-platform
-and GPU plan is in [PLATFORMS.md](PLATFORMS.md).
+This document describes the code as it ships today: one FastAPI process, a
+web UI inside a native window, and everything else on the local machine. It is
+written to be read top-to-bottom once, then used as a map — section 2 is the
+file inventory, section 13 is "where do I change this". Platform support and
+packaging are in [PLATFORMS.md](PLATFORMS.md), search in [SEARCH.md](SEARCH.md),
+stills in [STILLS.md](STILLS.md).
 
 ---
 
@@ -46,15 +50,18 @@ flowchart LR
     Film --> Models
 
     subgraph Optional["Optional processes / clients"]
-        Sidecar["Murmur engine sidecar<br/>Rhapsode --engine"]
+        Sidecar["Murmur engine sidecar<br/>python -m murmur.engine_api"]
         Browser["Browser on LAN / Tailscale<br/>(remote access, off by default)"]
     end
     Sidecar --> Engine
     Browser -.->|"token cookie"| API
 ```
 
-The desktop window and the server share one process. `Rhapsode --engine` starts
-only the engine router (health, version, film endpoints) for other frontends.
+The desktop window and the server share one process. `python -m
+murmur.engine_api` starts only the film router plus health and version, for a
+frontend that is not the bundled window; the desktop app itself mounts that same
+router in-process (`server.py` includes `film_api.router` and
+`search_api.router`).
 
 ---
 
@@ -124,9 +131,10 @@ classDiagram
 
     class Imaging {
         +ImageBackend backend(model_key)
-        +DiffusersBackend
+        +FluxPythonBackend
         +FluxKleinBackend
         +PlaceholderBackend
+        +paint_job(job)
     }
 
     class OCR {
@@ -162,15 +170,119 @@ classDiagram
     Speak --> Translate
 ```
 
-New in the portability pass: `murmur/backends/detect.py` probes the OS, GPU and
-ONNX providers; `murmur/backends/tts.py` selects the Kokoro execution provider;
-`murmur/ocr.py` is a facade over Apple Vision and Tesseract; and
-`murmur/fonts.py` enumerates installed fonts.
+### 2.1 Every file, and what it is for
 
-`murmur/film_api.py` is the shared FastAPI router mounted by both the desktop
-server and the engine sidecar. `murmur/runtime.py` resolves whether the server
-binds loopback or `0.0.0.0` from `--host`, `MURMUR_HOST`, or the saved
-`remoteAccess` setting.
+Grouped by job, not by import order. Sizes are rough line counts at 0.2.0-alpha.
+
+**Entry points**
+
+| File | Runs when |
+| --- | --- |
+| `murmur/desktop.py` | the packaged app: picks a port, starts uvicorn in a thread, opens the pywebview window; `--selftest` starts, checks `/api/health`, exits |
+| `murmur/__main__.py` | `python -m murmur`: the same server, browser UI, no native window |
+| `murmur/engine_api.py` | `python -m murmur.engine_api`: film + health only, for a separate frontend |
+| `murmur/bootstrap.py` | downloads the Kokoro weights (`python -m murmur.bootstrap`) |
+| `murmur/fluxgen.py` | the stills child process (`--gguf`, `--serve`, `--once`); never imported by the server |
+
+**Server and API** — `server.py` (1.1k) holds the app, the access guard and most
+routes; `film_api.py` and `search_api.py` are routers mounted into it; `runtime.py`
+resolves the bind host; `netinfo.py` builds the LAN/Tailscale URLs; `proc.py`
+hides child console windows and adopts children into a kill-on-close job.
+
+**Library** — `extract.py` turns a file or URL into `(title, body, units, toc, pages)`;
+`text.py` normalises text, splits speech units and aligns words; `store.py` owns
+`murmur.db`; `cache.py` is the small LRU used by clips, translations and the
+search metadata.
+
+**Speech** — `engine.py` is Kokoro inference plus the wav/meta cache; `voices.py`
+is the voice table; `speak.py` decides whether a sentence must be translated
+first; `translate.py` chains the macOS helper and the OpenAI-compatible HTTP
+endpoint; `backends/tts.py` picks the ONNX execution provider.
+
+**Stills and films** — `film.py` (1.7k) plans scenes, composes prompts, paints and
+renders; `imaging.py` owns the backends and the resident painter; `fluxgen.py`
+loads FLUX.2 and paints; `polish.py` redoes hands; `detectors.py` wraps the YOLO
+face/person/pose models; `fonts.py` lists installed families for captions.
+
+**Search** — `search.py` (1.2k) is the index and the query path; `semantic.py`
+downloads and runs the optional MiniLM embedding model.
+
+**Platform seams** — `config.py` (paths, ports, env), `profile.py` (engine
+profiles and the GPU plan), `ocr.py` (Vision → Windows OCR → Tesseract),
+`backends/detect.py` (platform/GPU snapshot).
+
+**UI** — `web/index.html` (structure), `web/app.js` (3.7k, all behaviour),
+`web/style.css` (1.8k), `web/themes.js` (20 palettes as data), `web/boot.js`
+(11 lines, applies the saved theme before first paint).
+
+**Tests** — `tests/`, 163 cases, `unittest`; run from the repo root with
+`python -m unittest discover -s tests`.
+
+### 2.2 The types that actually carry behaviour
+
+```mermaid
+classDiagram
+    class TTSEngine {
+        +ready bool
+        +last_error str
+        +load()
+        +synthesize(text, voice) dict
+        -_compute Semaphore(2)
+        -_lock threading.Lock
+    }
+    class ImageBackend {
+        <<interface>>
+        +available() bool
+        +generate(prompt, width, height, seed, out_path)
+    }
+    class PlaceholderBackend
+    class FluxKleinBackend {
+        mflux CLI, macOS
+    }
+    class FluxPythonBackend {
+        diffusers in image-venv
+    }
+    class FluxWorker {
+        +alive bool
+        +run(job)
+        +stop()
+    }
+    class ScenePainter {
+        +submit(...)
+        +alive bool
+        -_queue Queue
+        -_worker Thread
+    }
+    class TranslatorChain {
+        +swift Translator
+        +http HttpTranslator
+        +available() bool
+        +translate(text, target) dict
+    }
+    class OcrBackend {
+        <<interface>>
+        +name str
+        +available() bool
+        +recognize(bytes) str
+    }
+    class VisionBackend
+    class WindowsOcrBackend
+    class TesseractBackend
+
+    ImageBackend <|-- PlaceholderBackend
+    ImageBackend <|-- FluxKleinBackend
+    ImageBackend <|-- FluxPythonBackend
+    FluxPythonBackend --> FluxWorker : keeps one resident
+    ScenePainter --> ImageBackend : paints through
+    OcrBackend <|-- VisionBackend
+    OcrBackend <|-- WindowsOcrBackend
+    OcrBackend <|-- TesseractBackend
+```
+
+`TranslatorChain` tries `Translator` (the Swift helper, macOS 26+) and falls back
+to `HttpTranslator`; `ocr.backend()` picks the first available backend in the
+order above. `FluxWorker` is one child process per machine, guarded by
+`flux-painter.lock` — see [STILLS.md](STILLS.md).
 
 ---
 
@@ -396,6 +508,7 @@ whenever it is missing or stale. See [SEARCH.md](SEARCH.md).
 | Search index | one daemon worker in `murmur/search.py` | writes in batches of 200; readers use WAL |
 | Search model | background download thread in `murmur/semantic.py` | streams to `*.part`, styled by `status()` |
 | Chapter film | FIFO worker in `film.py` | one film job at a time |
+| Resident painter | `FluxWorker` child process + `flux-painter.lock` | one painter per machine; restarted from Settings |
 | Live events | SSE `/api/events` | quick-read notifications |
 | Cache pruning | startup thread | audio LRU + 7-day export cleanup |
 
@@ -405,7 +518,11 @@ whenever it is missing or stale. See [SEARCH.md](SEARCH.md).
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/api/health` | server, model, OCR, translation, platform/GPU status |
+| GET | `/api/health` | server, model, OCR, translation, platform/GPU, painter precision |
+| GET | `/api/engine` | active profile, VRAM, painter state |
+| POST | `/api/engine/profile` | switch profile (`lite`/`balanced`/`max`/`cpu`) |
+| POST | `/api/engine/restart` | stop and respawn the resident painter |
+| POST | `/api/cache/prune` | evict audio cache now |
 | GET | `/api/network` | connection URLs; token only on loopback |
 | GET/PUT | `/api/settings` | persisted preferences |
 | GET | `/api/voices` | Kokoro voices by language |
@@ -514,21 +631,104 @@ flowchart LR
 ```
 
 `build_app.sh` runs tests, regenerates the icon, bundles the web assets and
-Python modules with PyInstaller, and writes `dist/Rhapsode.app`. The engine
-sidecar is the same binary with `--engine`.
+Python modules with PyInstaller, and writes `dist/Rhapsode.app`;
+`scripts/make_dmg.sh` wraps that in the drag-install DMG. Windows uses
+`scripts\build_installer.ps1` (PyInstaller one-folder, then Inno Setup:
+`packaging\Rhapsode-setup.iss`). CI builds all three: `.github/workflows/windows.yml`
+runs the suite and builds the installer, `installer.yml` and `macos.yml` attach
+their artifacts to a `v*` release, and `linux.yml` starts a real server on a
+clean runner. No Linux package exists yet.
 
 ---
 
 ## 12. Extension points
 
 - **Image backends** implement `ImageBackend.generate(...)`; `FilmImages.backend()`
-  selects FLUX.2 (mflux or diffusers), or the placeholder. Add a backend in `imaging.py` and
-  expose it through `film_model()`.
-- **OCR** is isolated in `ocr.py`; a Windows/Linux implementation can implement
-  `available()` and `recognize_bytes()`.
+  selects FLUX.2 (mflux on macOS, `FluxPythonBackend` elsewhere), or the placeholder.
+  Add a backend in `imaging.py` and expose it through `film_model()`.
+- **OCR** is isolated in `ocr.py`; a new backend implements `available()` and
+  `recognize()` and joins the order in `backend()`.
+- **Search** is two layers that can be separated: `search.py` (chunks, FTS5,
+  fusion, recency) and `semantic.py` (the optional MiniLM model). A new ranker
+  belongs in `search.py`; a new embedding model in `semantic.py`.
 - **Translation** lives in `translate.py`; the UI treats it as an optional
   capability reported by `/api/health`.
 - **Themes** are data, not CSS: `web/themes.js` holds 20 palettes and
   `applyRhapsodeTheme()` sets the CSS custom properties. Chapter HTML receives
   the active ink/accent/highlight colors so the iframe matches.
 - **Fonts** come from `/api/fonts` (`murmur/fonts.py`), cached per machine.
+
+---
+
+## 13. Reading the code
+
+### The two request shapes
+
+Almost every endpoint is one of two shapes, and knowing which tells you where
+the work lives.
+
+**Synchronous read/write** — parse the body, call one module, return JSON:
+
+```
+app.js  fetch("/api/...")
+  → server.py handler
+    → store.py / text.py / engine.py / search.py
+  ← JSON (or a file response)
+```
+
+**Job** — the handler registers a dict, hands work to a queue, answers
+immediately, and the UI polls a status endpoint (`film`, `export`,
+`search/index`):
+
+```
+POST /api/docs/{id}/film → film.start_job() → 202 {id, state}
+GET  /api/film/{id}      → film.JOBS[id]     (poll)
+GET  /api/film/{id}/video→ FileResponse(mp4)
+```
+
+Nothing in the UI holds a websocket; `/api/events` is SSE and only carries
+quick-read notifications.
+
+### Where to change what
+
+| Want to… | Touch |
+| --- | --- |
+| add an HTTP endpoint | `server.py` (or `film_api.py` / `search_api.py` if it belongs to that group), then `web/app.js` |
+| add a voice | `voices.py` (`VOICES`, `DEFAULT_VOICE`); the UI reads `/api/voices` |
+| change how sentences are split | `text.py:split_units` — everything downstream is measured in units |
+| change speech quality or caching | `engine.py` (`_key`, `synthesize`), `cache.py` |
+| add an OCR engine | `ocr.py`: implement `OcrBackend`, add to `backend()` |
+| add an image backend | `imaging.py`: implement `ImageBackend`, expose in `FilmImages.backend()` |
+| change what a still looks like | `film.py:plan_chapter` / `compose_prompt`, `config.FILM_STYLE` |
+| change search ranking | `search.py:search` (RRF, recency, gates) |
+| touch the schema | `store.py:init` (docs) or `search.py:_db` (search index) — both migrate in place |
+| change a theme | `web/themes.js` (data only: id, mode, colors) |
+| change window/port behaviour | `desktop.py`, `runtime.py`, `config.py` |
+
+### Invariants worth not breaking
+
+- **A unit is the unit.** Speech, highlighting, film scenes and search anchors
+  all index into `units`. Re-splitting text invalidates saved positions,
+  scene plans and cached clips together.
+- **Cache keys are content keys.** A clip key is
+  `sha1(model version + voice + prepared text)`; the translation cache is keyed
+  the same way. Anything that changes the spoken text must change the key.
+- **`search.db` is derived.** It is safe to delete and is rebuilt from `docs`;
+  never make it the only home of a fact.
+- **One painter per machine.** `flux-painter.lock` holds the child's pid and
+  its parent's; two 15 GiB loads cannot share a card.
+- **Loopback by default.** Public binding is a runtime decision
+  (`runtime.resolve_host`), not a config constant.
+
+### Known shape issues
+
+Not bugs; the places where reading the code costs more than it should, and the
+natural targets for a refactor:
+
+| Area | Size | Why it is hard |
+| --- | --- | --- |
+| `web/app.js` | 3.7k lines | one file: state, API wrappers, library, reader, player, search, cinema, settings, scene editor. No JS tests. |
+| `murmur/server.py` | 1.1k lines | app setup, access guard, and ~30 of the ~45 routes in one module; `film_api.py` and `search_api.py` already show the router pattern. |
+| `murmur/film.py` | 1.7k lines | planning, prompt writing, painting, polish, and ffmpeg rendering share one module and one queue. |
+| `tests/` | 163 cases | Python only; the UI is verified by hand. |
+

@@ -144,6 +144,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 **Fixed**
 
 - RTF import falls back to the built-in reader when `textutil` cannot parse the file, so an unclosed RTF no longer arrives as an empty document.
+- The Windows installer's two task checkboxes share one left edge; splitting them into two group headings had pushed the stills row out of line.
 - On macOS the "translation is not set up" warning names the real cause — Apple Translation needs macOS 26, or this build shipped without the Swift helper — instead of telling the reader to set an environment variable they have no reason to know.
 
 ### 0.2.0-alpha - 2026-11-18
@@ -159,8 +160,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 **Added**
 
 - First Windows-capable build of the reader and stills app: PDF, EPUB, DOCX, RTF, TXT, Markdown and HTML imports.
-- OCR through Windows' own engine, and translation through any local OpenAI-compatible server.
 
-*...and 37 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 38 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
