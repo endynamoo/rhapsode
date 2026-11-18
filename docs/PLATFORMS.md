@@ -370,7 +370,7 @@ Ordered by dependency:
 6. **Image conversion** — replace `sips` with Pillow (+HEIF).
 7. **Packaging** — OS specs, icons, ffmpeg/Tesseract bundling, installers.
 8. **Settings/UI** — accelerator panel, disabled High state, font list (done),
-   theme grid (done).
+   theme picker (done; a select with a live palette preview).
 9. **Telemetry-free update check** — optional, off by default.
 
 ---

@@ -328,9 +328,12 @@
         <input type="range" id="setFontSize" min="15" max="28" step="1">
       </div>
       <div class="setting">
-        <div><label>Theme</label><p id="themeCurrent">Ink</p></div>
+        <div><label for="setThemeSelect">Theme</label><p id="themeCurrent">Ink — dark</p></div>
+        <div class="theme-picker">
+          <span class="theme-preview" id="themePreview" aria-hidden="true"><i></i><i></i><i></i></span>
+          <select id="setThemeSelect" class="select" aria-label="Theme"></select>
+        </div>
       </div>
-      <div class="theme-grid" id="setTheme" role="radiogroup" aria-label="Theme"></div>
       <div class="setting">
         <div><label>Manga quality</label><p>Both use FLUX.2 [klein] 4B: High paints 1080p in four steps, Fast 720p in two</p></div>
         <div class="segmented" id="setFilmQuality">
