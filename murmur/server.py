@@ -6,6 +6,7 @@ search in `film_api.py` and `search_api.py`.
 """
 from __future__ import annotations
 
+import contextlib
 import re
 import threading
 import time
@@ -25,7 +26,30 @@ from .search_api import router as search_router
 from .system_api import router as system_router
 from .voices import DEFAULT_VOICE
 
-app = FastAPI(title="Murmur", docs_url=None, redoc_url=None)
+
+@contextlib.asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    """Startup work, run once before the app serves the first request.
+
+    This replaces the `on_event("startup")` hook: the same calls in the same
+    order, on the mechanism FastAPI still supports.
+    """
+    store.init()
+    engine.warm_async()
+    threading.Thread(target=_maintenance, name="cache-prune", daemon=True).start()
+    # Search indexing is a background nicety: the reader must be usable before
+    # the first chunk is written, so this only wakes a worker after startup.
+    search.start_background(delay=2.0)
+    if PUBLIC:
+        print("Murmur is available on the network:")
+        for item in access.access_urls():
+            if item["label"] != "This Mac":
+                print(f"  {item['label']}: {item['url']}")
+        print(f"  token file: {config.HOME / 'access_token'}", flush=True)
+    yield
+
+
+app = FastAPI(title="Murmur", docs_url=None, redoc_url=None, lifespan=_lifespan)
 app.include_router(film_router)
 app.include_router(search_router)
 app.include_router(system_router)
@@ -96,22 +120,6 @@ def _prune_exports(max_age_days: int = 7) -> int:
 def _maintenance() -> None:
     _prune_exports()
     prune_cache()
-
-
-@app.on_event("startup")
-def _startup() -> None:
-    store.init()
-    engine.warm_async()
-    threading.Thread(target=_maintenance, name="cache-prune", daemon=True).start()
-    # Search indexing is a background nicety: the reader must be usable before
-    # the first chunk is written, so this only wakes a worker after startup.
-    search.start_background(delay=2.0)
-    if PUBLIC:
-        print("Murmur is available on the network:")
-        for item in access.access_urls():
-            if item["label"] != "This Mac":
-                print(f"  {item['label']}: {item['url']}")
-        print(f"  token file: {config.HOME / 'access_token'}", flush=True)
 
 
 # ---------------------------------------------------------------- export
