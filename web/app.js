@@ -16,7 +16,8 @@ const DEFAULT_SETTINGS = {
   remoteAccess: false,
   translateToVoice: true,
   filmQuality: 'high',
-  autoGenerate: false,
+  autoScenes: true,
+  autoFilms: false,
 };
 
 const LANG_NAMES = {
@@ -370,16 +371,24 @@ function bindUI() {
     applySettings();
     toast(next ? 'Polish pass on - each still is re-drawn once' : 'Polish pass off - stills are painted once');
   });
-  $('#setAutoGenerate').addEventListener('click', async () => {
-    const next = $('#setAutoGenerate').getAttribute('aria-checked') !== 'true';
-    await saveSettings({ autoGenerate: next });
+  $('#setAutoScenes').addEventListener('click', async () => {
+    const next = $('#setAutoScenes').getAttribute('aria-checked') !== 'true';
+    await saveSettings({ autoScenes: next });
+    applySettings();
+    toast(next
+      ? 'Scenes on - stills are painted ahead while you read'
+      : 'Scenes off - only the scene on screen is painted');
+  });
+  $('#setAutoFilms').addEventListener('click', async () => {
+    const next = $('#setAutoFilms').getAttribute('aria-checked') !== 'true';
+    await saveSettings({ autoFilms: next });
     // Turning it off stops new auto work; the running chapter keeps painting
     // and its own Cancel stays the way to stop it.
     if (!next) state.cinema.autoRun = null;
     applySettings();
     toast(next
-      ? 'Auto Generate on - chapters queue in order after the one you start'
-      : 'Auto Generate off - each chapter asks before it queues');
+      ? 'Chapter films on - the remaining chapters queue after the one you start'
+      : 'Chapter films off - each chapter asks before it queues');
   });
   $('#setAutoScroll').addEventListener('click', () => {
     state.settings.autoScroll = !state.settings.autoScroll;
@@ -617,7 +626,8 @@ function applySettings() {
   $('#setRemote').setAttribute('aria-checked', String(!!s.remoteAccess));
   $('#setTranslate').setAttribute('aria-checked', String(s.translateToVoice !== false));
   $('#setPolish').setAttribute('aria-checked', String(s.polishStills !== false));
-  $('#setAutoGenerate').setAttribute('aria-checked', String(!!s.autoGenerate));
+  $('#setAutoScenes').setAttribute('aria-checked', String(s.autoScenes !== false));
+  $('#setAutoFilms').setAttribute('aria-checked', String(!!s.autoFilms));
   syncVoiceSelects();
   $('#speedSel').value = String(state.speed);
   if (state.doc && state.doc.viewer === 'epub' && state.view === 'page' && !$('#pageView').hidden) {
@@ -2144,6 +2154,9 @@ function setCinemaImage(url) {
 }
 
 function prefetchCinema(chapter, scenes, index) {
+  // Scenes off means exactly that: the still on screen is painted, the ones
+  // after it wait until you arrive. Chapter films are a separate switch.
+  if (state.settings.autoScenes === false) return;
   for (let offset = 1; offset <= 2; offset++) {
     const scene = scenes[index + offset];
     if (!scene) break;
@@ -2633,7 +2646,7 @@ async function makeFilm() {
     toast(err.message || 'Could not plan the chapter film', 'error');
     return;
   }
-  const auto = !!state.settings.autoGenerate;
+  const auto = !!state.settings.autoFilms;
   if (!auto) {
     const perImage = state.settings.filmQuality === 'fast' ? 35 : 120;
     const minutes = Math.max(1, Math.round(((plan.scenes || []).length * perImage) / 60));
@@ -2682,7 +2695,7 @@ async function queueChapterFilm(chapter, plan = null, auto = false) {
    is already painting. */
 function continueAutoRun(job) {
   const run = state.cinema.autoRun;
-  if (!run || !job.auto || !state.settings.autoGenerate) return false;
+  if (!run || !job.auto || !state.settings.autoFilms) return false;
   if (!state.doc || run.docId !== state.doc.id) { state.cinema.autoRun = null; return false; }
   if (run.next > run.last) {
     state.cinema.autoRun = null;

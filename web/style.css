@@ -1302,6 +1302,16 @@ html[data-mode="light"] .page-stage img { box-shadow: 0 14px 36px rgba(60, 45, 2
 .setting:last-of-type { border-bottom: none; }
 .setting label { font-size: 13px; font-weight: 550; display: block; }
 .setting p { margin: 3px 0 0; font-size: 11.5px; color: var(--faint); }
+/* Auto Generate is one group with two children, so the heading has no control
+   of its own and the children hang off a rule that shows what they belong to. */
+.setting-head { border-bottom: none; padding-bottom: 2px; }
+.setting-head label { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--dim); }
+.setting-sub {
+  padding: 10px 0 10px 14px;
+  border-left: 2px solid var(--line-2);
+  margin-left: 2px;
+}
+.setting-sub + .setting-sub { margin-top: -1px; }
 
 .segmented {
   display: inline-flex;

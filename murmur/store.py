@@ -68,9 +68,12 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "translateToVoice": True,
     "filmQuality": "high",
     "polishStills": True,
-    # Off by default: a chapter film can hold the GPU for an hour, so the user
-    # opts in rather than discovering it after opening a book.
-    "autoGenerate": False,
+    # Auto Generate has two halves because they cost wildly different amounts:
+    # a look-ahead still is a few seconds on a GPU, a chapter film is an hour.
+    # Scenes on, films off — reading a book quietly paints ahead, and nothing
+    # long-running starts without a gesture.
+    "autoScenes": True,
+    "autoFilms": False,
 }
 
 
@@ -361,12 +364,19 @@ def delete_doc(doc_id: str) -> bool:
 
 def get_settings() -> dict:
     settings = dict(DEFAULT_SETTINGS)
+    loaded: dict[str, Any] = {}
     with _db() as conn:
         for row in conn.execute("SELECT key, value FROM settings"):
             try:
-                settings[row["key"]] = json.loads(row["value"])
+                loaded[row["key"]] = json.loads(row["value"])
             except json.JSONDecodeError:
-                settings[row["key"]] = row["value"]
+                loaded[row["key"]] = row["value"]
+    settings.update(loaded)
+    # One switch became two. An install that had the old single switch on keeps
+    # the half it was actually about (chapter films); scenes follow the default.
+    if "autoGenerate" in loaded and "autoFilms" not in loaded:
+        settings["autoFilms"] = bool(loaded["autoGenerate"])
+    settings.pop("autoGenerate", None)
     return settings
 
 

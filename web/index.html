@@ -361,9 +361,16 @@
         <div><label>Polish stills</label><p>Re-draw each painted still once to settle hands, faces and ink; doubles painting time</p></div>
         <button class="switch" id="setPolish" role="switch" aria-checked="true"><i></i></button>
       </div>
-      <div class="setting">
-        <div><label>Auto Generate</label><p>Queue scenes and chapter films in order without asking. One job runs at a time, and the next chapter follows the one you start.</p></div>
-        <button class="switch" id="setAutoGenerate" role="switch" aria-checked="false"><i></i></button>
+      <div class="setting setting-head">
+        <div><label>Auto Generate</label><p>Start the next piece of work without asking. Chapter films stay off until you turn them on — one can hold the GPU for an hour.</p></div>
+      </div>
+      <div class="setting setting-sub">
+        <div><label for="setAutoScenes">Scenes</label><p>Paint stills a few scenes ahead while you read</p></div>
+        <button class="switch" id="setAutoScenes" role="switch" aria-checked="true"><i></i></button>
+      </div>
+      <div class="setting setting-sub">
+        <div><label for="setAutoFilms">Chapter films</label><p>Queue the remaining chapters when one film finishes, and keep going</p></div>
+        <button class="switch" id="setAutoFilms" role="switch" aria-checked="false"><i></i></button>
       </div>
       <div class="setting">
         <div><label>Follow along</label><p>Keep the spoken sentence in view</p></div>

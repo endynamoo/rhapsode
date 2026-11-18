@@ -56,18 +56,42 @@ def document() -> dict:
 
 
 class AutoGenerateSettingTests(unittest.TestCase):
-    def test_a_fresh_install_leaves_it_off(self) -> None:
+    def test_a_fresh_install_automates_scenes_only(self) -> None:
         with temp_home():
             settings = store.get_settings()
-            self.assertIn("autoGenerate", store.DEFAULT_SETTINGS)
-            self.assertFalse(settings["autoGenerate"])
+            # Scenes on: reading a book quietly paints ahead. Films off: one can
+            # hold the GPU for an hour, so it stays a gesture.
+            self.assertTrue(settings["autoScenes"])
+            self.assertFalse(settings["autoFilms"])
+            self.assertNotIn("autoGenerate", store.DEFAULT_SETTINGS)
 
     def test_the_choice_survives_a_restart(self) -> None:
         with temp_home():
-            store.set_settings({"autoGenerate": True})
+            store.set_settings({"autoScenes": False, "autoFilms": True})
             store.close()
             store.init()
-            self.assertTrue(store.get_settings()["autoGenerate"])
+            settings = store.get_settings()
+            self.assertFalse(settings["autoScenes"])
+            self.assertTrue(settings["autoFilms"])
+
+    def test_the_old_single_switch_carries_over_to_chapter_films(self) -> None:
+        with temp_home():
+            with store._db() as conn:
+                conn.execute(
+                    "INSERT INTO settings(key,value) VALUES('autoGenerate','true')"
+                )
+            settings = store.get_settings()
+            self.assertTrue(settings["autoFilms"])
+            self.assertTrue(settings["autoScenes"])
+            self.assertNotIn("autoGenerate", settings)
+
+    def test_an_install_that_had_it_off_stays_off(self) -> None:
+        with temp_home():
+            with store._db() as conn:
+                conn.execute(
+                    "INSERT INTO settings(key,value) VALUES('autoGenerate','false')"
+                )
+            self.assertFalse(store.get_settings()["autoFilms"])
 
 
 class AutoJobTests(unittest.TestCase):
