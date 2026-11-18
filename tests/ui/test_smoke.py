@@ -242,8 +242,17 @@ class SmokeTests(unittest.TestCase):
         self.page.wait_for_selector("#addModal:not([hidden])")
         self.page.fill("#pasteTitle", "Added Through The UI")
         self.page.fill("#pasteText", "A short passage added by the smoke test. It has two sentences.")
+        # Assert what was typed before submitting: on a cold runner the fills can
+        # land before the modal finishes rendering, and the failure then reads as a
+        # wrong document title far from the cause.
+        self.assertEqual("Added Through The UI", self.page.input_value("#pasteTitle"))
         self.page.click("#pasteAdd")
-        self.page.wait_for_selector(".lib-item:nth-child(2)", timeout=20000)
+        # A hidden modal is not "visible", so this must wait for the hidden state.
+        self.page.locator("#addModal").wait_for(state="hidden", timeout=20000)
+        # Wait for the row we just added, not for "a second row": the library is
+        # seeded, so nth-child(2) can match before the new title is painted.
+        row = self.page.locator(".lib-title", has_text="Added Through The UI").first
+        row.wait_for(timeout=20000)
         titles = self.page.locator(".lib-title").all_inner_texts()
         self.assertTrue(any("Added Through The UI" in title for title in titles), titles)
 
