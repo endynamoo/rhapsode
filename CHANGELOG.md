@@ -8,6 +8,7 @@ The format follows Keep a Changelog. Add an entry under `## [Unreleased]
 
 ### Added
 
+- `scripts/record_demo.py` records the demo from the app itself: it boots its own server on a free port with a throwaway data folder, seeds a short book, paints the first still before the camera rolls, then drives library -> reading -> search -> Manga view -> Settings with Playwright and writes `dist/demo/demo.mp4` plus six stills. Re-run it after a release instead of re-shooting by hand: `python scripts/record_demo.py --models-from <folder with kokoro-v1.0.onnx>`.
 
 - `docs/ARCHITECTURE.md` ends with **the decisions and the roads not taken**: loopback HTTP instead of Electron/Tauri, SQLite + FTS5 instead of a vector database, no telemetry, weights downloaded rather than bundled, the painter as a child process with a lock and a budget, polled jobs, one segmentation shared by speech/highlight/film/search, and the changelog living in the repository — each with what was rejected and what the choice costs.
 - A browser smoke suite (`tests/ui/test_smoke.py`, Playwright) covering the library, opening a book, search, the theme dropdown, the Auto Generate switches and adding a document through the modal. It starts its own server on a throwaway data directory, runs in CI on Linux, and skips itself when playwright is not installed.
@@ -32,6 +33,7 @@ The format follows Keep a Changelog. Add an entry under `## [Unreleased]
 
 ### Fixed
 
+- The Stills engine panel no longer says *"below the RAM floor - painting will refuse"* while the engine is resident and painting: the floor is a **cold-load** guard, and a resident worker holds the model, so free memory sits under it by design. It now only warns when no worker is running, which is the only time a load can be refused.
 - Stills could not be painted from a **source install** at all: the painter was started as `python murmur/fluxgen.py`, which puts `murmur/` on `sys.path`, so `import profile` inside torch resolved to `murmur/profile.py` and the child died with `module 'profile' has no attribute 'run'` before it could load a model. The frozen build ships `fluxgen.py` where no sibling `profile.py` exists, which is why only source installs were affected. The painter (resident and one-shot) now runs with `-I`, isolated from the script directory and from user site-packages.
 - Playback no longer warns "translation is not set up" when nothing needed translating. A new `murmur/language.py` reads the sentence's language first — script ranges decide Japanese, Chinese and Hindi, a function-word profile separates English, Spanish, French, Italian and Portuguese — so an English book read by an English voice never asks for a translation, and the warning appears only when the text really is in another language. `scripts/verify_translation.py` checks every voice language against a running lane.
 - A voice model installed while the app was open no longer leaves the sidebar on "Loading voice model…" forever: the engine re-checks the weights, and if they are genuinely missing the pill says so and names the fix instead of spinning.
