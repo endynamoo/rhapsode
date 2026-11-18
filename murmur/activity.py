@@ -38,8 +38,8 @@ PHASES = (
 BUSY = frozenset({"planning", "reference", "loading", "painting", "cleanup", "polishing"})
 
 _PLACEHOLDER_DETAIL = (
-    "No stills engine on this machine, so this scene is a placeholder. "
-    "Install the film requirements, or pick a profile with a supported GPU."
+    "This scene is a placeholder because no stills engine answered. "
+    "Settings → Stills engine names the reason."
 )
 
 

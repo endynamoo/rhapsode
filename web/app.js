@@ -2050,6 +2050,9 @@ function updateCinemaEngine(act) {
   if (chip) {
     chip.textContent = bits.join(' · ');
     chip.hidden = !bits.length;
+    // The chip can explain itself without shifting the layout: the reason is
+    // a sentence, so it belongs on hover and in Settings.
+    chip.title = act.phase === 'placeholder' ? act.detail || '' : '';
   }
 }
 
@@ -2113,6 +2116,7 @@ function showCinemaScene(chapter, scene) {
         const chip = $('#cinemaEngine');
         if (chip) {
           chip.textContent = 'placeholder — no stills engine';
+          chip.title = act.detail || '';
           chip.hidden = false;
         }
       }
@@ -3510,7 +3514,13 @@ async function refreshEngine() {
   const starting = painter.running !== true && act && act.phase && act.phase !== 'idle';
   bits.push(painter.running ? 'stills engine running'
     : starting ? 'stills engine starting' : 'stills engine idle');
-  if (act && act.phase && act.phase !== 'idle') bits.push(sceneActivityLabel(act));
+  if (act && act.phase && act.phase !== 'idle') {
+    // For a placeholder the reason is the useful part: it names the cause and
+    // the fix, and Settings is where someone goes looking for it.
+    bits.push(act.phase === 'placeholder'
+      ? act.detail || sceneActivityLabel(act)
+      : sceneActivityLabel(act));
+  }
   if (job.seconds) bits.push(`last still ${job.seconds}s (${job.width}x${job.height}, ${job.steps} steps)`);
   if (job.peak_gib) bits.push(`${job.peak_gib} GiB peak`);
   if (job.free_gib) bits.push(`${job.free_gib} GiB VRAM free after`);

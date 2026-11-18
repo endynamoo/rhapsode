@@ -18,7 +18,7 @@ import threading
 from pathlib import Path
 
 from . import config, proc
-from .activity import activity, placeholder_detail
+from .activity import activity
 
 MODELS = {
     "flux2-klein-4b": {
@@ -443,6 +443,51 @@ def ram_info() -> dict:
         return {}
 
 
+_PLACEHOLDER_WHY: str | None = None
+
+
+def placeholder_reason() -> str:
+    """Why stills are placeholders, in one sentence a reader can act on.
+
+    Issue #40: the placeholder used to blame "this machine" without saying which
+    of the three causes it was, so an install that simply skipped the stills
+    engine read as a hardware limitation. The answer is computed once per
+    process: it costs a subprocess probe, and it cannot change under a running
+    server without a restart anyway.
+    """
+    global _PLACEHOLDER_WHY
+    if _PLACEHOLDER_WHY is None:
+        _PLACEHOLDER_WHY = _compute_placeholder_reason()
+    return _PLACEHOLDER_WHY
+
+
+def _compute_placeholder_reason() -> str:
+    python = config.IMAGE_PYTHON
+    if not python.exists():
+        return (
+            f"Scene left as a placeholder: there is no stills engine in this data folder, "
+            f"because {python} does not exist. "
+            "Run scripts\\setup_image.ps1 to build it — it downloads the model once — or "
+            "reinstall and tick the stills engine task. The reader works without it."
+        )
+    if not FluxPythonBackend().available():
+        return (
+            f"Scene left as a placeholder: the stills engine at {python} exists but cannot "
+            "import torch and diffusers, so it will not start. Rebuild it with "
+            "scripts\\setup_image.ps1."
+        )
+    if sys.platform == "darwin" and not config.FLUX_GENERATE.exists():
+        return (
+            f"Scene left as a placeholder: this Mac build has no stills helper at "
+            f"{config.FLUX_GENERATE}. Rebuild the app with ./build_app.sh."
+        )
+    return (
+        "Scene left as a placeholder: the stills engine is unavailable for a reason this "
+        "build does not recognise. See docs/STILLS.md, or Settings → Stills engine for what "
+        "the painter last reported."
+    )
+
+
 def painter_info() -> dict:
     """What the resident painter decided (precision, VRAM headroom) for the UI."""
     backend = FluxPythonBackend()
@@ -589,7 +634,7 @@ class FilmImages:
             if cached:
                 return "cached"
             if backend.name == "placeholder":
-                activity.phase("placeholder", placeholder_detail())
+                activity.phase("placeholder", placeholder_reason())
             elif not self._warm:
                 # The load happens inside backend.generate() below, so this is
                 # the honest label for the whole first call of the session.

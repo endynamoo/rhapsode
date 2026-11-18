@@ -973,7 +973,7 @@ def ensure_scene_image(doc: dict, chapter: int, scene: Scene,
     if generate(prompt, use_seed) == "placeholder":
         # A placeholder is a delivered result, not a failure: say so plainly
         # instead of running gutter cleanup over a prompt card.
-        activity.finish("placeholder", activity_state.placeholder_detail())
+        activity.finish("placeholder", imaging.placeholder_reason())
         return path
     if _has_gutter(path):
         generate(
