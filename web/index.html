@@ -128,13 +128,15 @@
     <div class="cinema-view" id="cinemaView" hidden>
       <img id="cinemaImage" alt="Scene">
       <div class="cinema-loading" id="cinemaLoading" hidden>
-        <span class="dot"></span><span id="cinemaLoadingText">Painting scene…</span>
+        <span class="dot"></span><span id="cinemaLoadingText">Waiting for the stills engine…</span>
         <div class="cinema-progress"><i id="cinemaProgressFill"></i></div>
+        <button class="chip" id="cinemaRetry" hidden>Retry scene</button>
       </div>
       <div class="cinema-shade"></div>
       <div class="cinema-caption" id="cinemaCaption"></div>
       <div class="cinema-bar">
         <span class="cinema-scene" id="cinemaScene">—</span>
+        <span class="cinema-engine" id="cinemaEngine" hidden></span>
         <button class="chip" id="cinemaReview">
           <svg viewBox="0 0 24 24"><path d="M4 5h7v6H4zM13 5h7v6h-7zM4 13h7v6H4zM13 13h7v6h-7z"/></svg>
           <span>Review scenes</span>
@@ -338,12 +340,12 @@
       </div>
       <div class="setting engine-block">
         <div>
-          <label>Engine</label>
+          <label>Stills engine</label>
           <p id="engineSummary">Reading the engine profile…</p>
           <p id="engineStatus" class="engine-status"></p>
         </div>
         <div class="engine-actions">
-          <div class="segmented" id="setEngineProfile" role="radiogroup" aria-label="Engine profile">
+          <div class="segmented" id="setEngineProfile" role="radiogroup" aria-label="Stills engine profile">
             <button data-engine-profile="lite">Lite</button>
             <button data-engine-profile="balanced">Balanced</button>
             <button data-engine-profile="max">Max</button>

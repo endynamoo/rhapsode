@@ -1,6 +1,6 @@
-"""Local text-to-image for the stills pipeline: FLUX.2 [klein] 4B only.
+﻿"""Local text-to-image for the stills pipeline: FLUX.2 [klein] 4B only.
 
-One model family, two presets — High paints 1920x1080 in four distilled steps,
+One model family, two presets â€” High paints 1920x1080 in four distilled steps,
 Fast paints 1280x720 in two. Two ways to run it: mflux on Apple Silicon (the
 MLX build), and diffusers in a separate interpreter (`image-venv`) everywhere
 else, so the reader never imports torch. The rest of the code only asks for "an
@@ -18,6 +18,7 @@ import threading
 from pathlib import Path
 
 from . import config, proc
+from .activity import activity, placeholder_detail
 
 MODELS = {
     "flux2-klein-4b": {
@@ -25,14 +26,14 @@ MODELS = {
         "steps": 4,
         "width": 1920,
         "height": 1080,
-        "label": "FLUX.2 [klein] 4B — High",
+        "label": "FLUX.2 [klein] 4B â€” High",
     },
     "flux2-klein-4b-fast": {
         "id": config.FLUX_WEIGHTS,
         "steps": 2,
         "width": 1280,
         "height": 720,
-        "label": "FLUX.2 [klein] 4B — Fast",
+        "label": "FLUX.2 [klein] 4B â€” Fast",
     },
 }
 
@@ -363,8 +364,8 @@ class FluxPythonBackend(ImageBackend):
         """The process-wide painter.
 
         FilmImages and the polish pass both ask for it, and a second FluxWorker
-        would try to load the weights again — or sit waiting for a lock it can
-        never get — so the instance is shared rather than per-backend.
+        would try to load the weights again â€” or sit waiting for a lock it can
+        never get â€” so the instance is shared rather than per-backend.
         """
         global _SHARED_WORKER
         with self._probe_lock:
@@ -529,6 +530,9 @@ class FilmImages:
         self._backend_lock = threading.Lock()
         self._backend: ImageBackend | None = None
         self._model_key: str | None = None
+        # A cold painter pays the model load inside the first generate(), which
+        # is why that call is reported as loading and not as painting.
+        self._warm = False
 
     def backend(self, model_key: str | None = None) -> ImageBackend:
         key = model_key or DEFAULT_MODEL
@@ -553,7 +557,8 @@ class FilmImages:
                  width: int = config.FILM_WIDTH, height: int = config.FILM_HEIGHT,
                  init_image: Path | None = None, strength: float = 0.5,
                  model: str | None = None,
-                 reference_image: Path | None = None) -> str:
+                 reference_image: Path | None = None,
+                 label: str = "") -> str:
         marker = out_path.with_suffix(out_path.suffix + ".placeholder")
         cached = out_path.exists() and out_path.stat().st_size >= MIN_STILL_BYTES
         with self._lock:
@@ -563,6 +568,22 @@ class FilmImages:
                 cached = False
             if cached:
                 return "cached"
+            if backend.name == "placeholder":
+                activity.phase("placeholder", placeholder_detail())
+            elif not self._warm:
+                # The load happens inside backend.generate() below, so this is
+                # the honest label for the whole first call of the session.
+                activity.phase(
+                    "loading",
+                    "Loading the stills engine - first still this session",
+                    coldStart=True, backend=backend.name, model=model or self._model_key,
+                )
+            else:
+                activity.phase(
+                    "painting", label or "Painting the still",
+                    coldStart=False,
+                    backend=backend.name, model=model or self._model_key,
+                )
             backend.generate(prompt, width, height, seed, out_path,
                              init_image=init_image, strength=strength,
                              reference_image=reference_image)
@@ -570,6 +591,7 @@ class FilmImages:
                 marker.write_text("placeholder\n", "utf-8")
             else:
                 marker.unlink(missing_ok=True)
+                self._warm = True
             return backend.name
 
 
@@ -591,3 +613,4 @@ def _match_color(image, reference, amount: float = 0.4):
         a[..., channel] = (a[..., channel] - a_mean) * (b_std / a_std) + b_mean
     blended = (a * amount + original * (1 - amount)).clip(0, 255).astype(np.uint8)
     return Image.fromarray(blended)
+

@@ -137,8 +137,14 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 ### Unreleased
 
+**Added**
+
+- Cinema reports what the stills engine is actually doing — planning, loading the model, painting, cleaning up, polishing, or showing a placeholder — instead of one static "Painting scene…", with the backend, model and profile on screen and a Retry button when a scene fails.
+
 **Changed**
 
+- Settings → Engine is now **Stills engine** and reads the same activity object as Cinema, so the two can no longer disagree about what is running.
+- A scene that falls back to the placeholder is treated as delivered: it is shown, counted as done, and labelled, rather than re-planned on every poll.
 - The in-app mark now uses the purple app icon's palette instead of white strokes on near-black, and its halo is purple rather than cyan, so the sidebar, the empty state, the favicon and the installed icon read as one brand.
 
 **Fixed**
@@ -150,11 +156,15 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 **Added**
 
 - Linux is verified on a clean runner: `.github/workflows/linux.yml` runs the unit suite, then a real `python -m murmur` server with Tesseract as the OCR backend, asserting `/api/health` is healthy and remote access is off.
-- macOS release builds on clean runners: `.github/workflows/macos.yml` builds and self-tests the `.app` for arm64 (`macos-latest`) and x86_64 (`macos-15-intel`), wraps each in a drag-install DMG, and attaches both to a `v*` release; the Windows installer workflow attaches its Setup.exe the same way.
-- `scripts/make_dmg.sh` for a local drag-install DMG.
-- Search across your whole library with `Ctrl+F` / `⌘F` or the magnifier: results grouped by book, the matching passage marked, and a jump straight to that sentence, chapter or page. Keywords work with nothing extra installed; the optional 23 MB meaning model (Apache-2.0, CPU only) is offered as a download in the panel and can be switched off with `MURMUR_SEMANTIC=off`.
-- "Read this week" and "Read this month" filters for search, based on when a book was actually opened or its position saved.
 
-*...and 37 more entries in [CHANGELOG.md](CHANGELOG.md).*
+### 0.1.0-alpha - 2026-11-16
+
+**Added**
+
+- First Windows-capable build of the reader and stills app: PDF, EPUB, DOCX, RTF, TXT, Markdown and HTML imports.
+- OCR through Windows' own engine, and translation through any local OpenAI-compatible server.
+- FLUX.2 [klein] as the only stills engine, on every platform.
+
+*...and 38 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->

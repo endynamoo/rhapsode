@@ -430,7 +430,7 @@ whenever it is missing or stale. See [SEARCH.md](SEARCH.md).
 | POST | `/api/search/index` | start an index pass (optionally forced or one doc) |
 | POST | `/api/search/model` | download the optional embedding model |
 | GET | `/api/events` | SSE stream |
-| GET | `/api/film/plan`, `/images`, `/progress` | scene planning and status |
+| GET | `/api/film/plan`, `/images`, `/progress`, `/activity` | scene planning, status and the live engine phase |
 | POST | `/api/film/scene`, `/scene/regenerate`, `/prefetch` | scene generation |
 | POST | `/api/docs/{id}/film` | start chapter film |
 | GET/DELETE | `/api/film/{job}` | film status / cancel |

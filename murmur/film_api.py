@@ -64,7 +64,22 @@ def film_plan(doc: str, chapter: int = 0) -> dict:
         "chapters": film.chapter_count(document),
         "scenes": [scene.public() for scene in scenes],
         "progress": film.painter.status(document, chapter, scenes),
+        "activity": film.scene_activity(document, chapter, scenes),
     }
+
+
+@router.get("/api/film/activity")
+def film_activity(doc: str | None = None, chapter: int = 0) -> dict:
+    """What the stills engine is doing, for any surface that needs to say so.
+
+    Without a document this is the raw painter state (Settings); with one the
+    counts are the chapter's own, so Cinema and the queue cannot disagree.
+    """
+    if not doc:
+        return film.activity.snapshot()
+    document = _document(doc)
+    chapter = _chapter(document, chapter)
+    return film.scene_activity(document, chapter, film.plan_chapter(document, chapter))
 
 
 @router.get("/api/film/images")
@@ -82,7 +97,7 @@ def film_images(doc: str, chapter: int = 0) -> dict:
                 "first": scene.units[0] if scene.units else 0,
                 "last": scene.units[-1] if scene.units else 0,
                 "text": scene.text[:160],
-                "url": _url(document["id"], chapter, scene.index, path) if film.still_ready(path) else None,
+                "url": _url(document["id"], chapter, scene.index, path) if film.still_delivered(path) else None,
             }
         )
     return {"doc": document["id"], "chapter": chapter, "images": images}
@@ -98,12 +113,13 @@ def film_scene(payload: FilmSceneIn) -> dict:
 
     scene = scenes[payload.index]
     path = film.scene_image_path(document["id"], chapter, scene.index)
-    if not film.still_ready(path):
+    if not film.still_delivered(path):
         film.painter.enqueue(document, chapter, [scene])
         return {
             "ready": False,
             "index": scene.index,
             "progress": film.painter.status(document, chapter, scenes),
+            "activity": film.scene_activity(document, chapter, scenes),
         }
 
     return {
@@ -113,6 +129,8 @@ def film_scene(payload: FilmSceneIn) -> dict:
         "duration": round(scene.duration, 2),
         "backend": imaging.image_gen.backend(film.film_model()[0]).name,
         "model": film.film_model()[0],
+        "placeholder": film.placeholder_path(path).exists(),
+        "activity": film.scene_activity(document, chapter, scenes),
     }
 
 
@@ -165,7 +183,9 @@ def film_progress(doc: str, chapter: int = 0) -> dict:
 @router.get("/api/film/image/{doc_id}/{chapter}/{index}.png")
 def film_image(doc_id: str, chapter: int, index: int):
     path = film.scene_image_path(doc_id, chapter, index)
-    if not film.still_ready(path):
+    # A placeholder prompt card is a delivered scene: serving it is what lets
+    # the reader see why the stills are missing instead of watching a spinner.
+    if not film.still_delivered(path):
         raise HTTPException(status_code=404, detail="Scene image not rendered yet")
     return FileResponse(
         path,

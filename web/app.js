@@ -1975,22 +1975,74 @@ async function updateCinema(unitIndex) {
   prefetchCinema(chapter, scenes, scene.index);
 }
 
+const CINEMA_PHASES = new Set(['planning', 'reference', 'loading', 'painting', 'cleanup', 'polishing']);
+
+/* The label for one still comes from the server's activity object, never from a
+   guess here: a cold model load must not read as painting. */
+function sceneActivityLabel(act) {
+  const sceneNo = Number.isInteger(act.scene) ? act.scene + 1 : null;
+  const where = sceneNo ? `scene ${sceneNo}` : 'the scene';
+  let text;
+  switch (act.phase) {
+    case 'loading':
+      text = act.coldStart
+        ? 'Loading the stills engine — first still this session'
+        : 'Loading the stills engine';
+      break;
+    case 'planning': text = `Planning ${where}`; break;
+    case 'reference': text = 'Painting the character reference'; break;
+    case 'painting': text = `Painting ${where}`; break;
+    case 'cleanup': text = `Cleaning up ${where}`; break;
+    case 'polishing': text = `Polishing ${where}`; break;
+    case 'placeholder': text = 'No stills engine on this machine — placeholder scene'; break;
+    case 'failed': text = `Could not paint ${where}`; break;
+    case 'queued': text = 'Waiting for the stills engine'; break;
+    default: text = 'Waiting for the stills engine';
+  }
+  const queued = Math.max(0, (act.queued || 0) - (act.active || 0));
+  if (queued && CINEMA_PHASES.has(act.phase)) text += ` · ${queued} queued`;
+  return text;
+}
+
+function updateCinemaEngine(act) {
+  const chip = $('#cinemaEngine');
+  const bits = [act.model, act.profile].filter(Boolean);
+  if (act.phase === 'placeholder') bits.push('placeholder');
+  if (chip) {
+    chip.textContent = bits.join(' · ');
+    chip.hidden = !bits.length;
+  }
+}
+
+function setCinemaBusy(busy) {
+  const bar = $('.cinema-progress');
+  if (!bar) return;
+  bar.classList.toggle('is-busy', !!busy);
+  const fill = $('#cinemaProgressFill');
+  if (!fill) return;
+  // An inline width left by the prepare pass would beat the CSS class.
+  fill.style.width = busy ? '' : '0%';
+}
+
 function showCinemaScene(chapter, scene) {
   const key = `${chapter}:${scene.index}`;
   const loading = $('#cinemaLoading');
   const label = $('#cinemaLoadingText');
+  const retry = $('#cinemaRetry');
   const image = $('#cinemaImage');
 
   const cached = state.cinema.cache.get(key);
   if (cached) {
     setCinemaImage(cached);
     loading.hidden = true;
+    setCinemaBusy(false);
     return;
   }
 
   state.cinema.sceneToken = (state.cinema.sceneToken || 0) + 1;
   const token = state.cinema.sceneToken;
   image.classList.remove('is-ready');
+  if (retry) retry.hidden = true;
 
   const attempt = async () => {
     if (token !== state.cinema.sceneToken) return;
@@ -2004,30 +2056,51 @@ function showCinemaScene(chapter, scene) {
     } catch (err) {
       if (token !== state.cinema.sceneToken) return;
       loading.hidden = true;
+      setCinemaBusy(false);
       toast(err.message || 'Could not paint that scene', 'error');
       return;
     }
     if (token !== state.cinema.sceneToken) return;
 
+    const act = data.activity || {};
+    updateCinemaEngine(act);
+
     if (data.ready) {
       state.cinema.cache.set(key, data.url);
       setCinemaImage(data.url);
       loading.hidden = true;
+      setCinemaBusy(false);
+      if (data.placeholder) {
+        const chip = $('#cinemaEngine');
+        if (chip) {
+          chip.textContent = 'placeholder — no stills engine';
+          chip.hidden = false;
+        }
+      }
       return;
     }
 
-    const progress = data.progress || {};
     loading.hidden = false;
-    if (!state.cinema.preparing) {
-      label.textContent = progress.pending > 1
-        ? `Painting scene… (${progress.pending} queued)`
-        : 'Painting scene…';
+    if (!state.cinema.preparing) label.textContent = sceneActivityLabel(act);
+    setCinemaBusy(act.busy !== false);
+    if (act.phase === 'failed') {
+      setCinemaBusy(false);
+      if (retry) {
+        retry.hidden = false;
+        retry.onclick = () => {
+          state.cinema.sceneToken += 1;
+          showCinemaScene(chapter, scene);
+        };
+      }
+      toast(act.error || 'Could not paint that scene', 'error');
+      return;
     }
     setTimeout(attempt, 1300);
   };
 
   loading.hidden = false;
-  label.textContent = 'Painting scene…';
+  label.textContent = 'Waiting for the stills engine…';
+  setCinemaBusy(true);
   attempt();
 }
 
@@ -3305,7 +3378,13 @@ async function refreshEngine() {
   const painter = state.painter || {};
   const job = painter.last_job || {};
   const bits = [];
-  bits.push(painter.running ? 'painter running' : 'painter idle');
+  bits.push(painter.running ? 'stills engine running' : 'stills engine idle');
+  try {
+    const act = await api('/api/film/activity');
+    if (act && act.phase && act.phase !== 'idle') bits.push(sceneActivityLabel(act));
+  } catch (_) {
+    /* the profile summary above is still worth showing */
+  }
   if (job.seconds) bits.push(`last still ${job.seconds}s (${job.width}x${job.height}, ${job.steps} steps)`);
   if (job.peak_gib) bits.push(`${job.peak_gib} GiB peak`);
   if (job.free_gib) bits.push(`${job.free_gib} GiB VRAM free after`);
