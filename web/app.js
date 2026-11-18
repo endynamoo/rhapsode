@@ -344,11 +344,9 @@ function bindUI() {
     saveSettings({ font: e.target.value });
     applySettings();
   });
-  $('#setTheme').addEventListener('click', (e) => {
-    const button = e.target.closest('.theme-option');
-    if (!button) return;
-    state.settings.theme = button.dataset.theme;
-    saveSettings({ theme: button.dataset.theme });
+  $('#setThemeSelect').addEventListener('change', (e) => {
+    state.settings.theme = e.target.value;
+    saveSettings({ theme: e.target.value });
     applySettings();
   });
   $$('#setFilmQuality button').forEach((b) =>
@@ -576,6 +574,9 @@ function applySettings() {
     state.settings.theme = theme.id;
     const current = $('#themeCurrent');
     if (current) current.textContent = `${theme.name} · ${theme.mode}`;
+    const select = $('#setThemeSelect');
+    if (select && select.value !== theme.id) select.value = theme.id;
+    updateThemePreview(theme);
   }
   const stack = window.rhapsodeFontStack ? window.rhapsodeFontStack(s.font) : '';
   if (stack) document.documentElement.style.setProperty('--font-read', stack);
@@ -585,11 +586,6 @@ function applySettings() {
   $('#autoBtn').classList.toggle('is-on', state.autoScroll);
   $('#fontSizeLabel').textContent = s.fontSize;
   $('#setFontSize').value = s.fontSize;
-  $$('.theme-option').forEach((b) => {
-    const active = b.dataset.theme === s.theme;
-    b.classList.toggle('is-active', active);
-    b.setAttribute('aria-checked', String(active));
-  });
   const fontSelect = $('#setFontFamily');
   if (fontSelect && fontSelect.options.length) fontSelect.value = s.font;
   $$('#setFilmQuality button').forEach((b) =>
@@ -613,26 +609,36 @@ function applySettings() {
 }
 
 function renderThemeOptions() {
-  const grid = $('#setTheme');
-  if (!grid || !window.RHAPSODE_THEMES) return;
-  grid.innerHTML = '';
+  const select = $('#setThemeSelect');
+  if (!select || !window.RHAPSODE_THEMES) return;
+  select.innerHTML = '';
+  // Two groups rather than one long list: picking a light theme is a different
+  // intent from picking a dark one, and the count is 20.
+  const groups = { dark: document.createElement('optgroup'), light: document.createElement('optgroup') };
+  groups.dark.label = 'Dark';
+  groups.light.label = 'Light';
   for (const theme of window.RHAPSODE_THEMES) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'theme-option';
-    button.dataset.theme = theme.id;
-    button.title = theme.note ? `${theme.name} — ${theme.note}` : theme.name;
-    button.setAttribute('role', 'radio');
-    button.setAttribute('aria-checked', 'false');
-    const swatch = document.createElement('span');
-    swatch.className = 'theme-swatch';
-    swatch.style.background =
-      `linear-gradient(135deg, ${theme.colors.bg} 0 52%, ${theme.colors.accent} 52% 100%)`;
-    const label = document.createElement('span');
-    label.textContent = theme.name;
-    button.append(swatch, label);
-    grid.appendChild(button);
+    const option = document.createElement('option');
+    option.value = theme.id;
+    option.textContent = theme.name;
+    if (theme.note) option.title = theme.note;
+    (groups[theme.mode] || groups.dark).appendChild(option);
   }
+  for (const group of Object.values(groups)) {
+    if (group.children.length) select.appendChild(group);
+  }
+}
+
+/* A select cannot show colours, so the selected palette sits beside it: page,
+   panel and accent, which is what tells the 20 themes apart at a glance. */
+function updateThemePreview(theme) {
+  const preview = $('#themePreview');
+  if (!preview || !theme) return;
+  const chips = [theme.colors.bg, theme.colors.panel, theme.colors.accent];
+  [...preview.children].forEach((chip, index) => {
+    chip.style.background = chips[index] || theme.colors.accent;
+  });
+  preview.title = `${theme.name} — ${theme.mode}${theme.note ? `, ${theme.note}` : ''}`;
 }
 
 let fontsLoaded = false;
