@@ -2050,6 +2050,9 @@ function updateCinemaEngine(act) {
   if (chip) {
     chip.textContent = bits.join(' · ');
     chip.hidden = !bits.length;
+    // The chip can explain itself without shifting the layout: the reason is
+    // a sentence, so it belongs on hover and in Settings.
+    chip.title = act.phase === 'placeholder' ? act.detail || '' : '';
   }
 }
 
@@ -2113,6 +2116,7 @@ function showCinemaScene(chapter, scene) {
         const chip = $('#cinemaEngine');
         if (chip) {
           chip.textContent = 'placeholder — no stills engine';
+          chip.title = act.detail || '';
           chip.hidden = false;
         }
       }
@@ -3502,7 +3506,11 @@ async function refreshEngine() {
   bits.push(painter.running ? 'stills engine running' : 'stills engine idle');
   try {
     const act = await api('/api/film/activity');
-    if (act && act.phase && act.phase !== 'idle') bits.push(sceneActivityLabel(act));
+    if (act && act.phase && act.phase !== 'idle') {
+      // For a placeholder the reason is the useful part: it names the cause
+      // and the fix, and Settings is where someone goes looking for it.
+      bits.push(act.phase === 'placeholder' ? act.detail || sceneActivityLabel(act) : sceneActivityLabel(act));
+    }
   } catch (_) {
     /* the profile summary above is still worth showing */
   }
