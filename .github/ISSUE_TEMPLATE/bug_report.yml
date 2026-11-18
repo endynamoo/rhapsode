@@ -8,7 +8,7 @@ body:
       value: |
         One bug per issue — if two things are broken, file two issues.
 
-        If this is a question, an install problem, or an idea, read `AGENTS.md` first, then use
+        If this is a question, an install problem, or an idea, read `INSTALL.md` first, then use
         the feature request template for ideas.
   - type: textarea
     id: what-happened

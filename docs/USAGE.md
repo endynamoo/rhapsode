@@ -1,7 +1,7 @@
 # Using Rhapsode
 
 Everything on this page is day-to-day use. Install instructions are in
-[../AGENTS.md](../AGENTS.md); manga stills are in [STILLS.md](STILLS.md); internals are in
+[../INSTALL.md](../INSTALL.md); manga stills are in [STILLS.md](STILLS.md); internals are in
 [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Keyboard and mouse
@@ -204,4 +204,4 @@ columns, because Vision reads in geometric order.
 **Port already in use.** `MURMUR_PORT=9000 ./run.sh`.
 
 **Install-side problems** (missing model, no desktop window, missing Tesseract,
-CUDA out of memory) are tabulated in [../AGENTS.md](../AGENTS.md) §7.
+CUDA out of memory) are tabulated in [../INSTALL.md](../INSTALL.md) §7.

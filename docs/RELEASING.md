@@ -266,7 +266,7 @@ the official release, not of the source tree.
 | `scripts/make_dmg.sh` | sign the DMG when an identity is available |
 | `scripts/sign_and_notarize.sh` | new: zip, submit, parse status, staple, DMG, verify |
 | `.github/workflows/macos.yml` | import the certificate, write the API key, run the script, clean up |
-| `AGENTS.md` §A2 | "ad-hoc signed, not notarized" becomes "notarized when the secrets are present" |
+| `INSTALL.md` §A2 | "ad-hoc signed, not notarized" becomes "notarized when the secrets are present" |
 | `README.md`, `docs/PLATFORMS.md` | M5 release engineering: signing marked done and how it is verified |
 
 - [ ] Enrol; owner decided; certificate exported and stored in a password manager
@@ -274,5 +274,5 @@ the official release, not of the source tree.
 - [ ] First signed build on a Mac; entitlements measured, not guessed
 - [ ] Notarization accepted for arm64 and x86_64
 - [ ] Stapled DMG verified with `spctl` and launched from quarantine on a clean Mac
-- [ ] Transcript pasted above; `AGENTS.md`/`README` updated
+- [ ] Transcript pasted above; `INSTALL.md`/`README` updated
 - [ ] Forks still build unsigned

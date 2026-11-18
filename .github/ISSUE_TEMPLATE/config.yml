@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/endynamoo/rhapsode/blob/main/docs/BRANCHING.md
     about: How main, testing and stable relate, and what a known-good tag means.
   - name: Install and build
-    url: https://github.com/endynamoo/rhapsode/blob/main/AGENTS.md
+    url: https://github.com/endynamoo/rhapsode/blob/main/INSTALL.md
     about: Supported platforms, install paths, and the build commands that actually work.

@@ -88,7 +88,8 @@ evidence is not done.
 
 ## Where things live
 
-- `AGENTS.md` — install paths, supported platforms, and the rules an agent must not break.
+- `INSTALL.md` — install paths, supported platforms and per-GPU notes.
+- `AGENTS.md` — the rules an agent must not break while working here.
 - `docs/BRANCHING.md` — the ladder, hotfixes, rollback.
 - `docs/CONCURRENCY.md` — several agents, one repo: worktrees, who pushes, how to untangle.
 - `docs/ARCHITECTURE.md` — modules, API, security model.

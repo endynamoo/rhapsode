@@ -4,12 +4,7 @@ Notable changes to Rhapsode, newest first. Versions are the app's own
 (`murmur.__version__`); `known-good-*` tags are checkpoints of the `stable`
 branch and do not get a heading here.
 
-The format follows Keep a Changelog. Add an entry under `## [Unreleased]` in the
-same commit as the change, then run `python scripts/changelog_render.py` to
-refresh the copy at the bottom of [README.md](README.md) — `tests/test_changelog.py`
-fails when that copy is stale.
-
-## [Unreleased]
+The format follows Keep a Changelog. Add an entry under `## [Unreleased]
 
 ### Added
 
@@ -17,23 +12,25 @@ fails when that copy is stale.
 - **Auto Generate** in Settings (off by default): once you start a chapter film, the remaining chapters queue after it, one at a time, without a confirmation per chapter. A **Stop auto-generation** button drains the queued chapters and leaves the one already painting alone.
 - Cinema reports what the stills engine is actually doing — planning, loading the model, painting, cleaning up, polishing, or showing a placeholder — instead of one static "Painting scene…", with the backend, model and profile on screen and a Retry button when a scene fails.
 
-### Fixed
-
-- Playback no longer warns "translation is not set up" when nothing needed translating. A new `murmur/language.py` reads the sentence's language first — script ranges decide Japanese, Chinese and Hindi, a function-word profile separates English, Spanish, French, Italian and Portuguese — so an English book read by an English voice never asks for a translation, and the warning appears only when the text really is in another language. `scripts/verify_translation.py` checks every voice language against a running lane.
-
 ### Changed
 
+- The install and build guide is now **[INSTALL.md](INSTALL.md)**, written for a person rather than an automated agent: support status, per-platform prerequisites, GPU notes, verification steps and troubleshooting, unchanged in substance. `AGENTS.md` keeps the rules an agent must work to.
+- The README now reads as an argument rather than a feature list: what it does, **the parts that were actually hard** (phoneme-timed highlight, the two-lane search index, the painter's memory budget, one loopback server), how it was built, and then how to try it — with a link to Releases for the prebuilt Windows installer and macOS DMGs.
 - The server's system routes (health, engine profile, settings, voices, fonts, speech, audio, the event stream, quick read and clipboard OCR) moved out of `server.py` into `murmur/system_api.py`, and the "is this caller local, and which token did it present" logic into `murmur/access.py`.
 - The `/api/docs` routes — add text, upload a file, import a URL, PDF page images and word boxes, EPUB chapters and assets, patch and delete — moved into `murmur/library_api.py`, with the PDFium lock and the chapter theming helpers. `server.py` is 1,080 lines down to 253: the app, the access guard, audio export and the static mounts. No route, status code or response body changed by either move.
 - Auto Generate is two switches instead of one: **Scenes** (on by default — stills are painted a few scenes ahead while you read) and **Chapter films** (off by default — the remaining chapters queue when one finishes). An install that had the old single switch on keeps chapter films on.
 - Theme is a dropdown in Settings — grouped Dark and Light, with a live preview of the selected palette beside it — instead of a scrollable grid of twenty swatches.
 - Settings → Engine is now **Stills engine** and reads the same activity object as Cinema, so the two can no longer disagree about what is running.
 - A scene that falls back to the placeholder is treated as delivered: it is shown, counted as done, and labelled, rather than re-planned on every poll.
-
 - The in-app mark now uses the purple app icon's palette instead of white strokes on near-black, and its halo is purple rather than cyan, so the sidebar, the empty state, the favicon and the installed icon read as one brand.
+
+### Removed
+
+- `launch.bat` and `zip_and_relaunch.ps1` are no longer tracked. They were local shortcuts, and a repository someone is meant to read should not open with two scripts that only work on the author's machine.
 
 ### Fixed
 
+- Playback no longer warns "translation is not set up" when nothing needed translating. A new `murmur/language.py` reads the sentence's language first — script ranges decide Japanese, Chinese and Hindi, a function-word profile separates English, Spanish, French, Italian and Portuguese — so an English book read by an English voice never asks for a translation, and the warning appears only when the text really is in another language. `scripts/verify_translation.py` checks every voice language against a running lane.
 - A voice model installed while the app was open no longer leaves the sidebar on "Loading voice model…" forever: the engine re-checks the weights, and if they are genuinely missing the pill says so and names the fix instead of spinning.
 - RTF import falls back to the built-in reader when `textutil` cannot parse the file, so an unclosed RTF no longer arrives as an empty document.
 - The Windows installer's two task checkboxes share one left edge; splitting them into two group headings had pushed the stills row out of line.

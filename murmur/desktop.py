@@ -143,7 +143,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         import webview
-    except Exception:  # fall back to browser mode (AGENTS.md B3)
+    except Exception:  # fall back to browser mode (INSTALL.md B3)
         import webbrowser
         webbrowser.open(f"http://127.0.0.1:{port}")
         print(f"desktop window unavailable; serving browser mode on {port}")
