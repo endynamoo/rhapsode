@@ -151,12 +151,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - RTF import falls back to the built-in reader when `textutil` cannot parse the file, so an unclosed RTF no longer arrives as an empty document.
 - The Windows installer's two task checkboxes share one left edge; splitting them into two group headings had pushed the stills row out of line.
-
-### 0.2.0-alpha - 2026-11-18
-
-**Added**
-
-- Linux is verified on a clean runner: `.github/workflows/linux.yml` runs the unit suite, then a real `python -m murmur` server with Tesseract as the OCR backend, asserting `/api/health` is healthy and remote access is off.
+- On macOS the "translation is not set up" warning names the real cause — Apple Translation needs macOS 26, or this build shipped without the Swift helper — instead of telling the reader to set an environment variable they have no reason to know.
 
 ### 0.1.0-alpha - 2026-11-16
 
@@ -164,6 +159,6 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - First Windows-capable build of the reader and stills app: PDF, EPUB, DOCX, RTF, TXT, Markdown and HTML imports.
 
-*...and 40 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 41 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->

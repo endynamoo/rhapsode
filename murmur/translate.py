@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import select
 import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -234,6 +236,40 @@ class HttpTranslator:
             "source": "" if source == "auto" else source,
             "translated": translated != text.strip(),
         }
+
+
+def missing_advice() -> str:
+    """What to tell the reader when nothing can translate.
+
+    Off macOS the only route is a local OpenAI-compatible server, so pointing at
+    ``MURMUR_TRANSLATE_URL`` is the right advice. On macOS the usual cause is
+    different: the shipped .app was built without the Swift helper (it needs the
+    macOS 26 SDK), or the Mac predates macOS 26 entirely - in both cases the
+    environment variable advice is misleading and the reader cannot act on it.
+    """
+    if sys.platform != "darwin":
+        return (
+            "Translation is not set up on this machine, so the original text is being read. "
+            "Point MURMUR_TRANSLATE_URL at a local model, or turn off Settings \u2192 "
+            "Translate to voice language."
+        )
+
+    version = platform.mac_ver()[0] or ""
+    try:
+        major = int(version.split(".")[0])
+    except ValueError:
+        major = 0
+    if major and major < 26:
+        return (
+            f"Apple Translation needs macOS 26 or newer; this Mac runs macOS {version}. "
+            "The original text is being read - turn off Settings \u2192 Translate to voice "
+            "language, or point MURMUR_TRANSLATE_URL at a local model."
+        )
+    return (
+        "This build has no Apple translation helper, so the original text is being read. "
+        "Rebuild on a Mac with the macOS 26 SDK, point MURMUR_TRANSLATE_URL at a local "
+        "model, or turn off Settings \u2192 Translate to voice language."
+    )
 
 
 class TranslatorChain:
