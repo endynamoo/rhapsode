@@ -11,6 +11,10 @@ fails when that copy is stale.
 
 ## [Unreleased]
 
+### Fixed
+
+- RTF import falls back to the built-in reader when `textutil` cannot parse the file, so an unclosed RTF no longer arrives as an empty document.
+
 ## [0.2.0-alpha] - 2026-11-18
 
 ### Added
