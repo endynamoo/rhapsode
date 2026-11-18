@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS = {
   remoteAccess: false,
   translateToVoice: true,
   filmQuality: 'high',
+  autoGenerate: false,
 };
 
 const LANG_NAMES = {
@@ -368,6 +369,17 @@ function bindUI() {
     applySettings();
     toast(next ? 'Polish pass on - each still is re-drawn once' : 'Polish pass off - stills are painted once');
   });
+  $('#setAutoGenerate').addEventListener('click', async () => {
+    const next = $('#setAutoGenerate').getAttribute('aria-checked') !== 'true';
+    await saveSettings({ autoGenerate: next });
+    // Turning it off stops new auto work; the running chapter keeps painting
+    // and its own Cancel stays the way to stop it.
+    if (!next) state.cinema.autoRun = null;
+    applySettings();
+    toast(next
+      ? 'Auto Generate on - chapters queue in order after the one you start'
+      : 'Auto Generate off - each chapter asks before it queues');
+  });
   $('#setAutoScroll').addEventListener('click', () => {
     state.settings.autoScroll = !state.settings.autoScroll;
     state.autoScroll = state.settings.autoScroll;
@@ -595,6 +607,7 @@ function applySettings() {
   $('#setRemote').setAttribute('aria-checked', String(!!s.remoteAccess));
   $('#setTranslate').setAttribute('aria-checked', String(s.translateToVoice !== false));
   $('#setPolish').setAttribute('aria-checked', String(s.polishStills !== false));
+  $('#setAutoGenerate').setAttribute('aria-checked', String(!!s.autoGenerate));
   syncVoiceSelects();
   $('#speedSel').value = String(state.speed);
   if (state.doc && state.doc.viewer === 'epub' && state.view === 'page' && !$('#pageView').hidden) {
@@ -2213,6 +2226,23 @@ function renderFilmQueue() {
     element.append(head, bar, actions);
     box.appendChild(element);
   }
+
+  // One obvious way to stop auto work: only queued auto jobs are drained, the
+  // running chapter keeps its own Cancel. It hides once there is nothing left to
+  // cancel, so the row does not linger beside a chapter that is still painting.
+  const autoActive = jobs.some(
+    (job) => job.auto && !['done', 'error', 'cancelled'].includes(job.state)
+  );
+  const autoQueued = jobs.some((job) => job.auto && job.state === 'queued');
+  if (autoQueued || (state.cinema.autoRun && autoActive)) {
+    const foot = document.createElement('div');
+    foot.className = 'film-job-actions';
+    const stop = document.createElement('button');
+    stop.dataset.stopAuto = '1';
+    stop.textContent = 'Stop auto-generation';
+    foot.appendChild(stop);
+    box.appendChild(foot);
+  }
 }
 
 function startFilmPolling() {
@@ -2236,6 +2266,7 @@ async function pollFilms() {
       Object.assign(job, status);
       if (status.state === 'done' && !wasDone) {
         toast(`Chapter ${job.chapter + 1} film ready`);
+        continueAutoRun(job);
       } else if (status.state === 'error') {
         toast(status.error || `Chapter ${job.chapter + 1} film failed`, 'error', 6000);
       }
@@ -2248,6 +2279,21 @@ async function pollFilms() {
 }
 
 async function onFilmQueueClick(event) {
+  const stopAuto = event.target.closest('[data-stop-auto]');
+  if (stopAuto) {
+    state.cinema.autoRun = null;
+    try {
+      const result = await api('/api/film/stop-auto', { method: 'POST' });
+      const stopped = result.stopped || 0;
+      toast(stopped
+        ? `Stopped ${stopped} queued chapter${stopped === 1 ? '' : 's'} — the one painting continues`
+        : 'No queued chapters to stop — the current one continues');
+    } catch (err) {
+      toast(err.message || 'Could not stop auto-generation', 'error');
+    }
+    renderFilmQueue();
+    return;
+  }
   const cancel = event.target.closest('[data-cancel]');
   if (cancel) {
     const id = cancel.dataset.cancel;
@@ -2577,27 +2623,73 @@ async function makeFilm() {
     toast(err.message || 'Could not plan the chapter film', 'error');
     return;
   }
-  const perImage = state.settings.filmQuality === 'fast' ? 35 : 120;
-  const minutes = Math.max(1, Math.round(((plan.scenes || []).length * perImage) / 60));
-  const quality = state.settings.filmQuality === 'fast' ? 'Fast' : 'High / manga · 1080p';
-  if (!confirm(
-    `Create a film for chapter ${chapter + 1}?\n\n` +
-    `${(plan.scenes || []).length} key images · ${quality}\n` +
-    `Estimated ${minutes} min for images, then encoding.`
-  )) return;
+  const auto = !!state.settings.autoGenerate;
+  if (!auto) {
+    const perImage = state.settings.filmQuality === 'fast' ? 35 : 120;
+    const minutes = Math.max(1, Math.round(((plan.scenes || []).length * perImage) / 60));
+    const quality = state.settings.filmQuality === 'fast' ? 'Fast' : 'High / manga · 1080p';
+    if (!confirm(
+      `Create a film for chapter ${chapter + 1}?\n\n` +
+      `${(plan.scenes || []).length} key images · ${quality}\n` +
+      `Estimated ${minutes} min for images, then encoding.`
+    )) return;
+  }
   try {
-    const job = await api(`/api/docs/${state.doc.id}/film`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chapter, voice: state.voice }),
-    });
-    state.cinema.jobs.set(job.id, { ...job, chapter });
-    renderFilmQueue();
-    startFilmPolling();
-    toast(`Chapter ${chapter + 1} queued — you can keep reading or film another chapter`);
+    await queueChapterFilm(chapter, plan, auto);
+    toast(auto
+      ? `Chapter ${chapter + 1} queued — the remaining chapters follow when this one finishes`
+      : `Chapter ${chapter + 1} queued — you can keep reading or film another chapter`);
   } catch (err) {
     toast(err.message, 'error');
   }
+}
+
+/* One queue, in chapter order. `plan` is passed only to skip a second round-trip
+   when the caller already has it; the server clamps the chapter and reuses a
+   rendered film, so continuing through finished chapters costs one request each. */
+async function queueChapterFilm(chapter, plan = null, auto = false) {
+  if (!state.doc) return null;
+  if (plan === null) {
+    plan = await api(`/api/film/plan?doc=${encodeURIComponent(state.doc.id)}&chapter=${chapter}`);
+  }
+  const job = await api(`/api/docs/${state.doc.id}/film`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chapter, voice: state.voice, auto }),
+  });
+  state.cinema.jobs.set(job.id, { ...job, chapter });
+  if (auto) {
+    const last = Math.max(0, (plan.chapters || 1) - 1);
+    state.cinema.autoRun = { docId: state.doc.id, next: chapter + 1, last };
+  }
+  renderFilmQueue();
+  startFilmPolling();
+  return job;
+}
+
+/* Auto mode continues only for the book still open and only while the setting
+   is on: turning Auto Generate off stops new work without touching the job that
+   is already painting. */
+function continueAutoRun(job) {
+  const run = state.cinema.autoRun;
+  if (!run || !job.auto || !state.settings.autoGenerate) return false;
+  if (!state.doc || run.docId !== state.doc.id) { state.cinema.autoRun = null; return false; }
+  if (run.next > run.last) {
+    state.cinema.autoRun = null;
+    toast('Auto Generate finished the remaining chapters');
+    return false;
+  }
+  const busy = [...state.cinema.jobs.values()].some(
+    (queued) => queued.chapter === run.next && !['done', 'error', 'cancelled'].includes(queued.state)
+  );
+  if (busy) return false;
+  const chapter = run.next;
+  run.next += 1;
+  queueChapterFilm(chapter, null, true).catch((err) => {
+    state.cinema.autoRun = null;
+    toast(err.message || `Could not queue chapter ${chapter + 1}`, 'error');
+  });
+  return true;
 }
 
 function updateTranslationBar() {
