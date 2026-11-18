@@ -228,6 +228,7 @@ function bindUI() {
     })
   );
   $('#themeBtn').addEventListener('click', toggleTheme);
+  $('#engineState').addEventListener('click', () => checkEngine());
   $('#settingsBtn').addEventListener('click', openSettings);
   $('#searchBtn').addEventListener('click', openSearch);
   wireEngine();
@@ -526,6 +527,15 @@ async function checkEngine() {
       el.querySelector('span').textContent = `Kokoro-82M${ocr}`;
       el.title = `${health.voices} voices · on-device`;
       $('#cacheInfo').textContent = cacheLabel(health.cache);
+    } else if (health.modelError) {
+      // Say what is wrong instead of loading forever: the pill used to spin on a
+      // voice model that was never going to appear. Keep a slow poll going so a
+      // bootstrap that finishes while the app is open heals it by itself.
+      el.classList.remove('is-loading');
+      el.classList.add('is-error');
+      el.querySelector('span').textContent = 'Voice model missing';
+      el.title = `${health.modelError} Click to retry.`;
+      setTimeout(checkEngine, 5000);
     } else {
       el.classList.add('is-loading');
       el.querySelector('span').textContent = 'Loading voice model…';

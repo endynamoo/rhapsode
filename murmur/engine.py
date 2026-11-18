@@ -52,6 +52,7 @@ class TTSEngine:
                 )
             self._model = Kokoro(str(config.MODEL_PATH), str(config.VOICES_PATH))
             self._model_version = config.MODEL_PATH.stat().st_mtime
+            self.last_error = None
             # Warm the graph so the first real sentence is not slow.
             try:
                 self._model.create("Hello.", voice=DEFAULT_VOICE, speed=1.0, lang="en-us")
@@ -194,6 +195,21 @@ class TTSEngine:
                 self.last_error = str(exc)
 
         threading.Thread(target=_run, name="kokoro-warmup", daemon=True).start()
+
+    def recheck(self) -> None:
+        """Re-arm the load once the weights land on disk.
+
+        A first run has no weights, so the warmup fails and the reason is kept
+        for `/api/health`. `python -m murmur.bootstrap` can then finish while the
+        app is still open — without this, that cached reason outlived the cause
+        and the pill sat on "Loading voice model…" until a restart.
+        """
+        if self._model is not None or self.last_error is None:
+            return
+        if not (config.MODEL_PATH.exists() and config.VOICES_PATH.exists()):
+            return
+        self.last_error = None
+        self.warm_async()
 
 
 def prune_cache(limit: int | None = None) -> int:
