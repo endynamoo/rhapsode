@@ -34,13 +34,9 @@ def prepare(text: str, voice: str, enabled: bool = True) -> dict:
         return result
 
     if not translate.translator.available():
-        # Nothing to translate with: read the original text and say so once, in
-        # words that fit every platform.
-        result["error"] = (
-            "Translation is not set up on this machine, so the original text is "
-            "being read. Point MURMUR_TRANSLATE_URL at a local model, or turn off "
-            "Settings → Translate to voice language."
-        )
+        # Nothing to translate with: read the original text and say why, in words
+        # that fit this platform (the macOS cause is a missing helper or macOS < 26).
+        result["error"] = translate.missing_advice()
         return result
 
     try:

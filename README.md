@@ -144,6 +144,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 **Fixed**
 
 - RTF import falls back to the built-in reader when `textutil` cannot parse the file, so an unclosed RTF no longer arrives as an empty document.
+- On macOS the "translation is not set up" warning names the real cause — Apple Translation needs macOS 26, or this build shipped without the Swift helper — instead of telling the reader to set an environment variable they have no reason to know.
 
 ### 0.2.0-alpha - 2026-11-18
 
@@ -152,8 +153,13 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 - Linux is verified on a clean runner: `.github/workflows/linux.yml` runs the unit suite, then a real `python -m murmur` server with Tesseract as the OCR backend, asserting `/api/health` is healthy and remote access is off.
 - macOS release builds on clean runners: `.github/workflows/macos.yml` builds and self-tests the `.app` for arm64 (`macos-latest`) and x86_64 (`macos-15-intel`), wraps each in a drag-install DMG, and attaches both to a `v*` release; the Windows installer workflow attaches its Setup.exe the same way.
 - `scripts/make_dmg.sh` for a local drag-install DMG.
-- Search across your whole library with `Ctrl+F` / `⌘F` or the magnifier: results grouped by book, the matching passage marked, and a jump straight to that sentence, chapter or page. Keywords work with nothing extra installed; the optional 23 MB meaning model (Apache-2.0, CPU only) is offered as a download in the panel and can be switched off with `MURMUR_SEMANTIC=off`.
-- "Read this week" and "Read this month" filters for search, based on when a book was actually opened or its position saved.
+
+### 0.1.0-alpha - 2026-11-16
+
+**Added**
+
+- First Windows-capable build of the reader and stills app: PDF, EPUB, DOCX, RTF, TXT, Markdown and HTML imports.
+- OCR through Windows' own engine, and translation through any local OpenAI-compatible server.
 
 *...and 37 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
