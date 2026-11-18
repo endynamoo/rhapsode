@@ -13,6 +13,8 @@ fails when that copy is stale.
 
 ### Added
 
+
+- `docs/ARCHITECTURE.md` ends with **the decisions and the roads not taken**: loopback HTTP instead of Electron/Tauri, SQLite + FTS5 instead of a vector database, no telemetry, weights downloaded rather than bundled, the painter as a child process with a lock and a budget, polled jobs, one segmentation shared by speech/highlight/film/search, and the changelog living in the repository — each with what was rejected and what the choice costs.
 - A browser smoke suite (`tests/ui/test_smoke.py`, Playwright) covering the library, opening a book, search, the theme dropdown, the Auto Generate switches and adding a document through the modal. It starts its own server on a throwaway data directory, runs in CI on Linux, and skips itself when playwright is not installed.
 - **Auto Generate** in Settings (off by default): once you start a chapter film, the remaining chapters queue after it, one at a time, without a confirmation per chapter. A **Stop auto-generation** button drains the queued chapters and leaves the one already painting alone.
 - Cinema reports what the stills engine is actually doing — planning, loading the model, painting, cleaning up, polishing, or showing a placeholder — instead of one static "Painting scene…", with the backend, model and profile on screen and a Retry button when a scene fails.
