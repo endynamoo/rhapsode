@@ -458,7 +458,12 @@ Sections 0-9 are about installing and running. This section is about changing th
 - **Tests.** `python -m unittest discover -s tests -v`. Quote the summary line in your
   report. The suite excludes the TTS weights, the film stack, pywebview and `winsdk`, so
   green CI does not prove the app runs - say which manual step you did instead of implying
-  it was verified.
+  it was verified. The browser suite is separate: `pip install "playwright>=1.47"` and
+  `python -m playwright install chromium`, then `python -m unittest tests.ui.test_smoke -v`.
+  It boots its own server on a throwaway `MURMUR_HOME`, so it needs the runtime
+  requirements, not just the test ones; on Windows, `set PLAYWRIGHT_CHANNEL=msedge` reuses
+  the installed Edge instead of downloading Chromium. Those tests skip themselves when
+  playwright is missing.
 - **Report shape.** What changed (files), what you ran, what the output was, and what you
   did **not** verify. Never describe unverified work as working.
 - **Data.** Never delete or rewrite the library directory, `*.db`, or downloaded weights to

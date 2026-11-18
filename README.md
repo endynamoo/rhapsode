@@ -112,7 +112,8 @@ supervised sessions. Architecture, standards, and the decision about what ships
 stayed with one person, who keeps that director's role in every program here.
 
 That director reviewed the work as thoroughly as they could, and the repo is built
-so the claims are checkable rather than taken on faith: 158 tests in `tests/`, the
+so the claims are checkable rather than taken on faith: 203 tests in `tests/` (6 of
+them browser-driven), the
 end-to-end checklist in [AGENTS.md](AGENTS.md) §6, and an architecture document
 that spells out the API surface and the security model.
 
@@ -139,13 +140,13 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 **Added**
 
+- A browser smoke suite (`tests/ui/test_smoke.py`, Playwright) covering the library, opening a book, search, the theme dropdown, the Auto Generate switches and adding a document through the modal. It starts its own server on a throwaway data directory, runs in CI on Linux, and skips itself when playwright is not installed.
 - **Auto Generate** in Settings (off by default): once you start a chapter film, the remaining chapters queue after it, one at a time, without a confirmation per chapter. A **Stop auto-generation** button drains the queued chapters and leaves the one already painting alone.
 - Cinema reports what the stills engine is actually doing — planning, loading the model, painting, cleaning up, polishing, or showing a placeholder — instead of one static "Painting scene…", with the backend, model and profile on screen and a Retry button when a scene fails.
 
 **Changed**
 
 - The server's system routes (health, engine profile, settings, voices, fonts, speech, audio, the event stream, quick read and clipboard OCR) moved out of `server.py` into `murmur/system_api.py`, and the "is this caller local, and which token did it present" logic into `murmur/access.py`.
-- The `/api/docs` routes — add text, upload a file, import a URL, PDF page images and word boxes, EPUB chapters and assets, patch and delete — moved into `murmur/library_api.py`, with the PDFium lock and the chapter theming helpers. `server.py` is 1,080 lines down to 253: the app, the access guard, audio export and the static mounts. No route, status code or response body changed by either move.
 
 ### 0.2.0-alpha - 2026-11-18
 
@@ -159,6 +160,6 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - First Windows-capable build of the reader and stills app: PDF, EPUB, DOCX, RTF, TXT, Markdown and HTML imports.
 
-*...and 49 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 50 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
