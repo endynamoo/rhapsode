@@ -135,7 +135,7 @@ is in [THIRD_PARTY.md](THIRD_PARTY.md).
 
 Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is generated from it by `scripts/changelog_render.py`, so edit the changelog, not this copy.
 
-### Unreleased
+### 0.2.0-alpha - 2026-11-18
 
 **Added**
 

@@ -11,6 +11,8 @@ fails when that copy is stale.
 
 ## [Unreleased]
 
+## [0.2.0-alpha] - 2026-11-18
+
 ### Added
 
 - Linux is verified on a clean runner: `.github/workflows/linux.yml` runs the unit suite, then a real `python -m murmur` server with Tesseract as the OCR backend, asserting `/api/health` is healthy and remote access is off.
@@ -21,6 +23,12 @@ fails when that copy is stale.
 - Live progress for library indexing and the model download, plus an Index library button; an interrupted index resumes where it stopped instead of duplicating rows.
 - Troubleshooting page in the app: the three guards, where the logs live, and what was already fixed.
 - The RAM probe the painting guard calls, and the RAM it measured shown in Settings.
+- Named engine profiles (`lite`, `balanced`, `max`, `cpu`) with auto-install, and an Engine panel in Settings: profile summary, painter status and Restart engine.
+- Stills polish pass: pose detection, a masked redraw of the hands, off by default, reported in `/api/health`.
+- q4 GGUF transformer path — FLUX.2 klein on an 8 GB card, precision tier chosen from free VRAM.
+- Resident painter: one model load per session, guarded by a lock that survives restarts.
+- Instrumentation for the painter and the model caches; health reports the painter's precision.
+- Measured q4 numbers and per-card precision tiers in the docs.
 
 ### Changed
 
@@ -32,6 +40,8 @@ fails when that copy is stale.
 - The README front page states what actually ships: the per-user Windows installer, ROCm stills, and the real test count.
 - The generated changelog block no longer repeats the "Changelog" heading above it.
 - `AGENTS.md` is plain UTF-8 text again, so its arrows and dashes render as arrows and dashes.
+- Hot caches are memory-resident and the database connection is shared.
+- The installer says when to prefer the shared-card profile.
 
 ### Fixed
 
@@ -43,25 +53,6 @@ fails when that copy is stale.
 - A still that is already painted is never repainted on a later session.
 - Both halves of the app log to file, because the window and the server have each died silently.
 - The engine switch posts JSON — the shared api helper sets no content type.
-
-## [0.2.0-alpha] - 2026-11-17
-
-### Added
-
-- Named engine profiles (`lite`, `balanced`, `max`, `cpu`) with auto-install, and an Engine panel in Settings: profile summary, painter status and Restart engine.
-- Stills polish pass: pose detection, a masked redraw of the hands, off by default, reported in `/api/health`.
-- q4 GGUF transformer path — FLUX.2 klein on an 8 GB card, precision tier chosen from free VRAM.
-- Resident painter: one model load per session, guarded by a lock that survives restarts.
-- Instrumentation for the painter and the model caches; health reports the painter's precision.
-- Measured q4 numbers and per-card precision tiers in the docs.
-
-### Changed
-
-- Hot caches are memory-resident and the database connection is shared.
-- The installer says when to prefer the shared-card profile.
-
-### Fixed
-
 - Hand repair works against quantized weights, accepts wrists only inside the person's box, and the arm-ratio flag is relaxed.
 - A placeholder card is treated as missing art everywhere; `probe_imports` got its `pathlib` import back.
 
