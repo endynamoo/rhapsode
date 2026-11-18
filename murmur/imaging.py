@@ -117,6 +117,20 @@ class PlaceholderBackend(ImageBackend):
 _SHARED_WORKER: "FluxWorker | None" = None
 
 
+def _painter_command(python: Path, script: Path, *args: str) -> list[str]:
+    """The painter's command line, always with -I.
+
+    `-I` makes the child isolated: it implies -P (no script directory on
+    sys.path) and -s (no user site-packages). Without it, `import profile`
+    resolves to `murmur/profile.py` because sys.path[0] is the script's own
+    folder, and torch's import of cProfile then dies with "module 'profile' has
+    no attribute 'run'". A frozen build ships fluxgen.py where no sibling
+    profile.py exists, so only a source install could ever hit it - which is
+    why it survived this long.
+    """
+    return [str(python), "-I", str(script), *args]
+
+
 class FluxWorker:
     """A resident `fluxgen --serve` painter: one model load per app session.
 
@@ -159,8 +173,14 @@ class FluxWorker:
             err = open(config.HOME / "painter.log", "a", encoding="utf-8", buffering=1)
         except OSError:
             err = subprocess.DEVNULL
+        # -I runs the painter isolated: no script-directory on sys.path and no
+        # user site-packages. Without it `import profile` resolves to
+        # murmur/profile.py instead of the stdlib (sys.path[0] is the script's
+        # folder), and torch's own import of cProfile then dies with
+        # "module 'profile' has no attribute 'run'" - a source install could
+        # never paint a still, while a frozen build never saw it.
         process = proc.popen(
-            [str(self.python), str(self.script), "--serve"],
+            _painter_command(self.python, self.script, "--serve"),
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=err,
@@ -324,7 +344,7 @@ class FluxPythonBackend(ImageBackend):
         env = dict(os.environ)
         env.setdefault("HF_HOME", str(config.HOME / "models" / "hf"))
         command = [
-            str(self.python), str(script),
+            *_painter_command(self.python, script),
             "--prompt", job["prompt"],
             "--width", str(job["width"]), "--height", str(job["height"]),
             "--seed", str(job["seed"]),
