@@ -199,9 +199,12 @@ hides child console windows and adopts children into a kill-on-close job.
 search metadata.
 
 **Speech** — `engine.py` is Kokoro inference plus the wav/meta cache; `voices.py`
-is the voice table; `speak.py` decides whether a sentence must be translated
-first; `translate.py` chains the macOS helper and the OpenAI-compatible HTTP
-endpoint; `backends/tts.py` picks the ONNX execution provider.
+is the voice table; `language.py` says which language a sentence is in (script
+ranges plus a function-word profile, no model); `speak.py` decides whether a
+sentence must be translated first, and only translates when `language.py` says
+the text is *not* already the voice's language; `translate.py` chains the macOS
+helper and the OpenAI-compatible HTTP endpoint; `backends/tts.py` picks the ONNX
+execution provider.
 
 **Stills and films** — `film.py` (1.7k) plans scenes, composes prompts, paints and
 renders; `imaging.py` owns the backends and the resident painter; `fluxgen.py`
