@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import unittest
 
-from murmur import extract, fonts, server
+from murmur import extract, fonts, library_api
 
 
 class FontListTests(unittest.TestCase):
@@ -20,25 +20,25 @@ class FontListTests(unittest.TestCase):
 
 class ChapterStyleTests(unittest.TestCase):
     def test_hex_colors_pass_and_bad_values_fall_back(self) -> None:
-        self.assertEqual(server._color("#A1b2C3", "#000000"), "#A1b2C3")
-        self.assertEqual(server._color("red", "#000000"), "#000000")
-        self.assertEqual(server._color("", "#000000"), "#000000")
-        self.assertEqual(server._color("url(evil)", "#000000"), "#000000")
+        self.assertEqual(library_api._color("#A1b2C3", "#000000"), "#A1b2C3")
+        self.assertEqual(library_api._color("red", "#000000"), "#000000")
+        self.assertEqual(library_api._color("", "#000000"), "#000000")
+        self.assertEqual(library_api._color("url(evil)", "#000000"), "#000000")
 
     def test_font_stack_accepts_named_fonts(self) -> None:
-        stack = server._font_stack("Georgia")
+        stack = library_api._font_stack("Georgia")
         self.assertIn('"Georgia"', stack)
         self.assertIn("sans-serif", stack)
 
     def test_font_stack_strips_css_injection(self) -> None:
-        stack = server._font_stack("Bad;}body{display:none")
+        stack = library_api._font_stack("Bad;}body{display:none")
         self.assertNotIn("}", stack)
         self.assertNotIn(";", stack)
         self.assertIn("sans-serif", stack)
 
     def test_sans_and_serif_keywords_keep_their_stacks(self) -> None:
-        self.assertEqual(server._font_stack("sans"), server.CHAPTER_FONTS["sans"])
-        self.assertEqual(server._font_stack("serif"), server.CHAPTER_FONTS["serif"])
+        self.assertEqual(library_api._font_stack("sans"), library_api.CHAPTER_FONTS["sans"])
+        self.assertEqual(library_api._font_stack("serif"), library_api.CHAPTER_FONTS["serif"])
 
 
 class UrlGuardTests(unittest.TestCase):
