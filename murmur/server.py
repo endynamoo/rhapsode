@@ -167,6 +167,7 @@ def _startup() -> None:
 # ---------------------------------------------------------------- basics
 @app.get("/api/health")
 def health() -> dict:
+    engine.recheck()
     return {
         "ok": True,
         "modelReady": engine.ready,
