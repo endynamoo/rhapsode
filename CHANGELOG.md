@@ -17,6 +17,8 @@ The format follows Keep a Changelog. Add an entry under `## [Unreleased]
 - Cinema reports what the stills engine is actually doing — planning, loading the model, painting, cleaning up, polishing, or showing a placeholder — instead of one static "Painting scene…", with the backend, model and profile on screen and a Retry button when a scene fails.
 
 ### Changed
+- Startup work moved from FastAPI's deprecated `on_event("startup")` hook to a `lifespan` on both the server and the engine sidecar. Same calls, same order - store init, the voice model warm-up, the cache-prune thread, search indexing, the network banner - but a start no longer prints a `DeprecationWarning`. `tests/test_lifespan.py` holds the behaviour: no app registers an `on_event` handler, importing one raises no deprecation, and entering the app's context leaves an initialised store behind.
+### Changed
 
 - The install and build guide is now **[INSTALL.md](INSTALL.md)**, written for a person rather than an automated agent: support status, per-platform prerequisites, GPU notes, verification steps and troubleshooting, unchanged in substance. `AGENTS.md` keeps the rules an agent must work to.
 - The README now reads as an argument rather than a feature list: what it does, **the parts that were actually hard** (phoneme-timed highlight, the two-lane search index, the painter's memory budget, one loopback server), how it was built, and then how to try it — with a link to Releases for the prebuilt Windows installer and macOS DMGs.

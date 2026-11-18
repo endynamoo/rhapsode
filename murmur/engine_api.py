@@ -10,6 +10,7 @@ can point at this service.
 """
 from __future__ import annotations
 
+import contextlib
 import os
 
 from fastapi import FastAPI
@@ -19,13 +20,16 @@ from .backends import detect
 from .engine import cache_stats, engine
 from .film_api import router as film_router
 
-app = FastAPI(title="Murmur Engine", docs_url=None, redoc_url=None)
-app.include_router(film_router)
 
-
-@app.on_event("startup")
-def _startup() -> None:
+@contextlib.asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    """The sidecar has one startup task: make sure the store exists."""
     store.init()
+    yield
+
+
+app = FastAPI(title="Murmur Engine", docs_url=None, redoc_url=None, lifespan=_lifespan)
+app.include_router(film_router)
 
 
 def _health() -> dict:
