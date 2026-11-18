@@ -28,7 +28,9 @@ This is a plan plus the architecture it requires.
   access confirmed off.
 
 Still planned: Linux packages, DirectML/OpenVINO image backends, and signed
-installers.
+installers. The macOS signing and notarization plan is written up in
+[RELEASING.md](RELEASING.md) (issue #24); it is a proposal until a notarized
+build exists.
 
 ---
 
