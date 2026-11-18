@@ -132,5 +132,43 @@ class ChainTests(unittest.TestCase):
             chain.translate("hello", "es")
 
 
+class MissingAdviceTests(unittest.TestCase):
+    """The warning has to name the cause that is actually true on this platform."""
+
+    def test_off_macos_points_at_the_local_endpoint(self) -> None:
+        with mock.patch("sys.platform", "linux"):
+            advice = translate.missing_advice()
+        self.assertIn("MURMUR_TRANSLATE_URL", advice)
+        self.assertNotIn("macOS", advice)
+
+    def test_old_macos_says_apple_translation_needs_26(self) -> None:
+        with mock.patch("sys.platform", "darwin"), mock.patch(
+            "platform.mac_ver", return_value=("14.6.1", ("", "", ""), "")
+        ):
+            advice = translate.missing_advice()
+        self.assertIn("macOS 26 or newer", advice)
+        self.assertIn("14.6.1", advice)
+
+    def test_macos_26_blames_the_build_not_the_reader(self) -> None:
+        with mock.patch("sys.platform", "darwin"), mock.patch(
+            "platform.mac_ver", return_value=("26.0", ("", "", ""), "")
+        ):
+            advice = translate.missing_advice()
+        self.assertIn("no Apple translation helper", advice)
+        self.assertIn("macOS 26 SDK", advice)
+
+    def test_speak_reports_that_advice_instead_of_its_own_wording(self) -> None:
+        from murmur import speak
+
+        with mock.patch.object(
+            translate, "translator", mock.Mock(available=mock.Mock(return_value=False))
+        ), mock.patch("murmur.speak.store.translation_get", return_value=None), mock.patch(
+            "murmur.speak.translate.missing_advice", return_value="advice"
+        ):
+            prepared = speak.prepare("hello", "af_heart", enabled=True)
+        self.assertEqual("advice", prepared["error"])
+        self.assertEqual("hello", prepared["text"])
+
+
 if __name__ == "__main__":
     unittest.main()
