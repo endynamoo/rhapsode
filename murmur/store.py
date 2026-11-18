@@ -68,6 +68,9 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "translateToVoice": True,
     "filmQuality": "high",
     "polishStills": True,
+    # Off by default: a chapter film can hold the GPU for an hour, so the user
+    # opts in rather than discovering it after opening a book.
+    "autoGenerate": False,
 }
 
 
