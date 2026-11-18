@@ -893,6 +893,16 @@ async function removeDoc(doc) {
   }
 }
 
+function idleSubtitle() {
+  // The bar's second line was written once at startup and replaced only when a
+  // clip started, so an open book that had never been played read "Add a
+  // document to begin". These three states are different, and all of them are
+  // visible in a screen recording of the reader.
+  if (!state.doc) return 'Add a document to begin';
+  if (state.finished) return 'Finished - press play to start again';
+  return 'Press play, or click any paragraph to start there';
+}
+
 function showEmpty() {
   $('#empty').hidden = false;
   $('#pageView').hidden = true;
@@ -991,6 +1001,7 @@ async function openDoc(id, { autoplay = false, position = null } = {}) {
   $('#docTitle').textContent = doc.title;
   $('#docMeta').textContent = `${doc.words.toLocaleString()} words · about ${readTime(doc.words)}`;
   $('#nowTitle').textContent = doc.title;
+  $('#nowSub').textContent = idleSubtitle();
   history.replaceState(null, '', `#${doc.id}`);
 
   setCurrentUnit(state.index);
@@ -1338,6 +1349,7 @@ function onAudioEnded() {
     state.finished = true;
     cancelAnimationFrame(state.raf);
     updatePlayerUI();
+    $('#nowSub').textContent = idleSubtitle();
     clearWordHighlight();
     savePosition(true);
     toast('Finished reading');

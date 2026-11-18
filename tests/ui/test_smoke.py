@@ -189,6 +189,11 @@ class SmokeTests(unittest.TestCase):
         self.assertIn("words", meta)
         text = self.page.locator("#reader").inner_text()
         self.assertIn("lantern keeper", text)
+        # The bar must not still be advertising the empty library: that line was
+        # written once at startup and survived opening a book (issue #52).
+        subtitle = self.page.locator("#nowSub").inner_text()
+        self.assertNotIn("Add a document to begin", subtitle, subtitle)
+        self.assertIn("Press play", subtitle, subtitle)
 
     def test_search_finds_a_phrase_in_the_book(self) -> None:
         self.open_app()

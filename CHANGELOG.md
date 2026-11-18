@@ -32,6 +32,8 @@ The format follows Keep a Changelog. Add an entry under `## [Unreleased]
 - `launch.bat` and `zip_and_relaunch.ps1` are no longer tracked. They were local shortcuts, and a repository someone is meant to read should not open with two scripts that only work on the author's machine.
 
 ### Fixed
+- The line under the book title in the player no longer reads *"Add a document to begin"* while a book is open. An unplayed book says *"Press play, or click any paragraph to start there"*, and a finished book says it is finished, instead of the empty-library prompt staying on screen until something is spoken.
+### Fixed
 
 =======
 - The Stills engine panel no longer says *"below the RAM floor - painting will refuse"* while the engine is resident and painting: the floor is a **cold-load** guard, and a resident worker holds the model, so free memory sits under it by design. It now only warns when no worker is running, which is the only time a load can be refused.
