@@ -137,6 +137,10 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 ### Unreleased
 
+**Changed**
+
+- The in-app mark now uses the purple app icon's palette instead of white strokes on near-black, and its halo is purple rather than cyan, so the sidebar, the empty state, the favicon and the installed icon read as one brand.
+
 **Fixed**
 
 - RTF import falls back to the built-in reader when `textutil` cannot parse the file, so an unclosed RTF no longer arrives as an empty document.
@@ -150,8 +154,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 - `scripts/make_dmg.sh` for a local drag-install DMG.
 - Search across your whole library with `Ctrl+F` / `⌘F` or the magnifier: results grouped by book, the matching passage marked, and a jump straight to that sentence, chapter or page. Keywords work with nothing extra installed; the optional 23 MB meaning model (Apache-2.0, CPU only) is offered as a download in the panel and can be switched off with `MURMUR_SEMANTIC=off`.
 - "Read this week" and "Read this month" filters for search, based on when a book was actually opened or its position saved.
-- Live progress for library indexing and the model download, plus an Index library button; an interrupted index resumes where it stopped instead of duplicating rows.
 
-*...and 36 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 37 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
