@@ -202,7 +202,13 @@ def start_film(doc_id: str, payload: dict | None = None) -> dict:
     voice = data.get("voice") or document.get("voice") or DEFAULT_VOICE
     if voice not in VOICES:
         voice = DEFAULT_VOICE
-    return film.start_job(document, chapter, voice)
+    return film.start_job(document, chapter, voice, auto=bool(data.get("auto")))
+
+
+@router.post("/api/film/stop-auto")
+def stop_auto_films() -> dict:
+    """Drain queued auto jobs; the running chapter is left to its own Cancel."""
+    return {"stopped": film.stop_auto()}
 
 
 @router.get("/api/film/{job_id}")

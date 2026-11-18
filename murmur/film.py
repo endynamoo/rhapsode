@@ -97,6 +97,9 @@ JOBS: dict[str, dict] = {}
 _FILM_QUEUE: queue.Queue = queue.Queue()
 _FILM_WORKER_LOCK = threading.Lock()
 _FILM_WORKER: threading.Thread | None = None
+# Bumped by stop_auto(); any queued auto job from an older epoch is dropped.
+_AUTO_LOCK = threading.Lock()
+_AUTO_EPOCH = 0
 
 
 def _estimate(text: str) -> float:
@@ -1756,6 +1759,13 @@ def _film_worker() -> None:
                 if job is not None:
                     job["state"] = "cancelled"
                 continue
+            # Queued before the last "stop auto-generation": drop it now rather
+            # than trust the flag set when it was cancelled.
+            if job.get("auto") and job.get("autoEpoch") != _AUTO_EPOCH:
+                job["state"] = "cancelled"
+                job["phase"] = "cancelled"
+                job["cancelled"] = True
+                continue
             # A chapter holds the GPU for half an hour; let Windows sleep during
             # one of these and the power transition can take the app with it.
             with power.keep_awake():
@@ -1764,9 +1774,11 @@ def _film_worker() -> None:
             _FILM_QUEUE.task_done()
 
 
-def start_job(doc: dict, chapter: int, voice: str) -> dict:
+def start_job(doc: dict, chapter: int, voice: str, auto: bool = False) -> dict:
     chapter = max(0, min(int(chapter), chapter_count(doc) - 1))
     job_id = uuid.uuid4().hex[:12]
+    with _AUTO_LOCK:
+        auto_epoch = _AUTO_EPOCH
     job = {
         "id": job_id,
         "state": "queued",
@@ -1777,11 +1789,38 @@ def start_job(doc: dict, chapter: int, voice: str) -> dict:
         "chapter": chapter,
         "title": doc.get("title", "Murmur"),
         "created": time.time(),
+        # Auto jobs are the ones a "stop auto-generation" may drain; a chapter
+        # the user queued by hand is never touched by it.
+        "auto": bool(auto),
+        "autoEpoch": auto_epoch,
     }
     JOBS[job_id] = job
     _ensure_film_worker()
     _FILM_QUEUE.put((doc, chapter, voice, job_id))
     return job
+
+
+def stop_auto() -> int:
+    """Drain queued auto jobs; the chapter already painting keeps its own Cancel.
+
+    Bumping the epoch is what makes it stick: a job still sitting in the queue is
+    marked cancelled here, and the worker re-checks the epoch when it pops one,
+    so a job queued either side of the call cannot sneak through.
+    """
+    global _AUTO_EPOCH
+    with _AUTO_LOCK:
+        _AUTO_EPOCH += 1
+        epoch = _AUTO_EPOCH
+    stopped = 0
+    for job in list(JOBS.values()):
+        if not job.get("auto") or job.get("autoEpoch", epoch) >= epoch:
+            continue
+        if job.get("state") == "queued" and not job.get("cancelled"):
+            job["cancelled"] = True
+            job["state"] = "cancelled"
+            job["phase"] = "cancelled"
+            stopped += 1
+    return stopped
 
 
 def clear_plan(doc_id: str) -> None:
