@@ -39,21 +39,61 @@ no account, no cloud, no per-word billing.
 Everything stays on the machine: the voice model, the audio cache and the library
 are local files. Nothing is uploaded.
 
-## Install
+## The parts that were actually hard
 
-**macOS** (Apple Silicon or Intel, needs `uv` and `ffmpeg`):
+Most of a reading app is plumbing. Four pieces were not, and they are the reason
+the thing behaves the way it does.
 
-```bash
-./run.sh              # venv, deps, ~340 MB model, then opens http://127.0.0.1:8765
-./build_app.sh        # optional: a real .app bundle
-./scripts/make_dmg.sh # optional: drag-install DMG in dist/
-```
+- **The highlight follows the voice, not a guess.** Kokoro returns per-word
+  timings derived from phonemes, so the reader drives the highlight from those
+  rather than estimating from duration and character count. That is why the
+  words and the voice never drift apart on a long chapter, at 0.75× or at 3×.
+- **Search is two lanes over one index.** SQLite FTS5 gives the keyword lane;
+  an optional 23 MB sentence-embedding model gives the meaning lane. The two
+  rankings are fused with reciprocal rank fusion (`Σ 1/(60 + rank)`) and a
+  recency decay, so a phrase match does not lose to a vaguely similar paragraph.
+  The model is off until you ask for it, and the index is rebuildable at any time.
+- **The painter is a separate process with a budget.** Stills are FLUX.2 [klein]
+  through diffusers on CUDA/ROCm or mflux/MLX on Apple Silicon, quantized on a
+  ladder that trades quality for headroom, and measured at 10.9 GB peak for a
+  832×480 frame in four steps. It refuses to start when the card is already full
+  rather than being killed halfway through a chapter. The numbers are in
+  [docs/STILLS.md](docs/STILLS.md).
+- **One Python process serves the UI on loopback.** FastAPI over 127.0.0.1 with
+  the web UI served from the same origin, server-sent events for cross-tab work,
+  and an optional pywebview shell. No Node runtime, no bundler, no Electron.
 
-**Windows 10/11** (preview). The installer is per-user — no admin prompt — and
-can set up the stills engine during the wizard:
+## How this was built
+
+Rhapsode is AI-assisted software with a human director. Most of the code was
+written by AI models — **DeepSeek V4.1 Flash** and **Qwen 3.8 Flash Next** — working in long
+supervised sessions. Architecture, standards, and the decision about what ships
+stayed with one person, who keeps that director's role in every program here.
+
+That director reviewed the work as thoroughly as they could, and the repo is built
+so the claims are checkable rather than taken on faith: 217 tests in `tests/`
+(6 of them browser-driven), CI on Windows and Linux — the Linux job starts a real
+server and asserts a healthy `/api/health` with remote access off — the
+end-to-end checklist in [INSTALL.md](INSTALL.md) §6, and an
+[architecture document](docs/ARCHITECTURE.md) that spells out the API surface,
+the security model and the decisions behind them.
+
+None of that makes it authority. This is AI-written code with a human editor —
+read it before you depend on it, and look hardest at the parts that handle other
+people's files and the network: document extraction, OCR input, and the
+remote-access token.
+
+## Try it
+
+Releases carry prebuilt artifacts for each platform; the source install works
+everywhere. **[Releases →](https://github.com/endynamoo/rhapsode/releases)**
+
+**Windows 10/11** (preview) — the per-user installer needs no admin rights and can
+build the stills engine during the wizard. Download
+`Rhapsode-<version>-Setup.exe`, or build it yourself with Inno Setup 7:
 
 ```powershell
-.\scripts\build_installer.ps1   # needs Inno Setup 7; writes dist\Rhapsode-<version>-Setup.exe
+.\scripts\build_installer.ps1   # writes dist\Rhapsode-<version>-Setup.exe
 ```
 
 From source (needs `uv` and `ffmpeg`, Python 3.12):
@@ -67,14 +107,23 @@ From source (needs `uv` and `ffmpeg`, Python 3.12):
 and the detectors, and writes `%LOCALAPPDATA%\Rhapsode\engine.json`. Override it
 whenever you like: `.\scripts\setup.ps1 -Profile lite` (or `balanced`, `max`, `cpu`).
 
-**Linux** (preview; needs `uv` and `ffmpeg`):
+**macOS** (Apple Silicon or Intel, needs `uv` and `ffmpeg`) — download the DMG for
+your architecture from Releases, or:
 
 ```bash
-./run.sh              # browser mode; see AGENTS.md Section C for the desktop window
+./run.sh              # venv, deps, ~340 MB model, then opens http://127.0.0.1:8765
+./build_app.sh        # optional: a real .app bundle
+./scripts/make_dmg.sh # optional: drag-install DMG in dist/
+```
+
+**Linux** (preview, source only — there is no packaged build yet):
+
+```bash
+./run.sh              # browser mode; see INSTALL.md Section C for the desktop window
 ```
 
 Step-by-step instructions, per-GPU notes (CUDA, DirectML, ROCm) and the
-verification checklist live in **[AGENTS.md](AGENTS.md)**.
+verification checklist live in **[INSTALL.md](INSTALL.md)**.
 
 ## Documentation
 
@@ -88,7 +137,8 @@ verification checklist live in **[AGENTS.md](AGENTS.md)**.
 | [docs/PLATFORMS.md](docs/PLATFORMS.md) | Windows and Linux port, GPU backends, packaging |
 | [docs/CONCURRENCY.md](docs/CONCURRENCY.md) | Several agents, one repository: worktrees, pushes, cleanup |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branches, commits, pull requests and releases |
-| [AGENTS.md](AGENTS.md) | The install and build guide, written to be followed by an agent |
+| [INSTALL.md](INSTALL.md) | Install, build and verify, platform by platform |
+| [AGENTS.md](AGENTS.md) | The rules an automated agent works to in this repository |
 | [THIRD_PARTY.md](THIRD_PARTY.md) | Dependency, model and license inventory |
 
 ## Platform status
@@ -104,23 +154,6 @@ AMD ROCm is wired into the stills engine through diffusers — measured on an
 RX 9070 XT — while DirectML and Intel OpenVINO are still planned. Details in
 [docs/PLATFORMS.md](docs/PLATFORMS.md).
 
-## How this was built
-
-Rhapsode is AI-assisted software with a human director. Most of the code was
-written by AI models — **DeepSeek V4.1 Flash** and **Qwen 3.8 Flash Next** — working in long
-supervised sessions. Architecture, standards, and the decision about what ships
-stayed with one person, who keeps that director's role in every program here.
-
-That director reviewed the work as thoroughly as they could, and the repo is built
-so the claims are checkable rather than taken on faith: 203 tests in `tests/` (6 of
-them browser-driven), the
-end-to-end checklist in [AGENTS.md](AGENTS.md) §6, and an architecture document
-that spells out the API surface and the security model.
-
-None of that makes it authority. This is AI-written code with a human editor —
-read it before you depend on it, and look hardest at the parts that handle other
-people's files and the network: document extraction, OCR input, and the
-remote-access token.
 
 ## License
 
@@ -136,27 +169,19 @@ is in [THIRD_PARTY.md](THIRD_PARTY.md).
 
 Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is generated from it by `scripts/changelog_render.py`, so edit the changelog, not this copy.
 
-### Unreleased
-
-**Added**
-
-- `docs/ARCHITECTURE.md` ends with **the decisions and the roads not taken**: loopback HTTP instead of Electron/Tauri, SQLite + FTS5 instead of a vector database, no telemetry, weights downloaded rather than bundled, the painter as a child process with a lock and a budget, polled jobs, one segmentation shared by speech/highlight/film/search, and the changelog living in the repository — each with what was rejected and what the choice costs.
-- A browser smoke suite (`tests/ui/test_smoke.py`, Playwright) covering the library, opening a book, search, the theme dropdown, the Auto Generate switches and adding a document through the modal. It starts its own server on a throwaway data directory, runs in CI on Linux, and skips itself when playwright is not installed.
-- **Auto Generate** in Settings (off by default): once you start a chapter film, the remaining chapters queue after it, one at a time, without a confirmation per chapter. A **Stop auto-generation** button drains the queued chapters and leaves the one already painting alone.
-- Cinema reports what the stills engine is actually doing — planning, loading the model, painting, cleaning up, polishing, or showing a placeholder — instead of one static "Painting scene…", with the backend, model and profile on screen and a Retry button when a scene fails.
-
 ### 0.2.0-alpha - 2026-11-18
 
 **Added**
 
 - Linux is verified on a clean runner: `.github/workflows/linux.yml` runs the unit suite, then a real `python -m murmur` server with Tesseract as the OCR backend, asserting `/api/health` is healthy and remote access is off.
+- macOS release builds on clean runners: `.github/workflows/macos.yml` builds and self-tests the `.app` for arm64 (`macos-latest`) and x86_64 (`macos-15-intel`), wraps each in a drag-install DMG, and attaches both to a `v*` release; the Windows installer workflow attaches its Setup.exe the same way.
+- `scripts/make_dmg.sh` for a local drag-install DMG.
+- Search across your whole library with `Ctrl+F` / `⌘F` or the magnifier: results grouped by book, the matching passage marked, and a jump straight to that sentence, chapter or page. Keywords work with nothing extra installed; the optional 23 MB meaning model (Apache-2.0, CPU only) is offered as a download in the panel and can be switched off with `MURMUR_SEMANTIC=off`.
+- "Read this week" and "Read this month" filters for search, based on when a book was actually opened or its position saved.
+- Live progress for library indexing and the model download, plus an Index library button; an interrupted index resumes where it stopped instead of duplicating rows.
+- Troubleshooting page in the app: the three guards, where the logs live, and what was already fixed.
+- The RAM probe the painting guard calls, and the RAM it measured shown in Settings.
 
-### 0.1.0-alpha - 2026-11-16
-
-**Added**
-
-- First Windows-capable build of the reader and stills app: PDF, EPUB, DOCX, RTF, TXT, Markdown and HTML imports.
-
-*...and 52 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 34 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->

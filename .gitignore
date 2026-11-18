@@ -14,3 +14,6 @@ packaging/Murmur.icns
 *.log
 *_err.txt
 selftest_out.txt
+# local launch conveniences, not part of the repository
+launch.bat
+zip_and_relaunch.ps1
