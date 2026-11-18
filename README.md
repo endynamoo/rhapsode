@@ -4,7 +4,7 @@ A read-aloud app that paints manga stills, entirely on your own machine. Drop in
 book, a PDF, a scanned page or a screenshot and it reads to you in a local voice —
 no account, no cloud, no per-word billing.
 
-![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/version-0.2.0--alpha-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml)
+![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/version-0.2.0--alpha-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml) [![linux](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml)
 
 ## What it does
 
@@ -139,6 +139,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 **Added**
 
+- Linux is verified on a clean runner: `.github/workflows/linux.yml` runs the unit suite, then a real `python -m murmur` server with Tesseract as the OCR backend, asserting `/api/health` is healthy and remote access is off.
 - macOS release builds on clean runners: `.github/workflows/macos.yml` builds and self-tests the `.app` for arm64 (`macos-latest`) and x86_64 (`macos-15-intel`), wraps each in a drag-install DMG, and attaches both to a `v*` release; the Windows installer workflow attaches its Setup.exe the same way.
 - `scripts/make_dmg.sh` for a local drag-install DMG.
 - Search across your whole library with `Ctrl+F` / `⌘F` or the magnifier: results grouped by book, the matching passage marked, and a jump straight to that sentence, chapter or page. Keywords work with nothing extra installed; the optional 23 MB meaning model (Apache-2.0, CPU only) is offered as a download in the panel and can be switched off with `MURMUR_SEMANTIC=off`.
@@ -147,11 +148,6 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 - Troubleshooting page in the app: the three guards, where the logs live, and what was already fixed.
 - The RAM probe the painting guard calls, and the RAM it measured shown in Settings.
 
-**Changed**
-
-- The Windows installer and the macOS `.app` read their version from `murmur.__version__`, so a version bump is one line instead of three files.
-- The macOS bundle identifier is `com.endynamoo.rhapsode`, not `local.rhapsode`.
-
-*...and 32 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 34 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->

@@ -23,6 +23,9 @@ This is a plan plus the architecture it requires.
   pywebview, alongside the browser UI.
 - A per-user Windows installer (Inno Setup, no admin prompt), built and
   installed from a clean runner in CI.
+- Linux source install verified on a clean runner: the unit suite, then a real
+  server answering `/api/health` with Tesseract as the OCR backend and remote
+  access confirmed off.
 
 Still planned: Linux packages, DirectML/OpenVINO image backends, and signed
 installers.
