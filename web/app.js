@@ -3499,13 +3499,18 @@ async function refreshEngine() {
   const painter = state.painter || {};
   const job = painter.last_job || {};
   const bits = [];
-  bits.push(painter.running ? 'stills engine running' : 'stills engine idle');
+  let act = null;
   try {
-    const act = await api('/api/film/activity');
-    if (act && act.phase && act.phase !== 'idle') bits.push(sceneActivityLabel(act));
+    act = await api('/api/film/activity');
   } catch (_) {
     /* the profile summary above is still worth showing */
   }
+  // A worker that is still loading its weights is not "idle": the panel used to
+  // read "stills engine idle · Loading the stills engine" at the same time.
+  const starting = painter.running !== true && act && act.phase && act.phase !== 'idle';
+  bits.push(painter.running ? 'stills engine running'
+    : starting ? 'stills engine starting' : 'stills engine idle');
+  if (act && act.phase && act.phase !== 'idle') bits.push(sceneActivityLabel(act));
   if (job.seconds) bits.push(`last still ${job.seconds}s (${job.width}x${job.height}, ${job.steps} steps)`);
   if (job.peak_gib) bits.push(`${job.peak_gib} GiB peak`);
   if (job.free_gib) bits.push(`${job.free_gib} GiB VRAM free after`);
