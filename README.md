@@ -140,6 +140,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 **Fixed**
 
 - RTF import falls back to the built-in reader when `textutil` cannot parse the file, so an unclosed RTF no longer arrives as an empty document.
+- The Windows installer's two task checkboxes share one left edge; splitting them into two group headings had pushed the stills row out of line.
 
 ### 0.2.0-alpha - 2026-11-18
 
@@ -150,8 +151,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 - `scripts/make_dmg.sh` for a local drag-install DMG.
 - Search across your whole library with `Ctrl+F` / `⌘F` or the magnifier: results grouped by book, the matching passage marked, and a jump straight to that sentence, chapter or page. Keywords work with nothing extra installed; the optional 23 MB meaning model (Apache-2.0, CPU only) is offered as a download in the panel and can be switched off with `MURMUR_SEMANTIC=off`.
 - "Read this week" and "Read this month" filters for search, based on when a book was actually opened or its position saved.
-- Live progress for library indexing and the model download, plus an Index library button; an interrupted index resumes where it stopped instead of duplicating rows.
 
-*...and 36 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 37 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
