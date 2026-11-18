@@ -3517,7 +3517,13 @@ async function refreshEngine() {
   const ram = painter.ram || {};
   if (ram.free_gib) {
     bits.push(`${ram.free_gib} GiB RAM free of ${ram.total_gib}`);
-    if (ram.free_gib * 1024 < (ram.floor_mib || 0)) bits.push('below the RAM floor - painting will refuse');
+    // The floor is a cold-load guard: fluxgen refuses to *load* the transformer
+    // below it. While the worker is resident it holds the model, so free RAM is
+    // naturally under the floor and painting is working exactly as intended --
+    // saying "painting will refuse" there contradicted the scene on screen.
+    if (!painter.running && ram.free_gib * 1024 < (ram.floor_mib || 0)) {
+      bits.push('below the RAM floor - the next cold load will refuse');
+    }
   }
   $('#engineStatus').textContent = bits.join(' · ');
 }
