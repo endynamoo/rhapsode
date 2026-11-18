@@ -47,6 +47,42 @@ video model runs anywhere in the app.
   as a soft `mov_text` track so the cut still plays. H.264 + AAC, hardware encoded
   where possible.
 
+## The activity contract
+
+Cinema used to say "Painting scene…" for the whole pipeline, though a cold model
+load can dominate the wait and a placeholder arrives with no explanation. The
+engine now reports what it is doing, and the UI renders that instead of guessing.
+
+`GET /api/film/activity[?doc=…&chapter=…]` returns one object, written where the
+work happens (`murmur/activity.py`, reported by `film.py` and `imaging.py`):
+
+```json
+{
+  "phase": "loading", "detail": "Loading the stills engine - first still this session",
+  "doc": "a1b2", "chapter": 0, "scene": 3,
+  "backend": "flux2-klein-diffusers", "model": "flux2-klein-4b", "profile": "balanced",
+  "coldStart": true, "busy": true, "determinate": false,
+  "queued": 4, "active": 1, "done": 8, "total": 24, "failed": 0, "error": null
+}
+```
+
+- **Phases**: `idle`, `planning`, `reference`, `loading`, `painting`, `cleanup`,
+  `polishing`, `ready`, `placeholder`, `failed` (plus `queued`, which the API
+  derives from the painter's queue for the chapter asked about).
+- **`coldStart`** marks the first still of the session, when the model load is
+  paid; Cinema says "Loading the stills engine" for it, never "painting".
+- **`determinate` is always false**: no backend reports step counts, so the
+  progress bar slides instead of showing a percentage it cannot back up.
+- **`placeholder`** is a terminal phase: the prompt card is served as the scene
+  image, counted as done, and Cinema labels it, so a machine with no stills
+  engine no longer re-plans and repaints the same card on every poll.
+- A failure keeps its `error` (the backend's message, truncated) and Cinema
+  offers **Retry scene** rather than another indistinguishable spinner.
+
+Settings → **Stills engine** reads the same object; it no longer keeps its own
+notion of "running", and the reading engine (Kokoro) is named separately so
+"engine" is not two products in one window.
+
 ## The polish pass
 
 Every painted still gets one **cleanup re-draw** before it is cached: FLUX.2 looks

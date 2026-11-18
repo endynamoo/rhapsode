@@ -16,7 +16,10 @@ from pathlib import Path
 
 import numpy as np
 
-from . import config, engine, imaging, ocr, polish, power, proc, prompts, speak, store
+from . import (activity as activity_state, config, engine, imaging, ocr, polish,
+               power, proc, prompts, speak, store)
+
+activity = activity_state.activity
 
 SCENE_SECONDS = 75.0
 SCENE_MAX_UNITS = 20
@@ -39,6 +42,32 @@ def still_ready(path) -> bool:
         return path.exists() and path.stat().st_size >= imaging.MIN_STILL_BYTES
     except OSError:
         return False
+
+
+def placeholder_path(path):
+    """The marker the painter writes next to a prompt card it could not paint."""
+    return path.with_suffix(path.suffix + ".placeholder")
+
+
+def still_delivered(path) -> bool:
+    """True when this scene has something the reader can look at.
+
+    A placeholder is not art, but it is a delivered result: counting it as
+    missing made Cinema poll, re-plan and repaint the same prompt card forever,
+    and left "Preparing chapter" stuck at 0/N on a machine with no stills engine.
+    """
+    return still_ready(path) or placeholder_path(path).exists()
+
+
+def still_final(path, model: str) -> bool:
+    """True when repainting would only repeat what is already there.
+
+    A placeholder is final only while the placeholder painter is still the best
+    backend: once a real engine appears, the scene must be repainted.
+    """
+    if still_ready(path):
+        return True
+    return placeholder_path(path).exists() and imaging.image_gen.backend(model).name == "placeholder"
 
 
 @dataclass
@@ -888,8 +917,14 @@ def ensure_scene_image(doc: dict, chapter: int, scene: Scene,
     # A still that is already on disk is done. The cleanup below runs at paint
     # time; doing it here meant every chapter render re-painted and re-cropped
     # stills whose gutter detector misfired, which never converged.
-    if still_ready(path):
+    if still_final(path, model):
         return path
+    activity.begin(
+        doc["id"], chapter, scene.index,
+        model=model,
+        backend=imaging.image_gen.backend(model).name,
+        profile=(config.PROFILE or {}).get("profile"),
+    )
     if prompt_override:
         cast = doc_cast(doc, chapter)
         cast_text = "; ".join(
@@ -917,25 +952,34 @@ def ensure_scene_image(doc: dict, chapter: int, scene: Scene,
         if shot in {"establishing wide shot", "detail insert"}:
             sheet = None
         else:
+            activity.phase("reference", "Painting the character reference first")
             sheet = ensure_character_reference(
                 doc, scene, chapter, close=shot == "close-up",
             )
 
-    def generate(text: str, use: int) -> None:
-        imaging.image_gen.generate(
+    def generate(text: str, use: int) -> str:
+        painted = imaging.image_gen.generate(
             text, path, use, width, height,
             init_image=reference if not sheet else None, strength=strength, model=model,
             reference_image=sheet,
+            label=f"Painting scene {scene.index + 1}",
         )
         _finish_still(path)
+        return painted
 
-    generate(prompt, use_seed)
+    if generate(prompt, use_seed) == "placeholder":
+        # A placeholder is a delivered result, not a failure: say so plainly
+        # instead of running gutter cleanup over a prompt card.
+        activity.finish("placeholder", activity_state.placeholder_detail())
+        return path
     if _has_gutter(path):
         generate(
             "ONE single continuous full-bleed manga illustration, one moment, one "
             "camera angle, no split panels, no comic page. " + prompt,
             use_seed + 501,
         )
+    if _has_gutter(path) or _has_lettering(path):
+        activity.phase("cleanup", "Cleaning up borders and lettering")
     if _has_gutter(path):
         if model.startswith("flux"):
             _clean_lettering(path, scene, model, width, height)
@@ -948,10 +992,20 @@ def ensure_scene_image(doc: dict, chapter: int, scene: Scene,
         if _has_gutter(path):
             _crop_gutter(path)
     if still_ready(path):
+        activity.phase("polishing", "Polishing the still")
         try:
             polish.apply(path, prompt)
         except Exception as exc:  # a polish mistake must never lose the still
             polish.note_failure(exc)
+        activity.finish("ready", f"Scene {scene.index + 1} ready")
+    else:
+        # The painter answered without a usable image; downstream would plan the
+        # same still again, so record why instead of reporting a silent success.
+        activity.finish(
+            "failed",
+            f"Scene {scene.index + 1} came back without an image",
+            error="The painter returned no usable image for this scene.",
+        )
     return path
 
 
@@ -1044,10 +1098,17 @@ def regenerate_scene(doc: dict, chapter: int, index: int, mode: str = "whole",
         return _regenerate_region(doc, chapter, scene, path, rect, prompt, seed, model)
     path.unlink(missing_ok=True)
     use_seed = scene.seed + 100003 if seed is None else int(seed)
-    ensure_scene_image(
-        doc, chapter, scene, anchor=True,
-        prompt_override=(prompt.strip() or None), seed=use_seed,
-    )
+    try:
+        ensure_scene_image(
+            doc, chapter, scene, anchor=True,
+            prompt_override=(prompt.strip() or None), seed=use_seed,
+        )
+    except Exception as exc:
+        activity.finish(
+            "failed", f"Scene {scene.index + 1} could not be repainted",
+            error=str(exc).strip()[:300] or exc.__class__.__name__,
+        )
+        raise
     return path
 
 
@@ -1059,6 +1120,7 @@ class ScenePainter:
         self._pending: set[tuple[str, int, int]] = set()
         self._active: set[tuple[str, int, int]] = set()
         self._failed: set[tuple[str, int, int]] = set()
+        self._errors: dict[tuple[str, int, int], str] = {}
         self._lock = threading.Lock()
         self._worker: threading.Thread | None = None
 
@@ -1086,7 +1148,7 @@ class ScenePainter:
                 key = (doc["id"], chapter, scene.index)
                 if key in self._pending:
                     continue
-                if still_ready(scene_image_path(doc["id"], chapter, scene.index, model)):
+                if still_final(scene_image_path(doc["id"], chapter, scene.index, model), model):
                     continue
                 source_index = (start + offset) % max(1, len(scenes))
                 previous = scenes[source_index - 1] if source_index > 0 else None
@@ -1098,6 +1160,7 @@ class ScenePainter:
                 )
                 self._pending.add(key)
                 self._failed.discard(key)
+                self._errors.pop(key, None)
                 self._queue.put((
                     doc, chapter, scene, before,
                     previous.text if previous else "",
@@ -1139,27 +1202,42 @@ class ScenePainter:
             with self._lock:
                 self._active.add(key)
             ok = False
+            error = ""
             try:
                 ensure_scene_image(doc, chapter, scene, before, prev_text, next_text, anchor=anchor)
                 ok = True
-            except Exception:
-                pass
+            except Exception as exc:
+                # Swallowing this left a failed scene indistinguishable from a
+                # slow one until the next poll; keep the reason for the UI.
+                error = str(exc).strip()[:300] or exc.__class__.__name__
             finally:
                 with self._lock:
                     self._pending.discard(key)
                     self._active.discard(key)
                     if ok:
                         self._failed.discard(key)
+                        self._errors.pop(key, None)
                     else:
                         self._failed.add(key)
+                        if error:
+                            self._errors[key] = error
+                if not ok:
+                    activity.finish(
+                        "failed",
+                        f"Scene {scene.index + 1} could not be painted",
+                        error=error or "The stills engine returned no image.",
+                    )
                 self._queue.task_done()
 
     def status(self, doc: dict, chapter: int, scenes: list[Scene]) -> dict:
         model = film_model()[0]
         done = sum(
             1 for scene in scenes
-            if still_ready(scene_image_path(doc["id"], chapter, scene.index, model))
+            if still_delivered(scene_image_path(doc["id"], chapter, scene.index, model))
         )
+        wanted = {
+            (doc["id"], chapter, scene.index): scene.index for scene in scenes
+        }
         with self._lock:
             pending = sum(
                 1 for scene in scenes if (doc["id"], chapter, scene.index) in self._pending
@@ -1167,7 +1245,16 @@ class ScenePainter:
             failed = sum(
                 1 for scene in scenes if (doc["id"], chapter, scene.index) in self._failed
             )
-        return {"done": done, "total": len(scenes), "pending": pending, "failed": failed}
+            active = next((wanted[key] for key in self._active if key in wanted), None)
+            error = next(
+                (self._errors[key] for key in self._failed
+                 if key in wanted and key in self._errors),
+                None,
+            )
+        return {
+            "done": done, "total": len(scenes), "pending": pending,
+            "failed": failed, "active": active, "error": error,
+        }
 
     def clear(self, doc_id: str) -> None:
         with self._lock:
@@ -1176,9 +1263,44 @@ class ScenePainter:
                 if key[0] != doc_id or key in self._active
             }
             self._failed = {key for key in self._failed if key[0] != doc_id}
+            self._errors = {
+                key: value for key, value in self._errors.items() if key[0] != doc_id
+            }
 
 
 painter = ScenePainter()
+
+
+def scene_activity(doc: dict, chapter: int, scenes: list[Scene]) -> dict:
+    """One object for Cinema and Settings: what the painter is doing *now*.
+
+    The activity record is process-wide because there is one painter; the counts
+    come from the painter's own queue for the chapter being asked about, so a
+    still painting in another book cannot be mistaken for this one.
+    """
+    state = activity.snapshot()
+    status = painter.status(doc, chapter, scenes)
+    same = state["doc"] == doc["id"] and state["chapter"] == chapter
+    if not same:
+        state.update(
+            phase="queued" if status["pending"] else "idle",
+            detail="Waiting for the stills engine" if status["pending"] else "",
+            scene=status["active"],
+            error=status["error"],
+            coldStart=False,
+        )
+    state.update(
+        doc=doc["id"],
+        chapter=chapter,
+        queued=status["pending"],
+        active=1 if status["active"] is not None else 0,
+        done=status["done"],
+        total=status["total"],
+        failed=status["failed"],
+        error=state["error"] or status["error"],
+    )
+    state["busy"] = state["phase"] in activity_state.BUSY or state["phase"] == "queued"
+    return state
 
 
 # ── subtitles ───────────────────────────────────────────────────────────────

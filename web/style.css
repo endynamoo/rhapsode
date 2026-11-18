@@ -778,6 +778,32 @@ html[data-mode="light"] .page-stage img { box-shadow: 0 14px 36px rgba(60, 45, 2
   color: rgba(255, 255, 255, .88);
   backdrop-filter: blur(8px);
 }
+.cinema-engine {
+  font-size: 10px;
+  letter-spacing: .04em;
+  color: rgba(255, 255, 255, .62);
+  background: rgba(0, 0, 0, .38);
+  border-radius: 99px;
+  padding: 4px 9px;
+  backdrop-filter: blur(8px);
+}
+.cinema-engine[hidden] { display: none; }
+.cinema-loading .chip {
+  background: rgba(255, 255, 255, .1);
+  border-color: rgba(255, 255, 255, .24);
+  color: #fff;
+  margin-left: 4px;
+}
+/* No backend reports step counts, so a busy still gets a sliding hint rather
+   than a percentage the server cannot back up. */
+.cinema-progress.is-busy i {
+  width: 38%;
+  animation: cinemaSlide 1.35s ease-in-out infinite;
+}
+@keyframes cinemaSlide {
+  from { transform: translateX(-105%); }
+  to { transform: translateX(275%); }
+}
 .cinema-bar .chip:hover { color: #fff; border-color: rgba(255, 255, 255, .32); }
 .cinema-bar .chip:disabled { opacity: .55; pointer-events: none; }
 
@@ -1757,6 +1783,13 @@ body.focus .focus-exit { display: inline-flex; }
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
+  }
+  /* The sliding hint has no end frame worth landing on; show a quiet full bar. */
+  .cinema-progress.is-busy i {
+    width: 100%;
+    transform: none;
+    animation: none !important;
+    opacity: .5;
   }
   .reader-scroll { scroll-behavior: auto; }
 }

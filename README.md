@@ -137,8 +137,14 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 ### Unreleased
 
+**Added**
+
+- Cinema reports what the stills engine is actually doing — planning, loading the model, painting, cleaning up, polishing, or showing a placeholder — instead of one static "Painting scene…", with the backend, model and profile on screen and a Retry button when a scene fails.
+
 **Changed**
 
+- Settings → Engine is now **Stills engine** and reads the same activity object as Cinema, so the two can no longer disagree about what is running.
+- A scene that falls back to the placeholder is treated as delivered: it is shown, counted as done, and labelled, rather than re-planned on every poll.
 - The in-app mark now uses the purple app icon's palette instead of white strokes on near-black, and its halo is purple rather than cyan, so the sidebar, the empty state, the favicon and the installed icon read as one brand.
 
 **Fixed**
@@ -147,20 +153,12 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 - The Windows installer's two task checkboxes share one left edge; splitting them into two group headings had pushed the stills row out of line.
 - On macOS the "translation is not set up" warning names the real cause — Apple Translation needs macOS 26, or this build shipped without the Swift helper — instead of telling the reader to set an environment variable they have no reason to know.
 
-### 0.2.0-alpha - 2026-11-18
-
-**Added**
-
-- Linux is verified on a clean runner: `.github/workflows/linux.yml` runs the unit suite, then a real `python -m murmur` server with Tesseract as the OCR backend, asserting `/api/health` is healthy and remote access is off.
-- macOS release builds on clean runners: `.github/workflows/macos.yml` builds and self-tests the `.app` for arm64 (`macos-latest`) and x86_64 (`macos-15-intel`), wraps each in a drag-install DMG, and attaches both to a `v*` release; the Windows installer workflow attaches its Setup.exe the same way.
-- `scripts/make_dmg.sh` for a local drag-install DMG.
-
 ### 0.1.0-alpha - 2026-11-16
 
 **Added**
 
 - First Windows-capable build of the reader and stills app: PDF, EPUB, DOCX, RTF, TXT, Markdown and HTML imports.
 
-*...and 38 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 41 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
