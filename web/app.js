@@ -3473,7 +3473,7 @@ function onSearchKey(event) {
 function openAdd() {
   $('#addModal').hidden = false;
   switchTab('paste');
-  setTimeout(() => $('#pasteText').focus(), 40);
+  focusSoon('#pasteText');
 }
 
 function openSettings() {
@@ -3631,7 +3631,26 @@ function switchTab(name) {
     t.setAttribute('aria-selected', String(active));
   });
   $$('.panel').forEach((p) => (p.hidden = p.dataset.panel !== name));
-  if (name === 'url') setTimeout(() => $('#urlInput').focus(), 40);
+  if (name === 'url') focusSoon('#urlInput');
+}
+
+/**
+ * Move focus into a field without stealing it back from the user.
+ *
+ * This used to be `setTimeout(..., 40)`, and that timer fired *after* a fast
+ * typist had already clicked the title: their first keystrokes were pulled into
+ * the text box, the title stayed empty, and the document was saved as
+ * "Untitled". The smoke suite caught it on a fast runner for months of nobody
+ * looking; the guard keeps the convenience without the theft.
+ */
+function focusSoon(selector) {
+  requestAnimationFrame(() => {
+    const active = document.activeElement;
+    const onAButton = active && active.tagName === 'BUTTON';
+    if (active && active !== document.body && !onAButton) return;  // the user is already typing
+    const field = $(selector);
+    if (field && field.offsetParent !== null) field.focus();
+  });
 }
 
 function updatePasteCount() {

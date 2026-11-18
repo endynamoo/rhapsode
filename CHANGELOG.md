@@ -32,6 +32,7 @@ The format follows Keep a Changelog. Add an entry under `## [Unreleased]
 
 ### Fixed
 
+- The **Add document** panel no longer steals the first keystrokes from the title. `openAdd()` moved focus into the paste box from a 40 ms timer, so anyone who clicked the title field and started typing had those characters pulled into the text box and their document saved as *"Untitled"*. Focus now moves on the next frame and only when the user is not already in a field.
 - Playback no longer warns "translation is not set up" when nothing needed translating. A new `murmur/language.py` reads the sentence's language first — script ranges decide Japanese, Chinese and Hindi, a function-word profile separates English, Spanish, French, Italian and Portuguese — so an English book read by an English voice never asks for a translation, and the warning appears only when the text really is in another language. `scripts/verify_translation.py` checks every voice language against a running lane.
 - A voice model installed while the app was open no longer leaves the sidebar on "Loading voice model…" forever: the engine re-checks the weights, and if they are genuinely missing the pill says so and names the fix instead of spinning.
 - RTF import falls back to the built-in reader when `textutil` cannot parse the file, so an unclosed RTF no longer arrives as an empty document.
