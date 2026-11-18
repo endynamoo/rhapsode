@@ -1,4 +1,4 @@
-"""Record the demo: one real server, one real browser, one take.
+r"""Record the demo: one real server, one real browser, one take.
 
 The landing page and the README both need moving evidence, and nobody is going to
 screen-record this by hand every release. This script boots the app the way
@@ -10,15 +10,22 @@ the journeys a reader takes, records the whole session, and writes:
     <out>/still-1-library.png
     <out>/still-2-reading.png
     <out>/still-3-search.png
-    <out>/still-4-settings.png
+    <out>/still-4-jump.png
+    <out>/still-5-cinema.png      only when a stills engine is present
+    <out>/still-6-settings.png
 
 It is silent on purpose: playwright records the page, not the sound card. The
 voice is already demonstrated by `tools/make_reader_audio.py` on the site, and a
 muted video autoplays where a sound-on one does not.
 
-The TTS weights are ~340 MB. Point `--models-from` at a directory that already
-has `kokoro-v1.0.onnx` and the script junctions it into the throwaway home
-instead of downloading; without it, run `python -m murmur.bootstrap` first.
+The TTS weights are ~340 MB and the stills weights are several GB. Point
+`--models-from` at a directory that already has `kokoro-v1.0.onnx`; the script
+hard-links it into the throwaway home instead of downloading. The FLUX caches
+(`hf/`) and the stills interpreter are found in `%LOCALAPPDATA%\Rhapsode`
+automatically and can be overridden with `--hf-from` / `--image-venv`; pass
+`--no-cinema` to skip the Manga view entirely. The first still is painted
+*before* recording starts, because a cold engine load is a minute of honest
+progress that would wreck a 65 second take.
 
     python scripts/record_demo.py --models-from "%LOCALAPPDATA%\\Rhapsode\\models"
     set PLAYWRIGHT_CHANNEL=msedge   # reuse Edge instead of downloading Chromium
