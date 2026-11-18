@@ -738,5 +738,157 @@ natural targets for a refactor:
 | `murmur/server.py` | 253 lines | app setup, access guard, audio export, static mounts; the routes live in `library_api.py`, `system_api.py`, `film_api.py` and `search_api.py`. |
 | `murmur/library_api.py` | 510 lines | every `/api/docs` route: ingest, upload, PDF page render and word boxes, EPUB chapters, patch and delete. |
 | `murmur/film.py` | 1.7k lines | planning, prompt writing, painting, polish, and ffmpeg rendering share one module and one queue. |
-| `tests/` | 163 cases | Python only; the UI is verified by hand. |
+| `tests/` | 217 cases | Python only, except six browser journeys in `tests/ui/` that need playwright and skip without it. |
 
+---
+
+## 14. Decisions, and the roads not taken
+
+Every architecture is a set of bets. These are the ones this code makes, what was
+rejected instead, and what each choice costs — written down with the costs, so
+the section can be argued with.
+
+### 14.1 A loopback HTTP server, not a desktop framework
+
+**Chosen:** one Python process serving a FastAPI app on `127.0.0.1`, with the UI
+as plain ES modules fetched from the same origin; `pywebview` optionally wraps
+that origin in a native window.
+
+**Rejected:** Electron or Tauri. Both bring a second language and toolchain into
+a project whose real difficulty is Python packaging and GPU drivers, and both
+bundle a browser the machine already has.
+
+**Why it holds:** the browser is the most-tested renderer available, the same
+code serves plain `localhost` mode for headless use, and SSE covers the one place
+the UI needs a push (`/api/events`, for quick-read). CSP, the access guard and
+`local_host_ok()` (DNS-rebinding defence) keep a local server from becoming a
+remote one.
+
+**What it costs:** no native menus, tray or file associations beyond what
+`desktop.py` does by hand; nine UI views sharing one 3.7k-line script; and the
+app is a web app in a costume, which shows wherever browsers differ.
+
+### 14.2 SQLite and FTS5, not a vector database
+
+**Chosen:** `murmur.db` for the library and `search.db` for the index, both
+SQLite; keyword search over an FTS5 table, meaning search over vectors from an
+optional 23 MB ONNX model, the two fused with reciprocal rank fusion.
+
+**Rejected:** a vector store (Chroma, LanceDB, Qdrant). Each is a dependency with
+its own release cadence, one more thing to install on three platforms, and — for
+a library measured in thousands of chunks — a slower answer than a scan.
+
+**Why it holds:** FTS5 ships inside CPython's `sqlite3`, so keyword search needs
+nothing installed; fusion is `sum(1 / (60 + rank))` over two lists, about twenty
+lines; `sqlite3` gives transactions and crash safety for free.
+
+**What it costs:** no approximate nearest-neighbour index, so the semantic lane is
+linear in chunks and would need rethinking at millions of passages; and the index
+is a second store that has to be rebuilt when it drifts, which is why it is
+*derived* and never migrated by hand.
+
+### 14.3 No telemetry, and nothing leaves the machine
+
+**Chosen:** zero analytics, zero crash reporting, no account. The only network
+traffic is what the user asked for: a weight download, an optional translation
+endpoint, an optional embedding model, or a document imported from a URL.
+
+**Rejected:** anonymous usage stats and Sentry-style crash reporting. They would
+make the product measurably easier to improve, and impossible to describe as
+offline.
+
+**Why it holds:** privacy is the pitch, and a pitch you cannot audit is
+marketing. `/api/network` reports `enabled: false` and `remoteAccess: false` as a
+fact the user can check, and the security model in section 9 is short because the
+surface is.
+
+**What it costs:** a bug report is whatever the reporter types — there is no stack
+trace unless they paste one. That is the honest argument for a **Copy
+diagnostics** affordance (version, platform, the health JSON, the last log
+lines) in the app, and for `docs/TROUBLESHOOTING.md` being written for someone
+debugging their own machine.
+
+### 14.4 Weights are downloaded, never bundled
+
+**Chosen:** the app ships as code; Kokoro (~340 MB), the FLUX transformer and the
+detectors are fetched on first use into the data directory.
+
+**Rejected:** bundling the models. It would turn a 138 MB installer into several
+gigabytes and put third-party weights inside an MIT repository.
+
+**Why it holds:** the installer stays small enough to download on a bad
+connection, the licences stay separable (`THIRD_PARTY.md` audits every weight),
+and a model can be replaced without rebuilding the app.
+
+**What it costs:** first run needs the network and a progress UI that has to be
+honest about size; a failed download is a support burden of its own; and an
+air-gapped machine needs the documented manual path.
+
+### 14.5 The painter is a child process with a lock and a budget
+
+**Chosen:** stills are painted by a separate interpreter (`imaging.py` spawns it,
+`flux-painter.lock` keeps one at a time), on a measured VRAM budget, with a
+quantization ladder and a refusal to start when the card is already full.
+
+**Rejected:** loading the diffusion stack in the server's process. A 10-15 GB
+model load there means one bad frame takes the reader down with it, and a
+CUDA/ROCm `torch` wheel cannot share an interpreter with a stable `onnxruntime`
+build.
+
+**Why it holds:** a crash costs one still rather than the session; the engine can
+live in its own virtualenv with the vendor's torch; and the lock makes "one
+painter per machine" a fact instead of a hope. The numbers behind the budget are
+in [STILLS.md](STILLS.md).
+
+**What it costs:** an IPC boundary (JSON over files and pipes), a startup cost on
+the first still of a session, stale-pid handling in the lock, and progress that
+has to be reported deliberately — which is what `murmur/activity.py` is for.
+
+### 14.6 Jobs are polled, not pushed
+
+**Chosen:** film renders, exports and indexing register a job, answer `202`, and
+the UI polls a status endpoint; one process-wide activity record says what the
+engine is doing.
+
+**Rejected:** websockets and a broker-backed task queue. Both are more moving
+parts than a single-user local app can justify.
+
+**Why it holds:** polling survives sleep, a closed lid and a reloaded tab; the
+same status object feeds Settings, so the UI and the API cannot disagree about
+what is running.
+
+**What it costs:** latency between a state change and the screen, a job registry
+that lives in memory and is lost on restart, and no fan-out beyond one worker.
+
+### 14.7 One segmentation, indexed by everything
+
+**Chosen:** `text.py:split_units` decides what a sentence is, once. Speech, the
+word highlight, film scenes and search anchors all address `units`.
+
+**Rejected:** per-subsystem splitting. Each would be locally simpler and would
+drift, so a highlight would land on a different sentence than the one search
+found.
+
+**Why it holds:** every coordinate in the app — a saved reading position, a scene
+plan, a cached clip, a search hit — is the same kind of number.
+
+**What it costs:** changing the splitter is a breaking change for stored
+positions, plans and clips at once (see the invariants in section 13), so it needs
+a migration story rather than a patch.
+
+### 14.8 The changelog lives in the repository
+
+**Chosen:** `CHANGELOG.md` is the running history, rendered into a truncated block
+at the bottom of the README by `scripts/changelog_render.py`, with a test that
+fails when the copy is stale.
+
+**Rejected:** release notes written at tag time. They get written from memory, by
+whoever is least free, and the repository is then left with no history a reader
+can walk.
+
+**Why it holds:** every change carries its own sentence, in the commit that made
+it; the README shows the newest few without a second copy to maintain.
+
+**What it costs:** the rendered block is a merge-conflict magnet — every parallel
+branch touches it, and the only clean resolution is to take the other side and
+re-render.
