@@ -149,10 +149,12 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 - A scene that falls back to the placeholder is treated as delivered: it is shown, counted as done, and labelled, rather than re-planned on every poll.
 - The in-app mark now uses the purple app icon's palette instead of white strokes on near-black, and its halo is purple rather than cyan, so the sidebar, the empty state, the favicon and the installed icon read as one brand.
 
-**Fixed**
+### 0.2.0-alpha - 2026-11-18
 
-- RTF import falls back to the built-in reader when `textutil` cannot parse the file, so an unclosed RTF no longer arrives as an empty document.
+**Added**
 
-*...and 44 more entries in [CHANGELOG.md](CHANGELOG.md).*
+- Linux is verified on a clean runner: `.github/workflows/linux.yml` runs the unit suite, then a real `python -m murmur` server with Tesseract as the OCR backend, asserting `/api/health` is healthy and remote access is off.
+
+*...and 45 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->

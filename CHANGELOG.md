@@ -26,6 +26,7 @@ fails when that copy is stale.
 
 ### Fixed
 
+- A voice model installed while the app was open no longer leaves the sidebar on "Loading voice model…" forever: the engine re-checks the weights, and if they are genuinely missing the pill says so and names the fix instead of spinning.
 - RTF import falls back to the built-in reader when `textutil` cannot parse the file, so an unclosed RTF no longer arrives as an empty document.
 - The Windows installer's two task checkboxes share one left edge; splitting them into two group headings had pushed the stills row out of line.
 - On macOS the "translation is not set up" warning names the real cause — Apple Translation needs macOS 26, or this build shipped without the Swift helper — instead of telling the reader to set an environment variable they have no reason to know.

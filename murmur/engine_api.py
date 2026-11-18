@@ -29,6 +29,7 @@ def _startup() -> None:
 
 
 def _health() -> dict:
+    engine.recheck()
     return {
         "ok": True,
         "name": "murmur-engine",
