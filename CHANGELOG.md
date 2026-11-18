@@ -11,6 +11,10 @@ fails when that copy is stale.
 
 ## [Unreleased]
 
+### Changed
+
+- The in-app mark now uses the purple app icon's palette instead of white strokes on near-black, and its halo is purple rather than cyan, so the sidebar, the empty state, the favicon and the installed icon read as one brand.
+
 ### Fixed
 
 - RTF import falls back to the built-in reader when `textutil` cannot parse the file, so an unclosed RTF no longer arrives as an empty document.
