@@ -144,9 +144,9 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 - **Auto Generate** in Settings (off by default): once you start a chapter film, the remaining chapters queue after it, one at a time, without a confirmation per chapter. A **Stop auto-generation** button drains the queued chapters and leaves the one already painting alone.
 - Cinema reports what the stills engine is actually doing — planning, loading the model, painting, cleaning up, polishing, or showing a placeholder — instead of one static "Painting scene…", with the backend, model and profile on screen and a Retry button when a scene fails.
 
-**Changed**
+**Fixed**
 
-- The server's system routes (health, engine profile, settings, voices, fonts, speech, audio, the event stream, quick read and clipboard OCR) moved out of `server.py` into `murmur/system_api.py`, and the "is this caller local, and which token did it present" logic into `murmur/access.py`.
+- Playback no longer warns "translation is not set up" when nothing needed translating. A new `murmur/language.py` reads the sentence's language first — script ranges decide Japanese, Chinese and Hindi, a function-word profile separates English, Spanish, French, Italian and Portuguese — so an English book read by an English voice never asks for a translation, and the warning appears only when the text really is in another language. `scripts/verify_translation.py` checks every voice language against a running lane.
 
 ### 0.2.0-alpha - 2026-11-18
 
@@ -160,6 +160,6 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - First Windows-capable build of the reader and stills app: PDF, EPUB, DOCX, RTF, TXT, Markdown and HTML imports.
 
-*...and 50 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 51 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->

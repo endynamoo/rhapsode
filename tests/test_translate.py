@@ -160,14 +160,17 @@ class MissingAdviceTests(unittest.TestCase):
     def test_speak_reports_that_advice_instead_of_its_own_wording(self) -> None:
         from murmur import speak
 
+        # Foreign text: the advice is only warranted when a translation was
+        # actually needed (issue #41 - English into an English voice is silent).
         with mock.patch.object(
             translate, "translator", mock.Mock(available=mock.Mock(return_value=False))
         ), mock.patch("murmur.speak.store.translation_get", return_value=None), mock.patch(
             "murmur.speak.translate.missing_advice", return_value="advice"
         ):
-            prepared = speak.prepare("hello", "af_heart", enabled=True)
+            prepared = speak.prepare("El farero caminaba por la orilla.", "af_heart", enabled=True)
         self.assertEqual("advice", prepared["error"])
-        self.assertEqual("hello", prepared["text"])
+        self.assertEqual("El farero caminaba por la orilla.", prepared["text"])
+        self.assertEqual("es", prepared["source"])
 
 
 if __name__ == "__main__":

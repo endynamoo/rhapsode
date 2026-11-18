@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hashlib
 
-from . import store, translate, voices
+from . import language, store, translate, voices
 
 
 def _cache_key(target: str, text: str) -> str:
@@ -16,6 +16,13 @@ def _cache_key(target: str, text: str) -> str:
 
 
 def prepare(text: str, voice: str, enabled: bool = True) -> dict:
+    """What this voice should say, and whether anything stopped it.
+
+    Translation is needed only when the text is in another language than the
+    voice. Reading a language identifier off the sentence first is what keeps an
+    English book read by an English voice from asking for a translation - and so
+    from reporting that no translation backend exists (issue #41).
+    """
     result = {
         "text": text,
         "translated": False,
@@ -33,19 +40,27 @@ def prepare(text: str, voice: str, enabled: bool = True) -> dict:
         result["translated"] = cached.strip() != text.strip()
         return result
 
+    source = language.detect(text)
+    result["source"] = source or ""
+    if source == result["target"]:
+        # Already the voice's language: nothing to translate and nothing to say.
+        return result
+
     if not translate.translator.available():
-        # Nothing to translate with: read the original text and say why, in words
-        # that fit this platform (the macOS cause is a missing helper or macOS < 26).
-        result["error"] = translate.missing_advice()
+        # Nothing to translate with. Only complain when the sentence is
+        # confidently in *another* language: an unknown answer ("Yes.") is not
+        # evidence that a translation was wanted.
+        if source:
+            result["error"] = translate.missing_advice()
         return result
 
     try:
-        output = translate.translator.translate(text, result["target"])
+        output = translate.translator.translate(text, result["target"], source or "auto")
     except (translate.TranslateUnavailable, translate.TranslateError) as exc:
         result["error"] = str(exc)
         return result
 
-    result["source"] = output.get("source", "")
+    result["source"] = output.get("source", "") or result["source"]
     if output.get("translated") and output.get("text"):
         store.translation_put(key, result["source"], result["target"], text, output["text"])
         result["text"] = output["text"]
