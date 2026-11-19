@@ -71,7 +71,7 @@ are the ones with real consequences, above.
 | `httpx`, `h11` | HTTP client | BSD-3-Clause / MIT |
 | `pypdfium2` / PDFium | PDF text, bookmarks, page rendering | Apache-2.0 / BSD-3-Clause |
 | `python-docx` | DOCX extraction | MIT |
-| `trafilatura`, `justext`, `htmldate`, `courlan`, `lxml` | Article/HTML extraction and date parsing | Apache-2.0 / BSD-3-Clause |
+| `trafilatura`, `justext`, `htmldate`, `courlan`, `lxml` | Article/HTML extraction and date parsing | Apache-2.0 / BSD-2-Clause / BSD-3-Clause |
 | `beautifulsoup4` | HTML/EPUB parsing | MIT |
 | `Pillow` | Image drawing and page images | MIT-CMU |
 | `pillow-heif` | HEIC/HEIF plugin (see `libheif` above) | BSD-3-Clause |
