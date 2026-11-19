@@ -66,6 +66,20 @@ phrased for a user, not for a diff reader.
   answer and hung the command. `check-ladder.ps1` also keeps going when it cannot fetch
   (saying so, and comparing the refs the clone already has) and reads its CI column
   through sentinel's read token instead of the deliberately logged-out `gh` CLI.
+- A scene that failed and was then repainted no longer keeps its old error. Cinema's
+  **Retry** paints in the request thread, so the still landed on disk while the queue
+  still held the earlier failure: the panel reported **"Scene 1 ready"** and
+  *"refusing to paint: only 2.3 GiB of 31 GiB system memory is free"* at the same
+  time, under a still that was right there. A recorded failure now stops counting
+  as soon as the scene has a still to show for it.
+- **Remote access no longer calls this machine a Mac.** The row read "Off — this
+  Mac only", the Tailscale note blamed "this Mac", and five modules filtered the
+  advertised addresses by the literal label `This Mac` — which is wrong on
+  Windows, where remote access is a first-class path. The label is now
+  `netinfo.LOCAL_LABEL` ("This computer") in one place, the panel says "this
+  computer", and the token note points at *the app's data folder* instead of the
+  macOS-only `~/.murmur/access_token`. A test keeps the shared surfaces free of
+  operating-system names.
 - **Assets are revalidated instead of cached by heuristic**, so a reload cannot keep
   running an old `app.js` or view module after the files on disk changed. The
   browser was free to reuse whatever it already held, which made an update look
