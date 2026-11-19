@@ -73,6 +73,17 @@ The translation itself is whatever local model the machine offers. The clip was 
 Translation framework on macOS. Nothing about the picture is retouched - the wording, including
 any word a model leaves in English, is exactly what was spoken.
 
+## Why there is no video on the front page
+
+GitHub plays no video file from a repository inline - in a README a `.mp4` is a link, and
+clicking it opens the file page rather than a player. So the front page shows GIFs only and
+does not link a video it cannot play. The MP4s in this folder are downloads: the same picture at
+the full frame rate, and in the translation clip's case the actual Japanese audio. If a clip
+with sound ever needs to play in the README itself, the file has to be attached through
+GitHub's own uploader (drag it into a comment box, which returns a
+`github.com/user-attachments/assets/...` URL); a release asset or a raw repository path does not
+render a player.
+
 ## The still in `manga.gif`
 
 That still was painted by the local stills engine (FLUX.2 [klein] 4B, `balanced` profile) on

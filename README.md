@@ -71,8 +71,7 @@ you deliberately turn it on and hand out the tokenised link.
 
 Five things that are easier to watch than to read about. Every clip is a recording of this
 build playing text written for the demo - no mock-ups, nothing staged by hand. The files it
-plays, the full-motion MP4 of every clip, and the method that records them are all in
-[docs/demo](docs/demo/README.md).
+plays, and the method that records them, are in [docs/demo](docs/demo/README.md).
 
 **The word being spoken is the word marked.** Kokoro returns phoneme timings, so the mark
 tracks the voice at any speed instead of guessing from the clock, and every sentence paints
@@ -103,8 +102,8 @@ server, the voice from Kokoro; nothing leaves the machine.
 
 <img src="docs/demo/translation.gif" width="880" alt="A Japanese translation bar under an English sentence being read by a Japanese voice">
 
-The GIF is silent: GitHub does not play a video file from a repository inline, so the Japanese
-voice is in [translation.mp4](docs/demo/translation.mp4), the same clip with its audio.
+The GIF is silent - a README cannot play a video file, so this is the picture of the feature
+working, not the sound of it. The voice is Kokoro's Japanese, chosen from the voice menu.
 
 ## The stack, and why this mix
 
@@ -151,7 +150,7 @@ What that buys, in one sentence: it plays as soon as you ask because the clip is
 warm, the mark sits on the word because the timing is the model's own and not an estimate,
 and it works with the network unplugged because every piece above is a file on your disk.
 
-## Try it
+## Install
 
 **[Releases →](https://github.com/endynamoo/rhapsode/releases)** carries prebuilt
 artifacts; the source install works everywhere.
