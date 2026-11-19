@@ -4,7 +4,7 @@ A read-aloud app that paints manga stills, entirely on your own machine. Drop in
 book, a PDF, a scanned page or a screenshot and it reads to you in a local voice —
 no account, no cloud, no per-word billing.
 
-![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/version-0.3.0--beta-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml) [![linux](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml)
+![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/version-0.3.2--beta-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml) [![linux](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml)
 
 ## What it does
 
@@ -177,7 +177,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 **Fixed**
 
-- **A scanned page now marks the word on the page itself**, not only in the caption: the reader asks the on-device recogniser where each word sat, caches those boxes with the page image and draws the mark there. Pages with a real text layer never call it. Apple's Vision reports whole lines, so a scanned page on macOS keeps the caption highlight only.
+- Every sentence now starts with its first word already marked. The clip is held until it can decode, its opening word is highlighted, and only then does the voice start, so a sentence the reader reached by finishing the one before it can no longer begin with the sound a frame or two ahead of the highlight. `tests/ui/test_smoke.py` records what the page looks like at the instant the player is asked to start, and fails if a sentence has no word marked then.
 - The word highlight is bound to the **clip that is actually playing**: each sentence's timings are stored beside the audio it was made for, so a sentence still synthesising while the previous one finishes can no longer lend its word times to the next one under a slow machine. If the highlight still drifts behind the voice after this build, that is a separate measurement and the recording of it is welcome.
 
 ### 0.3.0-beta - 2026-11-19

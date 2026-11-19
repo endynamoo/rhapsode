@@ -15,7 +15,13 @@ phrased for a user, not for a diff reader.
 
 ### Fixed
 
-- **A scanned page now marks the word on the page itself**, not only in the caption: the reader asks the on-device recogniser where each word sat, caches those boxes with the page image and draws the mark there. Pages with a real text layer never call it. Apple's Vision reports whole lines, so a scanned page on macOS keeps the caption highlight only.
+- Every sentence now starts with its first word already marked. The clip is held
+  until it can decode, its opening word is highlighted, and only then does the
+  voice start, so a sentence the reader reached by finishing the one before it can
+  no longer begin with the sound a frame or two ahead of the highlight.
+  `tests/ui/test_smoke.py` records what the page looks like at the instant the
+  player is asked to start, and fails if a sentence has no word marked then.
+
 - The word highlight is bound to the **clip that is actually playing**: each sentence's timings are stored beside the audio it was made for, so a sentence still synthesising while the previous one finishes can no longer lend its word times to the next one under a slow machine. If the highlight still drifts behind the voice after this build, that is a separate measurement and the recording of it is welcome.
 
 ## [0.3.0-beta] - 2026-11-19
