@@ -24,7 +24,8 @@ class DemoClipTests(unittest.TestCase):
         self.readme = README.read_text(encoding="utf-8")
         # GIFs are shown with an <img>, MP4s are linked under them; both are file names
         # with an extension, which keeps prose like "in docs/demo/" out of the set.
-        self.linked = set(re.findall(r"docs/demo/([A-Za-z0-9._-]+\.(?:gif|mp4))", self.readme))
+        self.linked = set(re.findall(
+            r"docs/demo/([A-Za-z0-9._-]+\.(?:gif|mp4|png))", self.readme))
 
     def test_every_linked_clip_exists(self):
         self.assertTrue(self.linked, "the README links no demo clip")
@@ -33,7 +34,8 @@ class DemoClipTests(unittest.TestCase):
                 self.assertTrue((DEMO / name).is_file(), f"docs/demo/{name} is missing")
 
     def test_every_published_clip_is_linked(self):
-        published = {path.name for path in DEMO.glob("*.gif")} | {path.name for path in DEMO.glob("*.mp4")}
+        published = {path.name for path in DEMO.iterdir()
+                     if path.suffix in (".gif", ".mp4", ".png")}
         self.assertEqual(published - self.linked, set(), "a clip ships without being shown")
 
     def test_clips_are_gifs_small_enough_and_animated(self):

@@ -69,9 +69,8 @@ you deliberately turn it on and hand out the tokenised link.
 
 ## In motion
 
-Four things that are easier to watch than to read about. Each clip is a recording of this
-build, playing a three-chapter book written for the demo - no mock-ups, nothing staged by
-hand. The book and the method are in [docs/demo](docs/demo/README.md), and the same clips
+Five things that are easier to watch than to read about. Each clip is a recording of this
+build playing text written for the demo - no mock-ups, nothing staged by hand. The book and the method are in [docs/demo](docs/demo/README.md), and the same clips
 in full motion are beside them as MP4s.
 
 **The word being spoken is the word marked.** Kokoro returns phoneme timings, so the mark
@@ -79,26 +78,36 @@ tracks the voice at any speed instead of guessing from the clock, and every sent
 its first word before the sound starts.
 
 <img src="docs/demo/reading.gif" width="880" alt="Book view playing: the spoken word is marked as the voice reads">
-<sub>[watch the full-motion clip](docs/demo/reading.mp4)</sub>
+[Watch the full-motion clip (MP4)](docs/demo/reading.mp4)
 
 **A scanned page, marked on the page itself.** This PDF has no text layer at all: the page
 is OCR'd, the words are located on the image, and the box follows the voice across it - not
 a caption underneath pretending to be one.
 
 <img src="docs/demo/scanned-page.gif" width="880" alt="A scanned PDF page with the spoken word boxed on the image">
-<sub>[watch the full-motion clip](docs/demo/scanned-page.mp4)</sub>
+[Watch the full-motion clip (MP4)](docs/demo/scanned-page.mp4)
 
 **Search every book at once, by words or by meaning.** Nine passages in 15 ms, grouped by
 book, each snippet showing what matched, and Enter opens that sentence.
 
 <img src="docs/demo/search.gif" width="880" alt="Library search across books with highlighted matches">
-<sub>[watch the full-motion clip](docs/demo/search.mp4)</sub>
+[Watch the full-motion clip (MP4)](docs/demo/search.mp4)
 
 **A chapter drawn while it is read.** Each beat of the text becomes one still, painted
 locally, played against the narration - and the same stills assemble into a chapter film.
 
 <img src="docs/demo/manga.gif" width="880" alt="Manga view: a generated still behind the narration">
-<sub>[watch the full-motion clip](docs/demo/manga.mp4)</sub>
+[Watch the full-motion clip (MP4)](docs/demo/manga.mp4)
+
+**English text, Japanese voice, both on this machine.** With a Japanese voice chosen,
+the sentence is translated first and then read in Japanese - the translation bar shows what is
+being said, and the audio follows it. The translation comes from a local OpenAI-compatible
+server, the voice from Kokoro; nothing leaves the machine. This one is a clip rather than a GIF
+because the point is the voice.
+
+[<img src="docs/demo/translation-poster.png" width="880" alt="A Japanese translation bar under an English sentence being read by a Japanese voice">](docs/demo/translation.mp4)
+
+[Watch with sound (MP4)](docs/demo/translation.mp4)
 
 ## The stack, and why this mix
 
@@ -284,7 +293,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 **Added**
 
-- **Four demo clips, recorded from this build.** The README now shows the reader marking the spoken word, a scanned PDF page marked on the page itself, a library search across three books, and a chapter read over a still the stills engine painted - as GIFs inline and MP4s beside them in `docs/demo/`, with the three-file demo corpus and the recording method published alongside so anyone can reproduce a clip instead of trusting one.
+- **Five demo clips, recorded from this build.** The README now shows the reader marking the spoken word, a scanned PDF page marked on the page itself, a library search across three books, a chapter read over a still the stills engine painted, and an English sentence read in Japanese through a local translation server - the last one with sound, muxed from the audio the app actually played. GIFs inline with the full-motion MP4 beside each, in `docs/demo/`, along with the demo corpus and the recording method, so a clip can be reproduced rather than trusted.
 
 **Changed**
 
@@ -296,13 +305,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - **Licensing now matches what actually ships, and the build is compliant**: `THIRD_PARTY.md` called YuNet MIT (it is Apache-2.0), blamed the MIT `espeakng-loader` for eSpeak's GPL-3.0, and omitted the copyleft inside wheels (libsndfile, libheif, 41 MB of OpenCV FFmpeg we never call). Every download now also carries a `licenses/` folder: the GPL-3.0 and LGPL texts, OpenCV's notice, a `NOTICE.txt` the installer shows, and `SOURCES.md` with versions, upstream links and the written offer. `tests/test_licences.py` keeps it true.
 
-### 0.3.2-beta - 2026-11-19
-
-**Added**
-
-- **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
-
-*...and 98 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 99 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
 

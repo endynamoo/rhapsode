@@ -12,11 +12,13 @@ phrased for a user, not for a diff reader.
 
 ### Added
 
-- **Four demo clips, recorded from this build.** The README now shows the reader marking the
-  spoken word, a scanned PDF page marked on the page itself, a library search across three books,
-  and a chapter read over a still the stills engine painted - as GIFs inline and MP4s beside them
-  in `docs/demo/`, with the three-file demo corpus and the recording method published alongside so
-  anyone can reproduce a clip instead of trusting one.
+- **Five demo clips, recorded from this build.** The README now shows the reader marking the
+  spoken word, a scanned PDF page marked on the page itself, a library search across three
+  books, a chapter read over a still the stills engine painted, and an English sentence read
+  in Japanese through a local translation server - the last one with sound, muxed from the
+  audio the app actually played. GIFs inline with the full-motion MP4 beside each, in
+  `docs/demo/`, along with the demo corpus and the recording method, so a clip can be
+  reproduced rather than trusted.
 
 
 ### Changed
