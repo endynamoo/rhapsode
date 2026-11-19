@@ -56,6 +56,7 @@ for package in (
     "pyopenjtalk",
     "jieba",
     "pypinyin",
+    "pillow_heif",
     "diffusers",
     "transformers",
     "accelerate",

@@ -12,6 +12,7 @@ phrased for a user, not for a diff reader.
 
 ### Fixed
 
+- **HEIC imports work in an installed build**: the frozen app never bundled `pillow-heif`, so a `.heic` file opened from an installer would be refused while the same file worked from a source checkout.
 - **The README badge caught up, and so did three visible messages**: the badge said 0.3.2 while the app said 0.3.3, and the setup banner, the private-access notice and an untitled chapter's exported film still said Murmur - that film now exports as "Rhapsode - chapter 1".
 
 ### Changed
