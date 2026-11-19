@@ -4,7 +4,7 @@
 
 #define AppName        "Rhapsode"
 #ifndef AppVersion
-  #define AppVersion   "0.3.0-beta"
+  #define AppVersion   "0.3.1-beta"
 #endif
 #define AppPublisher   "Anthony Cortez"
 #define AppExe         "Rhapsode.exe"

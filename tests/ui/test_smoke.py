@@ -295,6 +295,26 @@ class SmokeTests(unittest.TestCase):
         # Leave the suite's data folder as it found it.
         httpx.post(f"{self.base}/api/settings", json={"polishFaces": False}, timeout=10)
 
+    def test_the_highlight_switch_flips_and_persists(self) -> None:
+        httpx.put(f"{self.base}/api/settings", json={"highlightWords": True}, timeout=10)
+        self.open_app()
+        self.open_settings()
+        words = self.page.locator("#setHighlightWords")
+        self.assertEqual("true", words.get_attribute("aria-checked"), "highlighting defaults on")
+        words.click()
+        self.page.wait_for_selector("#setHighlightWords[aria-checked='false']")
+        saved = httpx.get(f"{self.base}/api/settings", timeout=10).json()
+        self.assertFalse(saved["highlightWords"], saved)
+        self.page.reload(wait_until="load")
+        self.open_settings()
+        self.assertEqual(
+            "false",
+            self.page.locator("#setHighlightWords").get_attribute("aria-checked"),
+            "the switch is saved through /api/settings, so a reload must keep it",
+        )
+        # Leave the suite's data folder as it found it.
+        httpx.put(f"{self.base}/api/settings", json={"highlightWords": True}, timeout=10)
+
     def test_search_finds_a_phrase_in_the_book(self) -> None:
         self.open_app()
         self.page.click("#searchBtn")

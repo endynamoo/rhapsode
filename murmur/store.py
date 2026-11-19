@@ -66,6 +66,10 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "autoScroll": True,
     "remoteAccess": False,
     "translateToVoice": True,
+    # The spoken word is marked as the voice reaches it. On by default; the
+    # switch exists because some readers find any movement in the text
+    # distracting, and Manga never highlights anyway (there is nothing to follow).
+    "highlightWords": True,
     "filmQuality": "high",
     "polishStills": True,
     # Face repair is a separate switch because it can redraw a face into someone
