@@ -1050,6 +1050,15 @@ html[data-mode="light"] .page-stage img { box-shadow: 0 14px 36px rgba(60, 45, 2
   background: var(--panel);
   color: var(--text);
 }
+/* Voice list headers ("English (UK)") were painted by the platform in a pale
+   grey that all but vanished on a dark popup, so they carry the accent instead. */
+.pill-select select optgroup {
+  background: var(--panel);
+  color: var(--accent);
+  font-style: normal;
+  font-weight: 600;
+}
+
 .pill-select select option:checked,
 .pill-select select option:hover {
   background: color-mix(in srgb, var(--accent) 26%, var(--panel));

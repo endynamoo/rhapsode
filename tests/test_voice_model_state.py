@@ -73,9 +73,11 @@ class BootstrappedStateTests(unittest.TestCase):
                     mock.patch.object(bootstrap, "_download", side_effect=fake_download) as download, \
                     mock.patch("murmur.store.init", lambda: None):
                 bootstrap.main()
-            self.assertEqual(download.call_count, 2, "the stub was not re-downloaded")
-            self.assertEqual(download.call_args_list[0].args[3], config.MODEL_MIN_BYTES)
-            self.assertTrue(config.voice_model_ready())
+                self.assertEqual(download.call_count, 2, "the stub was not re-downloaded")
+                self.assertEqual(download.call_args_list[0].args[3], config.MODEL_MIN_BYTES)
+                # Inside the patches: once they exit, config points at the real
+                # paths again, so this would be asserting about a different file.
+                self.assertTrue(config.voice_model_ready())
 
 
 class RepairStateTests(unittest.TestCase):
