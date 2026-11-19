@@ -219,6 +219,12 @@ class FluxWorker:
         except ValueError:
             return None
 
+    def warm(self) -> dict:
+        """Load the model without a job, so the first request is only a paint."""
+        with self._lock:
+            self._ensure()
+            return dict(self.ready_info)
+
     def run(self, job: dict, timeout: float = 900.0) -> None:
         with self._lock:
             self._ensure()
@@ -250,6 +256,68 @@ class FluxWorker:
             process.kill()
         except Exception:  # noqa: BLE001 - already gone
             pass
+
+
+_PACKAGES = ("torch", "diffusers")
+
+
+def _site_packages(python: Path) -> list[Path]:
+    """Where a venv keeps its packages, without asking the interpreter."""
+    venv = python.parent.parent
+    roots = [venv / "Lib" / "site-packages"]
+    try:
+        roots += sorted((venv / "lib").glob("python3*/site-packages"))
+    except OSError:
+        pass
+    return [root for root in roots if root.is_dir()]
+
+
+def _pth_paths(root: Path) -> list[Path]:
+    """Directories injected by `.pth` files.
+
+    A path line is a directory to add; a line that runs code (`import ...`) is
+    skipped rather than trusted, so the answer here can only ever be a reason to
+    say "yes", never a reason to say "no".
+    """
+    extra: list[Path] = []
+    try:
+        pth_files = sorted(root.glob("*.pth"))
+    except OSError:
+        return extra
+    for pth in pth_files:
+        try:
+            lines = pth.read_text("utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for line in lines:
+            line = line.strip()
+            if not line or line.startswith("#") or line.startswith("import "):
+                continue
+            candidate = Path(line)
+            if candidate.is_absolute() and candidate.is_dir():
+                extra.append(candidate)
+    return extra
+
+
+def _has_packages(python: Path, names: tuple[str, ...] = _PACKAGES) -> bool:
+    """Whether the interpreter can see these packages, by inspection.
+
+    Only ever returns True for a package it can actually see, because a `.pth`
+    file can point at a directory anywhere on disk - this machine's image venv
+    gets torch from an unrelated studio environment exactly that way. "Not found"
+    means "ask the interpreter", not "not installed".
+    """
+    search = _site_packages(python)
+    for root in list(search):
+        search += _pth_paths(root)
+    for name in names:
+        found = any(
+            (root / name / "__init__.py").exists() or (root / f"{name}.py").exists()
+            for root in search
+        )
+        if not found:
+            return False
+    return True
 
 
 class FluxPythonBackend(ImageBackend):
@@ -297,6 +365,13 @@ class FluxPythonBackend(ImageBackend):
         with self._probe_lock:
             if self._probe is not None:
                 return self._probe
+            # Reading the environment costs a stat; importing torch in the image
+            # interpreter costs about six seconds, on every first still, to answer
+            # the same question. Only a positive answer is trusted: "not found"
+            # could be a .pth that runs code, so the interpreter decides.
+            if _has_packages(self.python):
+                self._probe = True
+                return True
             try:
                 result = proc.run(
                     [str(self.python), "-c", "import torch, diffusers"],
@@ -598,6 +673,7 @@ class FilmImages:
         # A cold painter pays the model load inside the first generate(), which
         # is why that call is reported as loading and not as painting.
         self._warm = False
+        self._warming = False
 
     def backend(self, model_key: str | None = None) -> ImageBackend:
         key = model_key or DEFAULT_MODEL
@@ -618,6 +694,27 @@ class FilmImages:
                 self._model_key = key
             return self._backend
 
+    def warm(self) -> bool:
+        """Load the backend's model without a job, so the first still is a paint.
+
+        Shares the worker with `generate()`, which holds the same lock: a scene
+        asked for while this is still loading joins the load instead of starting a
+        second one.
+        """
+        backend = self.backend()
+        worker = getattr(backend, "worker", None)
+        if worker is None:
+            return False
+        painter = worker()
+        self._warming = True
+        try:
+            if not getattr(painter, "alive", False):
+                painter.warm()
+            self._warm = True
+            return True
+        finally:
+            self._warming = False
+
     def generate(self, prompt: str, out_path: Path, seed: int,
                  width: int = config.FILM_WIDTH, height: int = config.FILM_HEIGHT,
                  init_image: Path | None = None, strength: float = 0.5,
@@ -635,6 +732,14 @@ class FilmImages:
                 return "cached"
             if backend.name == "placeholder":
                 activity.phase("placeholder", placeholder_reason())
+            elif not self._warm and self._warming:
+                # The engine is already loading because the plan was opened first;
+                # this still waits for that load, not for a new one.
+                activity.phase(
+                    "loading",
+                    "Finishing the stills engine load",
+                    coldStart=True, backend=backend.name, model=model or self._model_key,
+                )
             elif not self._warm:
                 # The load happens inside backend.generate() below, so this is
                 # the honest label for the whole first call of the session.

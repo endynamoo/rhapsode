@@ -4,6 +4,7 @@ from __future__ import annotations
 import bisect
 import hashlib
 import json
+import os
 import queue
 import re
 import subprocess
@@ -1113,6 +1114,77 @@ def regenerate_scene(doc: dict, chapter: int, index: int, mode: str = "whole",
         )
         raise
     return path
+
+
+_warm_lock = threading.Lock()
+_warm_thread: threading.Thread | None = None
+
+
+def warm_engine() -> bool:
+    """Start loading the stills engine before the first scene is asked for.
+
+    The model load is about twenty seconds and it used to begin *after* the click,
+    which made it part of the wait. Opening Cinema asks for the plan first, so that
+    is where the loading starts; if the reader never paints, the only cost is the
+    engine sitting loaded, which is what happens on the first still anyway.
+
+    Returns True when the engine is loading (or already resident), False when it
+    cannot be started - nothing is thrown at the caller, because "the engine is
+    warming" is not an error the reader should see.
+    """
+    global _warm_thread
+    if os.environ.get("MURMUR_WARM_STILLS") == "0":
+        # A test server, a benchmark or a second instance: never load a GPU model
+        # for a plan nobody asked to paint.
+        return False
+    try:
+        if not store.get_settings().get("warmStills", True):
+            return False
+    except Exception:  # noqa: BLE001 - settings are not worth failing a plan over
+        return False
+
+    # Nothing to load: a placeholder install must not have its activity rewritten
+    # just because somebody opened Cinema.
+    try:
+        backend = imaging.image_gen.backend()
+        if getattr(backend, "name", "placeholder") == "placeholder" \
+                or not hasattr(backend, "worker"):
+            return False
+        worker = backend.worker()
+        if getattr(worker, "alive", False):
+            return True
+    except Exception:  # noqa: BLE001
+        return False
+
+    # The floor is a cold-load guard: below it the painter refuses to start rather
+    # than paging 15 GB through the disk, so warming would only produce a failure
+    # where nothing used to happen.
+    try:
+        ram = imaging.ram_info()
+        if ram.get("free_gib", 0) * 1024 < ram.get("floor_mib", 0):
+            return False
+    except Exception:  # noqa: BLE001 - a machine that cannot report RAM is not a reason to skip
+        pass
+
+    with _warm_lock:
+        if _warm_thread is not None and _warm_thread.is_alive():
+            return True
+        activity.phase("loading", "Loading the stills engine ahead of the first scene")
+
+        def load() -> None:
+            try:
+                if imaging.image_gen.warm():
+                    activity.phase("idle", "The stills engine is ready")
+            except Exception as exc:  # noqa: BLE001 - reported, not raised
+                activity.finish(
+                    "idle",
+                    "The stills engine could not load; a scene will still be tried "
+                    f"when asked for. {str(exc).strip()[:200]}",
+                )
+
+        _warm_thread = threading.Thread(target=load, name="stills-warm", daemon=True)
+        _warm_thread.start()
+    return True
 
 
 class ScenePainter:

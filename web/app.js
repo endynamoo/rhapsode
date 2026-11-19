@@ -384,6 +384,14 @@ function bindUI() {
     applySettings();
     toast(next ? 'Polish pass on - each still is re-drawn once' : 'Polish pass off - stills are painted once');
   });
+  $('#setWarmStills').addEventListener('click', async () => {
+    const next = $('#setWarmStills').getAttribute('aria-checked') !== 'true';
+    await saveSettings({ warmStills: next });
+    applySettings();
+    toast(next
+      ? 'The stills engine will load when Cinema opens'
+      : 'The stills engine will load on the first scene');
+  });
   $('#setPolishFaces').addEventListener('click', async () => {
     const next = $('#setPolishFaces').getAttribute('aria-checked') !== 'true';
     await saveSettings({ polishFaces: next });

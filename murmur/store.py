@@ -77,6 +77,10 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     # long-running starts without a gesture.
     "autoScenes": True,
     "autoFilms": False,
+    # Load the stills engine when Cinema is opened, not when the first scene is
+    # clicked: the weights take about twenty seconds and the reader is looking at
+    # the plan for longer than that.
+    "warmStills": True,
 }
 
 

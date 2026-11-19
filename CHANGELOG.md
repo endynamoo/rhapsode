@@ -21,6 +21,16 @@ phrased for a user, not for a diff reader.
 - Cinema reports what the stills engine is actually doing — planning, loading the model, painting, cleaning up, polishing, or showing a placeholder — instead of one static "Painting scene…", with the backend, model and profile on screen and a Retry button when a scene fails.
 
 ### Changed
+- The first manga still now arrives **sooner, and says what it is doing**. Two
+  changes, both measured rather than assumed. Checking whether the stills engine is
+  installed used to launch the image interpreter and import torch and diffusers,
+  which cost **6.0 s** of every cold first still to answer a question a directory
+  listing answers in a millisecond; it now reads the environment and only falls
+  back to importing when it finds a layout it does not recognise. And opening
+  Cinema - which asks for the plan before any scene is clicked - now starts loading
+  the engine while the reader is looking at the plan, instead of after the click.
+  Settings -> Stills engine gains a **Load the engine when Cinema opens** switch
+  (on by default) for machines where holding the GPU is unwelcome.
 
 - The Linux CI job **retries its package install** instead of reporting the runner's
   mirror as a test failure. Two of this repository's CI failures were `apt-get`
