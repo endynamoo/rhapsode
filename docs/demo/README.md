@@ -11,7 +11,7 @@ headless browser driving the real app - not storyboarded, not composited.
 | Scanned page | OCR'd page marked on the image, no text layer | `scanned-page.gif` | `scanned-page.mp4` |
 | Search | Nine passages across three books, matched words shown | `search.gif` | `search.mp4` |
 | Manga | A chapter read over a painted still | `manga.gif` | `manga.mp4` |
-| Translation | English text read in Japanese, with sound | `translation-poster.png` | `translation.mp4` |
+| Translation | English text read in Japanese | `translation.gif` | `translation.mp4` (with sound) |
 
 The GIFs are what the front page shows inline; the MP4s are the same recordings without GIF
 dithering, at the full frame rate. Both are quiet unless the row says otherwise.
