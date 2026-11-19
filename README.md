@@ -67,6 +67,39 @@ Everything stays on the machine: the voice model, the audio cache, the stills an
 the library are local files. Nothing is uploaded, and remote access is off unless
 you deliberately turn it on and hand out the tokenised link.
 
+## In motion
+
+Four things that are easier to watch than to read about. Each clip is a recording of this
+build, playing a three-chapter book written for the demo - no mock-ups, nothing staged by
+hand. The book and the method are in [docs/demo](docs/demo/README.md), and the same clips
+in full motion are beside them as MP4s.
+
+**The word being spoken is the word marked.** Kokoro returns phoneme timings, so the mark
+tracks the voice at any speed instead of guessing from the clock, and every sentence paints
+its first word before the sound starts.
+
+<img src="docs/demo/reading.gif" width="880" alt="Book view playing: the spoken word is marked as the voice reads">
+<sub>[watch the full-motion clip](docs/demo/reading.mp4)</sub>
+
+**A scanned page, marked on the page itself.** This PDF has no text layer at all: the page
+is OCR'd, the words are located on the image, and the box follows the voice across it - not
+a caption underneath pretending to be one.
+
+<img src="docs/demo/scanned-page.gif" width="880" alt="A scanned PDF page with the spoken word boxed on the image">
+<sub>[watch the full-motion clip](docs/demo/scanned-page.mp4)</sub>
+
+**Search every book at once, by words or by meaning.** Nine passages in 15 ms, grouped by
+book, each snippet showing what matched, and Enter opens that sentence.
+
+<img src="docs/demo/search.gif" width="880" alt="Library search across books with highlighted matches">
+<sub>[watch the full-motion clip](docs/demo/search.mp4)</sub>
+
+**A chapter drawn while it is read.** Each beat of the text becomes one still, painted
+locally, played against the narration - and the same stills assemble into a chapter film.
+
+<img src="docs/demo/manga.gif" width="880" alt="Manga view: a generated still behind the narration">
+<sub>[watch the full-motion clip](docs/demo/manga.mp4)</sub>
+
 ## The stack, and why this mix
 
 No single piece here is exotic. What makes the combination work is that the voice is not a
@@ -248,6 +281,10 @@ release ships that folder inside the installer and inside the `.app`.
 Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is generated from it by `scripts/changelog_render.py`, so edit the changelog, not this copy.
 
 ### Unreleased
+
+**Added**
+
+- **Four demo clips, recorded from this build.** The README now shows the reader marking the spoken word, a scanned PDF page marked on the page itself, a library search across three books, and a chapter read over a still the stills engine painted - as GIFs inline and MP4s beside them in `docs/demo/`, with the three-file demo corpus and the recording method published alongside so anyone can reproduce a clip instead of trusting one.
 
 **Changed**
 
