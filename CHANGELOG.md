@@ -60,6 +60,12 @@ phrased for a user, not for a diff reader.
 
 ### Fixed
 
+- A scene that failed and was then repainted no longer keeps its old error. Cinema's
+  **Retry** paints in the request thread, so the still landed on disk while the queue
+  still held the earlier failure: the panel reported **"Scene 1 ready"** and
+  *"refusing to paint: only 2.3 GiB of 31 GiB system memory is free"* at the same
+  time, under a still that was right there. A recorded failure now stops counting
+  as soon as the scene has a still to show for it.
 - **Assets are revalidated instead of cached by heuristic**, so a reload cannot keep
   running an old `app.js` or view module after the files on disk changed. The
   browser was free to reuse whatever it already held, which made an update look
