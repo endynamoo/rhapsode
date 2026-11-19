@@ -13,9 +13,9 @@ from PyPI into your own environment, and you hold the licences directly.
 
 | Component | Version | Source | Licence text |
 | --- | --- | --- | --- |
-| `phonemizer` (Python bindings to eSpeak NG) | 3.6.0 | <https://github.com/bootphon/phonemizer> · `pip download phonemizer==3.6.0 --no-binary :all:` | [`GPL-3.0.txt`](GPL-3.0.txt) |
+| `phonemizer` (Python bindings to eSpeak NG) | 3.6.0 | <https://github.com/bootphon/phonemizer/tree/v3.6.0> · sdist: <https://pypi.org/project/phonemizer/3.6.0/#files> | [`GPL-3.0.txt`](GPL-3.0.txt) |
 | eSpeak NG (`espeak-ng.dll` + `espeak-ng-data`) | 1.52.0 | <https://github.com/espeak-ng/espeak-ng/tree/1.52.0> | [`GPL-3.0.txt`](GPL-3.0.txt) |
-| `espeakng-loader` (packages the eSpeak NG build above) | 0.2.4 | <https://github.com/thewh1teagle/espeakng-loader> · <https://github.com/thewh1teagle/espeakng-loader/releases/tag/v0.2.4> | MIT (loader only) |
+| `espeakng-loader` (packages the eSpeak NG build above) | 0.2.4 | <https://github.com/thewh1teagle/espeakng-loader> · sdist: <https://pypi.org/project/espeakng-loader/0.2.4/#files> | MIT (loader only) |
 
 `espeakng-loader` is MIT; the library and data it carries are the GPL-3.0 part.
 The Windows installer and the macOS bundles include both, because
