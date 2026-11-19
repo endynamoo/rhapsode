@@ -20,6 +20,26 @@ class ChangelogTests(unittest.TestCase):
         self.assertTrue(text.startswith("# Changelog"))
         self.assertRegex(text, r"(?m)^##\s+\[?(Unreleased|\d)")
 
+    def test_the_unreleased_section_has_its_heading(self):
+        # A usable changelog is read by a stranger: the heading can be lost by a
+        # careless replacement without any entry disappearing, which is exactly
+        # what happened here.
+        text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        headings = [line for line in text.splitlines() if line.startswith("## [Unreleased]")]
+        self.assertEqual(headings, ["## [Unreleased]"], text[:600])
+
+    def test_each_section_has_one_heading_per_kind(self):
+        text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        for section in text.split("\n## [")[1:]:
+            title = section.splitlines()[0]
+            kinds = [
+                line.strip()
+                for line in section.splitlines()
+                if line.startswith("### ")
+            ]
+            duplicates = {kind for kind in kinds if kinds.count(kind) > 1}
+            self.assertFalse(duplicates, f"{title}: duplicated {sorted(duplicates)}")
+
     def test_readme_block_matches_the_changelog(self):
         ok, message = load_module().check()
         self.assertTrue(ok, message)
