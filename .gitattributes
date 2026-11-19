@@ -13,3 +13,6 @@
 *.png binary
 *.jpg binary
 *.wav binary
+
+# copyleft texts: byte-exact, LF, never normalised away
+licenses/*.txt text eol=lf

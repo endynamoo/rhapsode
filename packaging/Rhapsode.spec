@@ -126,7 +126,8 @@ app = BUNDLE(
         "CFBundleVersion": "1",
         "LSMinimumSystemVersion": "13.0",
         "NSHighResolutionCapable": True,
-        "NSHumanReadableCopyright": "MIT License. Third-party notices in THIRD_PARTY.md",
+        "NSHumanReadableCopyright": "MIT License. Third-party notices in THIRD_PARTY.md "
+                                    "and licenses/NOTICE.txt",
         "LSApplicationCategoryType": "public.app-category.productivity",
     },
 )

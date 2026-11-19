@@ -26,6 +26,10 @@ Rhapsode alone does not discharge that. A source checkout is not affected — th
 dependencies arrive from PyPI into the user's own environment, and the user then
 holds the licenses themselves.
 
+The licence texts, the exact versions in this build and the written offer for
+their source live in [`licenses/`](licenses/) - that folder, not this page, is
+what a build ships and what the installer shows.
+
 Two honest ways forward, and the maintainer's call:
 
 1. **Comply.** Include the GPL-3.0 text for `phonemizer` and eSpeak NG in the

@@ -1,0 +1,25 @@
+# What this build contains, and under which licence
+
+**Rhapsode is MIT licensed.** See `LICENSE`.
+
+That is not the whole story for a *built* copy of Rhapsode, because the narration
+engine phonemises text through eSpeak NG, which is GPL-3.0. This build therefore
+also contains the following, under their own licences:
+
+| Component | Version | Licence |
+| --- | --- | --- |
+| `phonemizer` (Python bindings to eSpeak NG) | 3.6.0 | GPL-3.0-or-later |
+| eSpeak NG (library and its data files) | 1.52.0 | GPL-3.0 |
+| `libsndfile` (via `soundfile`) | 1.2.2 | LGPL-2.1 |
+| `libheif` (via `pillow-heif`) | 1.23.6 | LGPL-3.0 |
+| FFmpeg inside the OpenCV wheel (unused by Rhapsode) | 5.1 | LGPL-2.1-or-later |
+
+The licence texts are in this folder, beside this notice. The source for the GPL
+and LGPL components — and for everything else in this build — is listed in
+`SOURCES.md`, with a written offer to provide it.
+
+Recipients of this build may study, modify and redistribute those components under
+their own terms. Nothing here restricts your use of Rhapsode itself.
+
+Full inventory, including the MIT and Apache-2.0 dependencies and the model
+weights: `THIRD_PARTY.md`.

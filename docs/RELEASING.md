@@ -208,6 +208,20 @@ Notes:
   artifact nobody will ship. Gate it on `github.event_name == 'push'` to a `v*`
   tag.
 
+## 5b. Attach the licence notice to the release
+
+The bundles contain GPL-3.0 components (eSpeak NG through `phonemizer`), so the
+release page is part of the licence obligation, not decoration:
+
+- The release body must say that the build includes GPL-3.0 components and point
+  at `licenses/SOURCES.md` in the tag, which carries the written offer.
+- `licenses/` must be present in the tag being released - the installer copies it
+  to `{app}\licenses` and `build_app.sh` copies it into the bundle's `Resources`.
+- Just before tagging, confirm the versions in `licenses/SOURCES.md` still match
+  the wheels the build uses (`phonemizer`, `espeakng-loader`, `soundfile`,
+  `pillow-heif`, `opencv-contrib-python-headless`). A bump that changes one of
+  them updates that file in the same commit.
+
 ## 6. Verification (what "done" looks like)
 
 ```bash

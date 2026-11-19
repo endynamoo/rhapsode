@@ -163,6 +163,9 @@ NG) reach the app through the dependency chain, so redistributing a **built
 bundle** carries GPL obligations even though the source stays MIT; the inventory
 is in [THIRD_PARTY.md](THIRD_PARTY.md).
 
+The licence texts for the copyleft components, the exact versions this build
+uses, and the written offer for their source are in [`licenses/`](licenses/).
+
 ## Changelog
 
 <!-- CHANGELOG:BEGIN -->
@@ -193,6 +196,6 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
 
-*...and 93 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 94 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
