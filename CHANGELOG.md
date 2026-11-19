@@ -17,6 +17,8 @@ The format follows Keep a Changelog. Add an entry under `## [Unreleased]
 - Cinema reports what the stills engine is actually doing — planning, loading the model, painting, cleaning up, polishing, or showing a placeholder — instead of one static "Painting scene…", with the backend, model and profile on screen and a Retry button when a scene fails.
 
 ### Changed
+- The Settings panel moved out of `web/app.js` into `web/views/settings.js`, and the browser now loads `app.js` as an ES module. No bundler, no new build step, and no behaviour change: the view receives `$`, `$$`, `api`, `state` and the few helpers it needs instead of reaching into the module scope, so what it depends on is visible at the top of the file. This is the first slice of the UI split (#36); the browser suite grew a test that fails if the panel stops being wired.
+### Changed
 - Startup work moved from FastAPI's deprecated `on_event("startup")` hook to a `lifespan` on both the server and the engine sidecar. Same calls, same order - store init, the voice model warm-up, the cache-prune thread, search indexing, the network banner - but a start no longer prints a `DeprecationWarning`. `tests/test_lifespan.py` holds the behaviour: no app registers an `on_event` handler, importing one raises no deprecation, and entering the app's context leaves an initialised store behind.
 ### Changed
 
@@ -36,9 +38,6 @@ The format follows Keep a Changelog. Add an entry under `## [Unreleased]
 
 ### Fixed
 - The line under the book title in the player no longer reads *"Add a document to begin"* while a book is open. An unplayed book says *"Press play, or click any paragraph to start there"*, and a finished book says it is finished, instead of the empty-library prompt staying on screen until something is spoken.
-### Fixed
-
-=======
 - The Stills engine panel no longer says *"below the RAM floor - painting will refuse"* while the engine is resident and painting: the floor is a **cold-load** guard, and a resident worker holds the model, so free memory sits under it by design. It now only warns when no worker is running, which is the only time a load can be refused.
 - Settings no longer reports the stills engine as **idle** while it is starting. During a cold load the panel read *"stills engine idle · Loading the stills engine — first still this session"*: the worker is not yet `running` while its weights load, so the summary claimed idle and the activity line immediately contradicted it. The summary now says *"stills engine starting"* for as long as a phase other than `idle` is reported and the worker is not up yet.
 - Stills could not be painted from a **source install** at all: the painter was started as `python murmur/fluxgen.py`, which puts `murmur/` on `sys.path`, so `import profile` inside torch resolved to `murmur/profile.py` and the child died with `module 'profile' has no attribute 'run'` before it could load a model. The frozen build ships `fluxgen.py` where no sibling `profile.py` exists, which is why only source installs were affected. The painter (resident and one-shot) now runs with `-I`, isolated from the script directory and from user site-packages.
