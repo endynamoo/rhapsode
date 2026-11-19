@@ -71,8 +71,8 @@ supervised sessions. Architecture, standards, and the decision about what ships
 stayed with one person, who keeps that director's role in every program here.
 
 That director reviewed the work as thoroughly as they could, and the repo is built
-so the claims are checkable rather than taken on faith: 217 tests in `tests/`
-(6 of them browser-driven), CI on Windows and Linux — the Linux job starts a real
+so the claims are checkable rather than taken on faith: the test suite in `tests/`
+(its browser-driven part lives in `tests/ui/`), CI on Windows and Linux — the Linux job starts a real
 server and asserts a healthy `/api/health` with remote access off — the
 end-to-end checklist in [INSTALL.md](INSTALL.md) §6, and an
 [architecture document](docs/ARCHITECTURE.md) that spells out the API surface,
