@@ -1306,14 +1306,23 @@ class ScenePainter:
 
     def status(self, doc: dict, chapter: int, scenes: list[Scene]) -> dict:
         model = film_model()[0]
-        done = sum(
-            1 for scene in scenes
+        delivered = {
+            scene.index for scene in scenes
             if still_delivered(scene_image_path(doc["id"], chapter, scene.index, model))
-        )
+        }
+        done = len(delivered)
         wanted = {
             (doc["id"], chapter, scene.index): scene.index for scene in scenes
         }
         with self._lock:
+            # A scene repainted from Cinema's Retry never passes through the worker,
+            # so its old failure would sit in this queue for the life of the process:
+            # the still lands on disk and Cinema still shows the error under it. A
+            # failure only counts while the scene has no still to show for it.
+            for key in [key for key in self._failed
+                        if key in wanted and wanted[key] in delivered]:
+                self._failed.discard(key)
+                self._errors.pop(key, None)
             pending = sum(
                 1 for scene in scenes if (doc["id"], chapter, scene.index) in self._pending
             )
