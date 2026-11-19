@@ -68,6 +68,9 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "translateToVoice": True,
     "filmQuality": "high",
     "polishStills": True,
+    # Face repair is a separate switch because it can redraw a face into someone
+    # else: off until the before/after is on the record, and opt-in per install.
+    "polishFaces": False,
     # Auto Generate has two halves because they cost wildly different amounts:
     # a look-ahead still is a few seconds on a GPU, a chapter film is an hour.
     # Scenes on, films off — reading a book quietly paints ahead, and nothing

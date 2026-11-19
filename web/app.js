@@ -371,6 +371,14 @@ function bindUI() {
     applySettings();
     toast(next ? 'Polish pass on - each still is re-drawn once' : 'Polish pass off - stills are painted once');
   });
+  $('#setPolishFaces').addEventListener('click', async () => {
+    const next = $('#setPolishFaces').getAttribute('aria-checked') !== 'true';
+    await saveSettings({ polishFaces: next });
+    applySettings();
+    toast(next
+      ? 'Face repair on - up to two faces per still are re-painted from a crop'
+      : 'Face repair off - faces are only sharpened by the whole-frame pass');
+  });
   $('#setAutoScenes').addEventListener('click', async () => {
     const next = $('#setAutoScenes').getAttribute('aria-checked') !== 'true';
     await saveSettings({ autoScenes: next });
@@ -626,6 +634,7 @@ function applySettings() {
   $('#setRemote').setAttribute('aria-checked', String(!!s.remoteAccess));
   $('#setTranslate').setAttribute('aria-checked', String(s.translateToVoice !== false));
   $('#setPolish').setAttribute('aria-checked', String(s.polishStills !== false));
+  $('#setPolishFaces').setAttribute('aria-checked', String(s.polishFaces === true));
   $('#setAutoScenes').setAttribute('aria-checked', String(s.autoScenes !== false));
   $('#setAutoFilms').setAttribute('aria-checked', String(!!s.autoFilms));
   syncVoiceSelects();

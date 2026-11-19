@@ -129,6 +129,45 @@ each wrist becomes a hand box. Those boxes are painted into a feathered mask and
 only that region is re-drawn, at 0.75 strength and two steps, with the result
 blended back through the mask so no edge shows.
 
+### The face repair (off by default)
+
+A face in a 1874×1056 still is about 180×240 px, and the global pass re-draws the
+whole frame at 0.32 strength - it can settle a wobbling line there, it cannot
+rebuild an eye. So a face is repaired the way a hand is, at the resolution the
+face actually needs:
+
+1. **Crop** — YuNet's box is grown 40% on every side (forehead, chin, jaw) and
+   squared, then upsampled to **1024×1024**. A 180 px face becomes 1024 px of
+   detail budget.
+2. **Mask** — an ellipse over the face itself, not over the margin: the margin is
+   context for the model, not permission to re-draw hair and background. It is
+   blurred before blending, so no seam shows.
+3. **Re-draw** — 0.55 strength, two steps, "monochrome manga face, symmetric eyes
+   and brows, clean black ink linework, screentone shading, no text, no speech
+   bubbles".
+4. **Verify** — the painted tile must still contain a face (YuNet at 0.5), and the
+   blended region must keep 60% of its ink and 50% of its edge energy. Either check
+   failing restores that face from a copy taken before any of them, so one bad
+   face cannot spoil a still.
+5. **Cap** — `FACE_MAX_DEFAULT = 2` faces per still, largest first, and two boxes
+   over one face are collapsed: each face is a separate masked re-draw, and a
+   crowd must not turn one still into a two-minute job. `MURMUR_POLISH_FACE_MAX`
+   raises it.
+
+**Off by default**, behind **Settings → Repair faces** and `MURMUR_POLISH_FACES=1`
+for testing. The reason is identity: a crop re-draw can take a character's face
+somewhere the still did not have it, and a repair that damages a frame is worse
+than the soft face it was meant to fix - the hand repair taught that lesson
+already. The sidecar records `face_repair` per face (action, box, seconds), and
+the pass carries a `variant` so switching it on is not mistaken for "cached".
+
+One thing the pass cannot see: with a **quantised** transformer the inpaint
+pipeline is unavailable (`Flux2KleinInpaintPipeline` cannot re-dtype a quantised
+model), so the painter falls back to *edit mode* - it re-draws the whole tile and
+the caller keeps only the masked region. The isolation therefore comes from the
+blend, not from the model, and the cost of a face tile is the cost of the whole
+tile. Turn the pass off if a still's faces are already fine.
+
 Why this one is allowed to change pixels when the global pass is not: a hand has no
 identity to preserve. Any plausible hand beats a mangled one, and it sits at the
 edge of the frame where a small change is invisible. Faces are the opposite — they
