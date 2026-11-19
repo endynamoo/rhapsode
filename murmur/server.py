@@ -229,7 +229,29 @@ def cancel_export(job_id: str) -> dict:
 
 
 # ---------------------------------------------------------------- static
-app.mount("/assets", StaticFiles(directory=str(config.WEB_DIR)), name="assets")
+class RevalidatingStaticFiles(StaticFiles):
+    """Serve assets that a browser must revalidate before using.
+
+    Without a Cache-Control header the browser applies its own freshness
+    heuristic to `/assets/*`, and a module it already holds will be run again
+    after a reload - so an updated `app.js` or view stays invisible to a source
+    install long after the file on disk changed (this cost a round of
+    "the fix is not there" during 0.3.0-beta). A local file answers a
+    conditional request with 304 in well under a millisecond, so revalidating
+    every load is the cheaper mistake.
+    """
+
+    async def get_response(self, path: str, scope):  # type: ignore[override]
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+app.mount(
+    "/assets",
+    RevalidatingStaticFiles(directory=str(config.WEB_DIR)),
+    name="assets",
+)
 
 
 @app.get("/")

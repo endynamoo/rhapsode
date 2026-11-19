@@ -60,6 +60,12 @@ phrased for a user, not for a diff reader.
 
 ### Fixed
 
+- **Assets are revalidated instead of cached by heuristic**, so a reload cannot keep
+  running an old `app.js` or view module after the files on disk changed. The
+  browser was free to reuse whatever it already held, which made an update look
+  like it had not been applied - it is how a shipped fix went missing during the
+  0.3.0-beta cut. A local file answers the conditional request with `304` in well
+  under a millisecond.
 - The **Reading font row is never blank** while its list loads. Enumerating the
   machine's fonts is a scan, and the control used to stay empty until the answer
   arrived: a first-time reader opening Settings saw a nameless dropdown that reads
