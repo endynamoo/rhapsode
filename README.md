@@ -190,6 +190,6 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - **Repair faces** is a new opt-in pass under Polish stills: each detected face is cropped, upsampled to 1024 px, re-drawn at a strength that can actually rebuild an eye, blended back through a feathered mask, and kept only if the repaint still contains a face and the region kept its ink - otherwise that face is restored from the copy taken before it. Two faces per still by default, `MURMUR_POLISH_FACE_MAX` to raise it. **Off by default**, because a crop repaint can redraw a character's face into someone else. `tests/test_face_repair.py` covers the crop maths, the cap, both revert paths and the cache variant without needing a GPU.
 
-*...and 88 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 89 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->

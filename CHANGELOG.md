@@ -139,6 +139,7 @@ phrased for a user, not for a diff reader.
 
 ### Removed
 
+- **The CPU stills profile is no longer offered**: it could not paint anything - every scene came back as a placeholder - so choosing it read as a failure rather than a choice. Reading, narration and export are unaffected. CPU painting is planned for the 0.4 refactor.
 - `launch.bat` and `zip_and_relaunch.ps1` are no longer tracked. They were local shortcuts, and a repository someone is meant to read should not open with two scripts that only work on the author's machine.
 
 ## [0.2.0-alpha] - 2026-11-18

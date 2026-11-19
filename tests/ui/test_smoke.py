@@ -272,7 +272,15 @@ class SmokeTests(unittest.TestCase):
         self.assertNotIn("unavailable", summary.lower(), summary)
         status = self.page.locator("#remoteStatus").inner_text()
         self.assertIn("off", status.lower(), status)
-        self.assertGreater(self.page.locator("#setEngineProfile button").count(), 1)
+        profiles = self.page.locator("#setEngineProfile button")
+        self.assertEqual(profiles.count(), 3, "the engine offers exactly three profiles")
+        names = [profiles.nth(i).inner_text().strip() for i in range(profiles.count())]
+        self.assertEqual(names, ["Lite", "Balanced", "Max"])
+        # CPU painting is planned for 0.4. Until it exists, offering the profile meant
+        # choosing something that turns every scene into a placeholder, so the row says
+        # so in words instead of pretending to be a switch.
+        self.assertEqual(self.page.locator('[data-engine-profile="cpu"]').count(), 0)
+        self.assertIn("0.4", self.page.locator("#engineCpuNote").inner_text())
         # The font list comes from a scan, and the control used to stay empty until
         # the request returned: a first-time reader saw a blank row where the font
         # belongs. It must name the saved font from the first frame.
