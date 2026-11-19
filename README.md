@@ -71,8 +71,8 @@ supervised sessions. Architecture, standards, and the decision about what ships
 stayed with one person, who keeps that director's role in every program here.
 
 That director reviewed the work as thoroughly as they could, and the repo is built
-so the claims are checkable rather than taken on faith: 217 tests in `tests/`
-(6 of them browser-driven), CI on Windows and Linux — the Linux job starts a real
+so the claims are checkable rather than taken on faith: the test suite in `tests/`
+(its browser-driven part lives in `tests/ui/`), CI on Windows and Linux — the Linux job starts a real
 server and asserts a healthy `/api/health` with remote access off — the
 end-to-end checklist in [INSTALL.md](INSTALL.md) §6, and an
 [architecture document](docs/ARCHITECTURE.md) that spells out the API surface,
@@ -169,6 +169,12 @@ is in [THIRD_PARTY.md](THIRD_PARTY.md).
 
 Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is generated from it by `scripts/changelog_render.py`, so edit the changelog, not this copy.
 
+### Unreleased
+
+**Added**
+
+- **Repair faces** is a new opt-in pass under Polish stills: each detected face is cropped, upsampled to 1024 px, re-drawn at a strength that can actually rebuild an eye, blended back through a feathered mask, and kept only if the repaint still contains a face and the region kept its ink - otherwise that face is restored from the copy taken before it. Two faces per still by default, `MURMUR_POLISH_FACE_MAX` to raise it. **Off by default**, because a crop repaint can redraw a character's face into someone else. `tests/test_face_repair.py` covers the crop maths, the cap, both revert paths and the cache variant without needing a GPU.
+
 ### 0.2.0-alpha - 2026-11-18
 
 **Added**
@@ -176,12 +182,14 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 - Linux is verified on a clean runner: `.github/workflows/linux.yml` runs the unit suite, then a real `python -m murmur` server with Tesseract as the OCR backend, asserting `/api/health` is healthy and remote access is off.
 - macOS release builds on clean runners: `.github/workflows/macos.yml` builds and self-tests the `.app` for arm64 (`macos-latest`) and x86_64 (`macos-15-intel`), wraps each in a drag-install DMG, and attaches both to a `v*` release; the Windows installer workflow attaches its Setup.exe the same way.
 - `scripts/make_dmg.sh` for a local drag-install DMG.
-- Search across your whole library with `Ctrl+F` / `⌘F` or the magnifier: results grouped by book, the matching passage marked, and a jump straight to that sentence, chapter or page. Keywords work with nothing extra installed; the optional 23 MB meaning model (Apache-2.0, CPU only) is offered as a download in the panel and can be switched off with `MURMUR_SEMANTIC=off`.
-- "Read this week" and "Read this month" filters for search, based on when a book was actually opened or its position saved.
-- Live progress for library indexing and the model download, plus an Index library button; an interrupted index resumes where it stopped instead of duplicating rows.
-- Troubleshooting page in the app: the three guards, where the logs live, and what was already fixed.
-- The RAM probe the painting guard calls, and the RAM it measured shown in Settings.
 
-*...and 34 more entries in [CHANGELOG.md](CHANGELOG.md).*
+### 0.1.0-alpha - 2026-11-16
+
+**Added**
+
+- First Windows-capable build of the reader and stills app: PDF, EPUB, DOCX, RTF, TXT, Markdown and HTML imports.
+- OCR through Windows' own engine, and translation through any local OpenAI-compatible server.
+
+*...and 69 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
