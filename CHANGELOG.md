@@ -15,6 +15,7 @@ phrased for a user, not for a diff reader.
 
 ### Fixed
 
+- A damaged or mislabelled file is now **refused with a sentence** instead of a bare 500, and every setting keeps to its own type and range, so a playback rate arriving as text cannot break playback.
 - **A scanned page now marks the word on the page itself**: the reader asks the on-device recogniser where each word sat, then draws the mark there. Text-layer pages never call it.
 - Every sentence now starts with its first word already marked. The clip is held
   until it can decode, its opening word is highlighted, and only then does the

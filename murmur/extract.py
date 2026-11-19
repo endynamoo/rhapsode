@@ -626,6 +626,35 @@ def extract_url(url: str) -> tuple[str, str, dict]:
     return (title or url.split("//")[-1][:80]), body, {"format": "url"}
 
 
+# What PDFium and zipfile raise when the bytes are not the format the name claims.
+_PARSE_FAILURES = {"PdfiumError", "BadZipFile", "PdfReadError"}
+
+_KIND = {
+    ".pdf": "PDF",
+    ".epub": "EPUB",
+    ".docx": "Word document",
+    ".html": "web page",
+    ".htm": "web page",
+    ".rtf": "RTF file",
+    ".png": "image",
+    ".jpg": "image",
+    ".jpeg": "image",
+    ".webp": "image",
+    ".tif": "image",
+    ".tiff": "image",
+    ".bmp": "image",
+    ".gif": "image",
+}
+
+
+def _unreadable(suffix: str, exc: Exception) -> ExtractError:
+    kind = _KIND.get(suffix, "file")
+    return ExtractError(
+        f"That {kind} could not be opened: it looks damaged, or its contents are "
+        f"not what the file name claims. ({type(exc).__name__})"
+    )
+
+
 def extract_upload(filename: str, data: bytes) -> tuple[str, str, dict]:
     suffix = Path(filename).suffix.lower()
     # Windows refuses to open a file that NamedTemporaryFile still holds with
@@ -636,6 +665,16 @@ def extract_upload(filename: str, data: bytes) -> tuple[str, str, dict]:
     path = Path(name)
     try:
         path.write_bytes(data)
-        return extract_file(path, fallback_title=Path(filename).stem)
+        try:
+            return extract_file(path, fallback_title=Path(filename).stem)
+        except ExtractError:
+            raise
+        except Exception as exc:
+            # A damaged file is something the reader has to see, not a stack
+            # trace: PDFium and zipfile raise their own types for bytes that are
+            # not the format the file name claims.
+            if type(exc).__name__ in _PARSE_FAILURES:
+                raise _unreadable(suffix, exc) from exc
+            raise
     finally:
         path.unlink(missing_ok=True)

@@ -391,15 +391,50 @@ def get_settings() -> dict:
     return settings
 
 
+# Settings that are numbers also get a sane range: a zero speed would never
+# finish a sentence, which is worse for the reader than ignoring the write.
+_SETTING_RANGES = {"speed": (0.25, 4.0), "fontSize": (8, 72)}
+
+
+def _coerce_setting(default: Any, value: Any) -> Any:
+    """The value only when it has the type its default says it should have."""
+    if isinstance(default, bool):
+        return value if isinstance(value, bool) else None
+    if isinstance(default, (int, float)):
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        return type(default)(value)
+    if isinstance(default, str):
+        return value if isinstance(value, str) else None
+    return None
+
+
 def set_settings(patch: dict) -> dict:
+    """Store the settings that make sense; a wrong type leaves the old value.
+
+    The reader's own UI always sends the right shape, so anything else is a
+    caller's mistake - a script, an old client. Storing it anyway would hand the
+    front end a value it cannot use (a playback rate of "fast" throws in the
+    browser), so it is dropped rather than saved.
+    """
+    clean: dict[str, Any] = {}
+    for key, value in patch.items():
+        if key not in DEFAULT_SETTINGS:
+            continue
+        coerced = _coerce_setting(DEFAULT_SETTINGS[key], value)
+        if coerced is None:
+            continue
+        low, high = _SETTING_RANGES.get(key, (None, None))
+        if low is not None:
+            coerced = min(high, max(low, coerced))
+        clean[key] = coerced
     with _db() as conn:
-        for key, value in patch.items():
-            if key in DEFAULT_SETTINGS:
-                conn.execute(
-                    "INSERT INTO settings(key,value) VALUES(?,?)"
-                    " ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                    (key, json.dumps(value)),
-                )
+        for key, value in clean.items():
+            conn.execute(
+                "INSERT INTO settings(key,value) VALUES(?,?)"
+                " ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (key, json.dumps(value)),
+            )
     return get_settings()
 
 
