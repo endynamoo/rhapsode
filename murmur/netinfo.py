@@ -1,4 +1,4 @@
-"""Discover the addresses this Mac can be reached on (LAN and Tailscale)."""
+"""Discover the addresses this computer can be reached on (LAN and Tailscale)."""
 from __future__ import annotations
 
 import json
@@ -67,10 +67,15 @@ def lan_ips() -> list[str]:
     return sorted(ips)
 
 
+# The address that resolves to this machine. Named for the role rather than the
+# platform: the same string is shown on Windows, macOS and Linux.
+LOCAL_LABEL = "This computer"
+
+
 def access_urls(port: int, token: str | None = None) -> list[dict]:
     """Return labelled URLs for reaching the server from elsewhere."""
     suffix = f"?token={token}" if token else ""
-    urls: list[dict] = [{"label": "This Mac", "url": f"http://127.0.0.1:{port}/"}]
+    urls: list[dict] = [{"label": LOCAL_LABEL, "url": f"http://127.0.0.1:{port}/"}]
 
     tail = tailscale_ips()
     for ip in tail:

@@ -134,7 +134,7 @@ def network_info(request: Request, response: Response) -> dict:
     urls = access.access_urls()
     if not access.PUBLIC:
         # Avoid advertising LAN/Tailscale addresses while remote access is off.
-        urls = [item for item in urls if item["label"] == "This Mac"]
+        urls = [item for item in urls if item["label"] == netinfo.LOCAL_LABEL]
     return {
         "enabled": access.PUBLIC,
         "host": config.HOST,

@@ -13,7 +13,7 @@ def main() -> None:
     if config.PUBLIC:
         print(f"Listening on {host}:{config.PORT}")
         for item in netinfo.access_urls(config.PORT, config.access_token()):
-            if item["label"] != "This Mac":
+            if item["label"] != netinfo.LOCAL_LABEL:
                 print(f"  {item['label']}: {item['url']}")
 
     uvicorn.run(
