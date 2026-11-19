@@ -172,7 +172,7 @@ classDiagram
 
 ### 2.1 Every file, and what it is for
 
-Grouped by job, not by import order. Sizes are rough line counts at 0.2.0-alpha.
+Grouped by job, not by import order. Sizes are rough line counts at 0.3.0-beta.
 
 **Entry points**
 
