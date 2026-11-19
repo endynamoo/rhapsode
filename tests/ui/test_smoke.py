@@ -195,6 +195,27 @@ class SmokeTests(unittest.TestCase):
         self.assertNotIn("Add a document to begin", subtitle, subtitle)
         self.assertIn("Press play", subtitle, subtitle)
 
+    def test_opening_a_book_warms_the_audio(self) -> None:
+        # A unit of ~4 s of speech costs ~0.8 s of CPU. Paid after the click, that
+        # is the whole time-to-first-sound; paid while the reader is looking at the
+        # page, pressing play is instant. This asserts the request happens without
+        # any play interaction.
+        requests: list[str] = []
+        self.page.on("request", lambda request: requests.append(request.url)
+                     if request.url.endswith("/api/tts") else None)
+        try:
+            self.open_app()
+            self.page.locator(".lib-item", has_text=TITLE).first.click()
+            self.page.wait_for_selector("#reader .unit, #reader p")
+            deadline = time.time() + 20
+            while time.time() < deadline and not requests:
+                self.page.wait_for_timeout(200)
+        finally:
+            self.page.remove_listener("request", lambda request: None)
+        self.assertTrue(requests, "opening a book did not warm any audio")
+        # And it is the sentence on screen, not something arbitrary.
+        self.assertNotIn("#", requests[0].split("/api/tts")[0])
+
     def test_the_settings_panel_is_wired(self) -> None:
         # The settings view used to be 450 lines in the middle of app.js; it is a
         # module now, so this checks the seam rather than the styling: the panel

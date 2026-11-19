@@ -800,6 +800,7 @@ async function openDoc(id, { autoplay = false, position = null } = {}) {
       setCurrentUnit(state.index);
       updatePlayerUI();
       savePosition(true);
+      warmAudioAhead(state.index);
     }
     if (autoplay) togglePlay();
     return;
@@ -877,6 +878,7 @@ async function openDoc(id, { autoplay = false, position = null } = {}) {
   applyView();
   updatePlayerUI();
   renderContents();
+  warmAudioAhead(state.index);
   setSidePanel(doc.toc && doc.toc.length ? 'contents' : 'library');
   refreshLibrary();
 
@@ -956,6 +958,14 @@ async function getClip(i) {
 
   state.pending.set(i, promise);
   return promise;
+}
+
+// Make the sentences around the reader now, so pressing play is instant. Same
+// path as prefetch(): identical requests share one promise through state.pending,
+// so warming and then playing never synthesises twice.
+function warmAudioAhead(from = state.index) {
+  if (!state.doc || !state.units.length) return;
+  prefetch(from - 1, state.gen);
 }
 
 async function prefetch(from, gen) {
