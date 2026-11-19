@@ -89,7 +89,10 @@ def _fetch(name: str) -> Path:
 
 
 def _session(name: str):
-    import onnxruntime as ort
+    try:
+        import onnxruntime as ort
+    except Exception as exc:  # noqa: BLE001 - any import failure means unavailable
+        raise DetectorUnavailable(f"onnxruntime is not installed ({exc})") from exc
 
     with _lock:
         if name in _sessions:

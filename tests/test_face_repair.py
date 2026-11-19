@@ -280,3 +280,24 @@ class DetectorGuardTest(unittest.TestCase):
             result = detectors.inspect(blank)
         self.assertEqual(result["faces"], [])
         self.assertIn("opencv", result["error"] or "")
+
+    def test_a_missing_onnxruntime_is_reported_not_raised(self):
+        # The same class of failure one layer down: the person/pose models need
+        # onnxruntime, and the CI runner has neither. inspect() must report it.
+        import numpy as np
+
+        from murmur import detectors
+
+        blank = np.zeros((32, 32, 3), dtype=np.uint8)
+        real_import = __builtins__["__import__"] if isinstance(__builtins__, dict) else __builtins__.__import__
+
+        def failing_import(name, *args, **kwargs):
+            if name == "onnxruntime":
+                raise ModuleNotFoundError("No module named 'onnxruntime'")
+            return real_import(name, *args, **kwargs)
+
+        with mock.patch("builtins.__import__", side_effect=failing_import), \
+                mock.patch.object(detectors, "faces", return_value=[]):
+            result = detectors.inspect(blank)
+        self.assertEqual(result["people"], [])
+        self.assertIn("onnxruntime", result["error"] or "")
