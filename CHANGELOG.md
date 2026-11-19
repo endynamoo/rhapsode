@@ -13,6 +13,7 @@ phrased for a user, not for a diff reader.
 ## [0.3.3-beta] - 2026-11-19
 ### Fixed
 
+- **First-run setup no longer dies on a plain console**: the download progress and its tick marks were printed as Unicode, which a legacy (cp1252) console cannot encode - the download aborted with an encoding error while reporting itself. The text now degrades to whatever the console can print.
 - **Follow along now works in Book view**: both scroll paths ignored the switch - the chapter highlight moved the page to keep the spoken sentence in sight, and the advance to the next sentence scrolled regardless - so turning it off changed nothing while reading. A sentence you jump to deliberately is still brought into view.
 - **The translated-sentence bar no longer covers the sidebar**: centred on the window it landed on the theme and settings buttons and swallowed their clicks. It is anchored to the reading column and takes no pointer events.
 - **Export asks where the file should go**: the save dialog comes first, the export is written to the chosen file, and the copy under the data folder is removed once the reader has it. Browsers that cannot choose a path say which folder the download went to.
