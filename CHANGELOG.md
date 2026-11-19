@@ -9,6 +9,13 @@ same commit as the change, grouped Added / Changed / Fixed / Removed / Security 
 phrased for a user, not for a diff reader.
 
 ## [Unreleased]
+### Added
+
+- **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
+
+### Fixed
+
+- The word highlight is bound to the **clip that is actually playing**: each sentence's timings are stored beside the audio it was made for, so a sentence still synthesising while the previous one finishes can no longer lend its word times to the next one under a slow machine. If the highlight still drifts behind the voice after this build, that is a separate measurement and the recording of it is welcome.
 
 ## [0.3.0-beta] - 2026-11-19
 ### Added

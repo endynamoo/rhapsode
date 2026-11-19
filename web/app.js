@@ -57,6 +57,7 @@ const state = {
   clips: new Map(),
   pending: new Map(),
   durations: new Map(),
+  wordTimes: new Map(),
   gen: 0,
   raf: 0,
   saveTimer: 0,
@@ -445,9 +446,18 @@ function bindUI() {
     state.clips.clear();
     state.pending.clear();
     state.durations.clear();
+    state.wordTimes.clear();
     state.gen++;
     toast(next ? 'Voices will translate text into their language' : 'Voices will read the original text');
     if (state.doc) playUnit(state.index, { restart: true });
+  });
+  $('#setHighlightWords').addEventListener('click', async () => {
+    const next = $('#setHighlightWords').getAttribute('aria-checked') !== 'true';
+    await saveSettings({ highlightWords: next });
+    applySettings();
+    if (!next) clearWordHighlight();
+    else if (state.playing) updateWordHighlight(audio.currentTime);
+    toast(next ? 'The spoken word is highlighted' : 'Highlighting off - the text stays still');
   });
   $('#clearCacheBtn').addEventListener('click', async () => {
     try {
@@ -836,6 +846,7 @@ async function openDoc(id, { autoplay = false, position = null } = {}) {
   state.docChars = doc.units.map((t) => t.length);
   state.totalChars = state.docChars.reduce((a, b) => a + b, 0) || 1;
   state.durations.clear();
+  state.wordTimes.clear();
   state.clips.clear();
   state.pending.clear();
   state.chapter = null;
@@ -1133,6 +1144,10 @@ async function playUnit(i, { restart = false } = {}) {
       audio.currentTime = 0;
       state.audioIndex = i;
       state.words = clip.words;
+      // Pin the timings to the clip they were made for. A sentence that is
+      // still synthesising while the previous one finishes must not lend its
+      // word times to the next sentence.
+      state.wordTimes.set(i, clip.words || []);
       state.wordIdx = -1;
       clearWordHighlight();
     }
@@ -1293,7 +1308,11 @@ function tick() {
 }
 
 function updateWordHighlight(t) {
-  const words = state.words;
+  if (state.settings.highlightWords === false) {
+    if (state.activeWordEl) clearWordHighlight();
+    return;
+  }
+  const words = state.wordTimes.get(state.audioIndex);
   if (!words || !words.length) return;
   let lo = 0;
   let hi = words.length - 1;
@@ -2991,6 +3010,7 @@ function setVoice(voice) {
   state.clips.clear();
   state.pending.clear();
   state.durations.clear();
+  state.wordTimes.clear();
   state.gen++;
   audio.pause();
   audio.removeAttribute('src');

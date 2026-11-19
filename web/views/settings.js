@@ -34,6 +34,7 @@ export function createSettingsView(deps) {
     $('#setAutoScroll').setAttribute('aria-checked', String(s.autoScroll));
     $('#setRemote').setAttribute('aria-checked', String(!!s.remoteAccess));
     $('#setTranslate').setAttribute('aria-checked', String(s.translateToVoice !== false));
+    $('#setHighlightWords').setAttribute('aria-checked', String(s.highlightWords !== false));
     $('#setPolish').setAttribute('aria-checked', String(s.polishStills !== false));
     $('#setWarmStills').setAttribute('aria-checked', String(s.warmStills !== false));
     $('#setPolishFaces').setAttribute('aria-checked', String(s.polishFaces === true));
