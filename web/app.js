@@ -560,6 +560,8 @@ async function checkEngine() {
   const el = $('#engineState');
   try {
     const health = await api('/api/health');
+    // Unconditional: the row has to disappear again once a repair succeeds.
+    applyVoiceModel(health);
     if (health.modelReady) {
       el.classList.remove('is-loading', 'is-error');
       const ocr = health.ocr ? ' · OCR' : '';
@@ -585,6 +587,43 @@ async function checkEngine() {
     el.querySelector('span').textContent = 'Engine offline';
   }
 }
+
+/* The Voice model row appears only when the weights cannot be used, and it says
+   what the repair is doing: a 4-byte file and a slow download used to look the
+   same. */
+function applyVoiceModel(health) {
+  const row = $('#voiceModelRow');
+  const problem = $('#voiceModelProblem');
+  const button = $('#voiceModelRepair');
+  if (!row || !problem || !button) return;
+  const download = health.modelDownload || {};
+  const broken = !!health.modelProblem && !health.modelReady;
+  row.hidden = !broken && !download.running;
+  if (row.hidden) return;
+  if (download.running) {
+    problem.textContent = 'Downloading about 340 MB\u2026';
+    button.disabled = true;
+    button.textContent = 'Downloading\u2026';
+    return;
+  }
+  problem.textContent = download.error
+    ? `The download failed: ${download.error}`
+    : `${health.modelProblem}. Playback needs it.`;
+  button.disabled = false;
+  button.textContent = 'Download it again';
+}
+
+async function repairVoiceModel() {
+  try {
+    await api('/api/voice-model', { method: 'POST' });
+    toast('Downloading the voice model\u2026', 'info', 4000);
+    checkEngine();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+$('#voiceModelRepair')?.addEventListener('click', repairVoiceModel);
 
 function cacheLabel(cache) {
   if (!cache) return '';
@@ -2931,6 +2970,10 @@ function highlightChapterWord(wordIndex, force = false) {
   }
 
   if (!chapter.active.length) return;
+  // Book view scrolls through here, not through maybeAutoScroll(), so this is
+  // where "Follow along" has to be honoured - without this the switch did nothing
+  // while reading a chapter.
+  if (!state.autoScroll) return;
   const element = chapter.active[0];
   const doc = element.ownerDocument;
   const view = doc.documentElement;
@@ -3208,12 +3251,22 @@ async function pollSearch() {
   if (searchView.query.trim()) runSearch();
 }
 
+function clearSearchNote() {
+  const note = $('#searchNote');
+  if (!note) return;
+  // Removing the children rather than only setting `hidden` guarantees no part of
+  // the note - the progress bar in particular - can outlive the note itself and be
+  // painted in the gap above the results.
+  note.textContent = '';
+  note.hidden = true;
+}
+
 function renderSearchNote() {
   const note = $('#searchNote');
   note.textContent = '';
   const status = searchView.status;
   if (!status) {
-    note.hidden = true;
+    clearSearchNote();
     return;
   }
   const indexing = status.indexing || {};
@@ -3267,7 +3320,7 @@ function renderSearchNote() {
   }
 
   if (!parts.length) {
-    note.hidden = true;
+    clearSearchNote();
     return;
   }
   note.hidden = false;
@@ -3598,8 +3651,55 @@ async function addSample() {
 
 /* ─────────────────────────── export ─────────────────────────── */
 
+function exportFileName() {
+  const title = (state.doc && state.doc.title) || 'murmur';
+  const safe = title.replace(/[^\w\s-]/g, '').trim().slice(0, 80) || 'murmur';
+  return `${safe}.mp3`;
+}
+
+/* Ask where the file should go before any audio is made. Browsers that can write
+   to the chosen file directly (Edge, Chrome) get a real save dialog; the rest get
+   an ordinary download plus a toast naming the folder, because a page cannot
+   choose a path. */
+async function pickExportHandle() {
+  if (typeof window.showSaveFilePicker !== 'function') return null;
+  try {
+    return await window.showSaveFilePicker({
+      suggestedName: exportFileName(),
+      types: [
+        { description: 'MP3 audio', accept: { 'audio/mpeg': ['.mp3'] } },
+        { description: 'WAV audio', accept: { 'audio/wav': ['.wav'] } },
+      ],
+    });
+  } catch (err) {
+    if (err && err.name === 'AbortError') return 'cancelled';
+    return null; // a blocked dialog must fall back, not fail the export
+  }
+}
+
+async function saveExport(job, handle) {
+  const url = `/api/export/${job.id}/file`;
+  if (!handle) {
+    download(url);
+    toast(`Saved ${exportFileName()} to your Downloads folder`, 'info', 5000);
+    return;
+  }
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('The export file could not be read');
+  const blob = await response.blob();
+  const writable = await handle.createWritable();
+  await writable.write(blob);
+  await writable.close();
+  toast(`Saved ${handle.name}`, 'info', 4000);
+  // The bytes are where the reader asked for them now, so the copy under the data
+  // directory is not left behind.
+  fetch(`${url}?consume=1`).catch(() => {});
+}
+
 async function exportDoc() {
   if (!state.doc) return;
+  const handle = await pickExportHandle();
+  if (handle === 'cancelled') return;
   try {
     const job = await api(`/api/docs/${state.doc.id}/export`, {
       method: 'POST',
@@ -3616,8 +3716,7 @@ async function exportDoc() {
         } else if (status.state === 'done') {
           clearInterval(timer);
           el.remove();
-          toast('Export ready — downloading');
-          download(`/api/export/${job.id}/file`);
+          saveExport(status, handle).catch((err) => toast(err.message, 'error'));
         } else if (status.state === 'error') {
           clearInterval(timer);
           el.remove();

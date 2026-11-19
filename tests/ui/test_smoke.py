@@ -457,6 +457,161 @@ class SmokeTests(unittest.TestCase):
         films.click()
         self.page.wait_for_selector("#setAutoFilms[aria-checked='false']")
 
+    # ------------------------------------------- reported defects, 0.3.3
+    def test_the_cog_is_reachable_while_a_translation_shows(self) -> None:
+        # The translated-sentence bar is a fixed overlay. Centred on the window it
+        # sat over the sidebar footer and swallowed the click, so Settings could not
+        # be opened while reading with a foreign voice.
+        self.open_app()
+        self.page.set_viewport_size({"width": 808, "height": 420})
+        self.page.evaluate(
+            """
+            () => {
+              const bar = document.getElementById('translationBar');
+              document.getElementById('translationLang').textContent = 'ES';
+              document.getElementById('translationText').textContent =
+                'La oración número once tiene suficientes palabras para llenar un ritmo.';
+              bar.hidden = false;
+            }
+            """
+        )
+        self.page.wait_for_timeout(200)
+        geometry = self.page.evaluate(
+            """
+            () => {
+              const bar = document.getElementById('translationBar').getBoundingClientRect();
+              const side = document.querySelector('.sidebar').getBoundingClientRect();
+              const cog = document.querySelector('#settingsBtn').getBoundingClientRect();
+              const top = document.elementsFromPoint(
+                cog.x + cog.width / 2, cog.y + cog.height / 2)[0];
+              return {
+                overlap: bar.left < side.right,
+                topTag: top.tagName,
+                topIsCog: !!top.closest('#settingsBtn'),
+              };
+            }
+            """
+        )
+        self.assertFalse(geometry["overlap"], "the bar reaches into the sidebar")
+        self.assertTrue(geometry["topIsCog"], f"the cog is covered by {geometry['topTag']}")
+        self.page.click("#settingsBtn")
+        self.page.wait_for_selector("#settingsModal:not([hidden])")
+
+    def test_the_search_footer_sits_inside_the_card(self) -> None:
+        # The footer had no padding while the header and body inset their content by
+        # 20px, so the hint and the button sat on the card's border.
+        self.open_app()
+        self.page.click("#searchBtn")
+        self.page.wait_for_selector("#searchModal:not([hidden])")
+        gaps = self.page.evaluate(
+            """
+            () => {
+              const card = document.querySelector('.modal-card.search-card').getBoundingClientRect();
+              const hint = document.querySelector('.search-card .modal-foot .hint')
+                .getBoundingClientRect();
+              const button = document.querySelector('#searchIndexBtn').getBoundingClientRect();
+              return {
+                left: hint.left - card.left,
+                right: card.right - button.right,
+              };
+            }
+            """
+        )
+        self.assertGreaterEqual(gaps["left"], 18, f"hint is {gaps['left']}px from the edge")
+        self.assertGreaterEqual(gaps["right"], 18, f"button is {gaps['right']}px from the edge")
+
+    def test_the_voice_options_carry_the_theme_colours(self) -> None:
+        # A transparent control made Chromium paint the popup light under a dark
+        # theme; the options are painted now.
+        self.open_app()
+        colours = self.page.evaluate(
+            """
+            () => {
+              const option = document.querySelector('#voiceSel option');
+              const style = getComputedStyle(option);
+              const main = getComputedStyle(document.querySelector('.main'));
+              return { option: style.backgroundColor, main: main.backgroundColor };
+            }
+            """
+        )
+        self.assertNotIn(
+            colours["option"], ("rgba(0, 0, 0, 0)", "rgb(255, 255, 255)"),
+            "the option is unpainted, so the platform default wins",
+        )
+
+    def test_the_voice_model_row_names_a_broken_file(self) -> None:
+        # The row only exists when the weights cannot be used, and it has to say
+        # which file is wrong: the failure used to surface as a raw ONNX error when
+        # the reader pressed play.
+        health = httpx.get(f"{self.base}/api/health", timeout=10).json()
+        health["modelReady"] = False
+        health["modelError"] = "stub"
+        health["modelProblem"] = "kokoro-v1.0.onnx is 4 bytes, not the 100 MB it should be"
+        health["modelDownload"] = {"running": False, "done": False, "error": None, "size": 0}
+        self.page.route(
+            "**/api/health",
+            lambda route: route.fulfill(
+                status=200, content_type="application/json", body=json.dumps(health)
+            ),
+        )
+        self.open_app()
+        self.open_settings()
+        self.page.wait_for_selector("#voiceModelRow:not([hidden])")
+        problem = self.page.locator("#voiceModelProblem").inner_text()
+        self.assertIn("4 bytes", problem)
+        button = self.page.locator("#voiceModelRepair")
+        self.assertEqual(
+            button.inner_text().strip(), "Download it again", "the repair must be offered"
+        )
+        self.assertFalse(button.is_disabled())
+
+    def test_the_voice_model_row_hides_when_the_model_works(self) -> None:
+        # The suite runs on a home with no weights, so a healthy model has to be
+        # served: the row must disappear rather than nag a working install.
+        health = httpx.get(f"{self.base}/api/health", timeout=10).json()
+        health["modelReady"] = True
+        health["modelError"] = None
+        health["modelProblem"] = None
+        health["modelDownload"] = {"running": False, "done": False, "error": None, "size": 0}
+        self.page.route(
+            "**/api/health",
+            lambda route: route.fulfill(
+                status=200, content_type="application/json", body=json.dumps(health)
+            ),
+        )
+        self.open_app()
+        self.open_settings()
+        self.assertTrue(
+            self.page.locator("#voiceModelRow").is_hidden(),
+            "a healthy install should not show a repair row",
+        )
+
+    def test_an_idle_search_note_paints_nothing(self) -> None:
+        # The report was a purple sliver between the status line and the results. The
+        # note now removes its own children when it hides, so no part of it can
+        # outlive it.
+        self.open_app()
+        self.page.click("#searchBtn")
+        self.page.wait_for_selector("#searchModal:not([hidden])")
+        state = self.page.evaluate(
+            """
+            () => {
+              const note = document.getElementById('searchNote');
+              const bar = note.querySelector('.search-progress');
+              const stray = [...document.querySelectorAll('.search-progress')]
+                .filter(el => !el.closest('#searchNote'));
+              return {
+                noteHidden: note.hidden,
+                noteChildren: note.childElementCount,
+                strayBars: stray.length,
+              };
+            }
+            """
+        )
+        self.assertEqual(state["strayBars"], 0, "a progress bar lives outside the note")
+        if state["noteHidden"]:
+            self.assertEqual(state["noteChildren"], 0, "the hidden note kept its children")
+
     def test_a_document_can_be_added_through_the_modal(self) -> None:
         self.open_app()
         self.page.click("#addBtn")

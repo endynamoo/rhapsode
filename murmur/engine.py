@@ -46,9 +46,11 @@ class TTSEngine:
             tts_backends.configure()
             from kokoro_onnx import Kokoro
 
-            if not config.MODEL_PATH.exists() or not config.VOICES_PATH.exists():
+            problem = config.voice_model_problem()
+            if problem:
                 raise FileNotFoundError(
-                    "Kokoro model files are missing. Run `python -m murmur.bootstrap`."
+                    f"The voice model is incomplete: {problem}. "
+                    "Run `python -m murmur.bootstrap` to download it again."
                 )
             self._model = Kokoro(str(config.MODEL_PATH), str(config.VOICES_PATH))
             self._model_version = config.MODEL_PATH.stat().st_mtime
@@ -206,7 +208,7 @@ class TTSEngine:
         """
         if self._model is not None or self.last_error is None:
             return
-        if not (config.MODEL_PATH.exists() and config.VOICES_PATH.exists()):
+        if not config.voice_model_ready():
             return
         self.last_error = None
         self.warm_async()

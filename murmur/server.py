@@ -17,6 +17,7 @@ import numpy as np
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.background import BackgroundTask
 
 from . import access, config, netinfo, proc, search, speak, store
 from .engine import engine, prune_cache
@@ -188,6 +189,7 @@ def start_export(doc_id: str, payload: dict | None = None) -> dict:
         "total": len(doc["units"]),
         "title": doc["title"],
         "docId": doc_id,
+        "suggestedName": export_name({"title": doc["title"], "ext": "mp3"}),
     }
     def _run() -> None:
         _EXPORT_LOCK.acquire()
@@ -208,16 +210,38 @@ def export_status(job_id: str) -> dict:
     return job
 
 
+def export_name(job: dict) -> str:
+    """The filename an export should be saved as, built from the book's title."""
+    safe = re.sub(r"[^\w\s-]", "", job.get("title", "murmur"))[:80].strip() or "murmur"
+    return f"{safe}.{job.get('ext', 'mp3')}"
+
+
 @app.get("/api/export/{job_id}/file")
-def export_file(job_id: str):
+def export_file(job_id: str, consume: bool = False):
+    """Serve the finished audio.
+
+    `consume=1` is sent by a client that has already put the bytes where the
+    reader asked for them: the copy under the data directory is then removed, so an
+    export does not quietly leave a second file on disk.
+    """
     job = JOBS.get(job_id)
     if not job or job.get("state") != "done":
         raise HTTPException(status_code=404, detail="Export is not ready")
     path = Path(job["file"])
     if not path.exists():
         raise HTTPException(status_code=404)
-    safe = re.sub(r"[^\w\s-]", "", job.get("title", "murmur"))[:80].strip() or "murmur"
-    return FileResponse(path, media_type=job.get("mime", "audio/mpeg"), filename=f"{safe}.{job.get('ext', 'mp3')}")
+    response = FileResponse(
+        path, media_type=job.get("mime", "audio/mpeg"), filename=export_name(job)
+    )
+    if consume:
+        def _drop() -> None:
+            try:
+                path.unlink(missing_ok=True)
+            finally:
+                job["consumed"] = True
+
+        response.background = BackgroundTask(_drop)
+    return response
 
 
 @app.delete("/api/export/{job_id}")

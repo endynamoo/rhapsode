@@ -169,30 +169,17 @@ is in [THIRD_PARTY.md](THIRD_PARTY.md).
 
 Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is generated from it by `scripts/changelog_render.py`, so edit the changelog, not this copy.
 
-### Unreleased
-
-**Added**
-
-- **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
+### 0.3.3-beta - 2026-11-19
 
 **Fixed**
 
-- A damaged or mislabelled file is now **refused with a sentence** instead of a bare 500, and every setting keeps to its own type and range, so a playback rate arriving as text cannot break playback.
-- **A scanned page now marks the word on the page itself**: the reader asks the on-device recogniser where each word sat, then draws the mark there. Text-layer pages never call it.
-- Every sentence now starts with its first word already marked. The clip is held until it can decode, its opening word is highlighted, and only then does the voice start, so a sentence the reader reached by finishing the one before it can no longer begin with the sound a frame or two ahead of the highlight. `tests/ui/test_smoke.py` records what the page looks like at the instant the player is asked to start, and fails if a sentence has no word marked then.
+- **Follow along now works in Book view**: the chapter highlight scrolled the page to keep the spoken sentence in sight whatever the switch said, so turning it off changed nothing while reading a book.
+- **The translated-sentence bar no longer covers the sidebar**: centred on the window it landed on the theme and settings buttons and swallowed their clicks. It is anchored to the reading column and takes no pointer events.
+- **Export asks where the file should go**: the save dialog comes first, the export is written to the chosen file, and the copy under the data folder is removed once the reader has it. Browsers that cannot choose a path say which folder the download went to.
+- **A voice model file that is a stub is now named and repaired**: a 4-byte `kokoro-v1.0.onnx` passed every "does the model exist" check, so play threw a raw ONNX error and `python -m murmur.bootstrap` reported nothing to do. The engine, the downloader and `/api/health` now share one size check, bootstrap re-downloads a bad file, and Settings offers **Download it again**.
+- **Dark themes: the voice dropdown opens a dark popup** instead of the platform's light default, because its options are painted with the theme's colours.
+- **The Search dialog's footer sits inside the card**, so the keyboard hint and the button no longer touch the border.
 
-### 0.3.0-beta - 2026-11-19
-
-**Added**
-
-- **Repair faces** is a new opt-in pass under Polish stills: each detected face is cropped, upsampled to 1024 px, re-drawn at a strength that can actually rebuild an eye, blended back through a feathered mask, and kept only if the repaint still contains a face and the region kept its ink - otherwise that face is restored from the copy taken before it. Two faces per still by default, `MURMUR_POLISH_FACE_MAX` to raise it. **Off by default**, because a crop repaint can redraw a character's face into someone else. `tests/test_face_repair.py` covers the crop maths, the cap, both revert paths and the cache variant without needing a GPU.
-
-### 0.2.0-alpha - 2026-11-18
-
-**Added**
-
-- Linux is verified on a clean runner: `.github/workflows/linux.yml` runs the unit suite, then a real `python -m murmur` server with Tesseract as the OCR backend, asserting `/api/health` is healthy and remote access is off.
-
-*...and 80 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 87 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->

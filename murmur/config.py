@@ -112,6 +112,36 @@ OCR_MAX_PAGES = int(os.environ.get("MURMUR_OCR_MAX_PAGES", "200"))
 OCR_MIN_CHARS = int(os.environ.get("MURMUR_OCR_MIN_CHARS", "40"))
 OCR_LANGS = os.environ.get("MURMUR_OCR_LANGS", "")
 
+# A file smaller than this cannot be a working weight file: the pair is about
+# 340 MB, and a truncated or placeholder file of a few bytes used to pass every
+# "does the model exist" check and then throw inside ONNX Runtime.
+MODEL_MIN_BYTES = 100_000_000
+VOICES_MIN_BYTES = 1_000_000
+
+
+def weight_problem(path, minimum):
+    """Why `path` cannot serve as a weight file, or None when it can."""
+    if not path.exists():
+        return f"{path.name} is missing"
+    size = path.stat().st_size
+    if size < minimum:
+        return f"{path.name} is {size} bytes, not the {minimum // 1_000_000} MB it should be"
+    return None
+
+
+def voice_model_problem():
+    """One sentence naming what is wrong with the voice weights, or None."""
+    for path, minimum in ((MODEL_PATH, MODEL_MIN_BYTES), (VOICES_PATH, VOICES_MIN_BYTES)):
+        problem = weight_problem(path, minimum)
+        if problem:
+            return problem
+    return None
+
+
+def voice_model_ready():
+    return voice_model_problem() is None
+
+
 MODEL_URLS = {
     "kokoro-v1.0.onnx": "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.onnx",
     "voices-v1.0.bin": "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin",
