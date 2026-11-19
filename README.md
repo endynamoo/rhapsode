@@ -1,96 +1,107 @@
-<img src="branding/banner.png" alt="Rhapsode — read-aloud and manga stills, entirely on your own machine" width="100%">
+<img src="branding/banner.png" alt="Rhapsode — turn anything you can read into an audiobook, entirely on your own machine" width="100%">
 
-A read-aloud app that paints manga stills, entirely on your own machine. Drop in a
-book, a PDF, a scanned page or a screenshot and it reads to you in a local voice —
-no account, no cloud, no per-word billing.
+Turn anything you can read into an audiobook, while you read it. Drop in a book, a
+PDF, a scanned page, a screenshot or a web page and Rhapsode speaks it in a local
+voice, follows the words with the voice, and — if you want — paints the scenes it
+reads into manga-style stills. No account, no cloud, no per-word billing, no upload.
 
-![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/version-0.3.3--beta-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml) [![linux](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml)
+![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/version-0.3.4--beta-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml) [![linux](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml)
+
+## Who this is for
+
+**Somebody who wants their reading turned into audio, now.** You have a PDF for a
+deadline, a 600-page book you keep not starting, an article you saved, a screenshot
+of a page, an EPUB in a language you are still learning. Rhapsode reads it aloud in
+seconds, remembers where you were, and keeps working with the network unplugged.
+Nothing is exported to a service and nothing is charged by the word.
+
+**Somebody who likes the look of generated manga.** Give the narration to the
+Cinema pane and each beat of the text gets one still, drawn locally: ink, panel
+framing, the drift and dissolve of a slow page turn, and a chapter you can render
+into a 1080p MP4 cut to the voice. The pictures are still images on purpose — no
+video model, no animation, no flicker to sit through.
+
+**Somebody who wants to turn this into a different program.** Rhapsode is plain
+Python and plain web assets: one FastAPI process on loopback, the UI served from the
+same origin, no Node runtime, no bundler, no Electron, no framework to learn first.
+The engine, the library, the OCR, the aligner, the painter and the API are separate
+modules with the seams written down in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Lift the narration out and build a podcast tool. Lift the library and build a
+research reader. Lift the painter and build something that is not a book at all. The
+licence permits it, and the map is already drawn.
 
 ## What it does
 
 - **Reads anything** — pasted text, PDF, EPUB, DOCX, RTF, TXT, Markdown, an image,
-  or a URL it extracts the article from.
+  or a URL it extracts the article from. A damaged or mislabelled file is refused
+  with a sentence saying what is wrong, not a stack trace.
 - **Book view with a real word highlight** — EPUBs render their own chapters, PDFs
-  page by page, and the highlight is driven by Kokoro's phoneme timings rather than
-  a guess, so it tracks the voice.
+  page by page, scanned pages through OCR, and the highlight is driven by Kokoro's
+  phoneme timings rather than a guess, so the words and the voice stay together on a
+  long chapter, at 0.75× or at 3×. Each sentence's first word is painted before the
+  voice starts, so the mark is never trailing the sound.
 - **OCR built in** — scanned pages and screenshots, on-device: Apple Vision on
-  macOS, Windows.Media.Ocr on Windows, Tesseract on Linux.
+  macOS, Windows.Media.Ocr on Windows, Tesseract on Linux. On a scanned PDF the
+  spoken word is marked on the page itself, not only in the text under it.
 - **On-device translation** — read a foreign book in your own language, or in the
   foreign voice with the translation shown under the player. Apple's Translation
   framework on macOS 26 and later; a local OpenAI-compatible server everywhere
   else, configured or discovered on the usual ports.
-- **Polish pass** — each still is re-drawn once from itself so the ink settles and
-  faces tighten; a face/person detector decides whether a frame needs it at all.
-  Optional, and toggleable in Settings.
 - **Manga stills** — the narration is planned into beats and each beat gets one
-  locally generated still. Chapter view plays those stills against the voice with
-  a slow drift and a dissolve, and a chapter can be assembled into a 1080p MP4 cut
-  to the narration. Nothing is animated: the pictures stay still, and no video
-  model is involved.
+  locally generated still (FLUX.2 [klein]). A polish pass re-draws each still once
+  from itself so the ink settles, with an optional face repair that is off by
+  default because it can redraw a character into someone else. Chapter view plays
+  the stills against the voice; a chapter can be assembled into a 1080p MP4.
 - **Quick Read** — one hotkey reads whatever is selected in any app; with no
   selection it OCRs the clipboard image.
-- **Library search** — find a passage across every book you have imported, by
-  words or by meaning, with the snippet marked and a jump straight to that
-  sentence (`Ctrl+F`). Keyword search needs nothing extra; the 23 MB meaning
-  model is optional, off by default, and downloads only when you ask.
-- 54 voices · 9 languages · 0.75–3× speed · 20 themes · your place remembered per
-  document.
+- **Library search** — find a passage across every book you have imported, by words
+  or by meaning, with the snippet marked and a jump straight to that sentence
+  (`Ctrl+F`). Keyword search needs nothing extra; the 23 MB meaning model is
+  optional, off by default, and downloads only when you ask.
+- **It is quick because it is warm** — opening a book queues the audio for the first
+  sentences in the background, so the first press of Play is a cached clip rather
+  than a wait. 54 voices · 9 languages · 0.75–3× · 20 themes · your place remembered
+  per document.
 
-Everything stays on the machine: the voice model, the audio cache and the library
-are local files. Nothing is uploaded.
+Everything stays on the machine: the voice model, the audio cache, the stills and
+the library are local files. Nothing is uploaded, and remote access is off unless
+you deliberately turn it on and hand out the tokenised link.
 
 ## The parts that were actually hard
 
-Most of a reading app is plumbing. Four pieces were not, and they are the reason
-the thing behaves the way it does.
+Most of a reading app is plumbing. These were not, and they are why the thing
+behaves the way it does — and where to look if you are forking it.
 
-- **The highlight follows the voice, not a guess.** Kokoro returns per-word
-  timings derived from phonemes, so the reader drives the highlight from those
-  rather than estimating from duration and character count. That is why the
-  words and the voice never drift apart on a long chapter, at 0.75× or at 3×.
-- **Search is two lanes over one index.** SQLite FTS5 gives the keyword lane;
-  an optional 23 MB sentence-embedding model gives the meaning lane. The two
-  rankings are fused with reciprocal rank fusion (`Σ 1/(60 + rank)`) and a
-  recency decay, so a phrase match does not lose to a vaguely similar paragraph.
-  The model is off until you ask for it, and the index is rebuildable at any time.
-- **The painter is a separate process with a budget.** Stills are FLUX.2 [klein]
-  through diffusers on CUDA/ROCm or mflux/MLX on Apple Silicon, quantized on a
-  ladder that trades quality for headroom, and measured at 10.9 GB peak for a
-  832×480 frame in four steps. It refuses to start when the card is already full
-  rather than being killed halfway through a chapter. The numbers are in
-  [docs/STILLS.md](docs/STILLS.md).
-- **One Python process serves the UI on loopback.** FastAPI over 127.0.0.1 with
-  the web UI served from the same origin, server-sent events for cross-tab work,
-  and an optional pywebview shell. No Node runtime, no bundler, no Electron.
-
-## How this was built
-
-Rhapsode is AI-assisted software with a human director. Most of the code was
-written by AI models — **DeepSeek V4.1 Flash** and **Qwen 3.8 Flash Next** — working in long
-supervised sessions. Architecture, standards, and the decision about what ships
-stayed with one person, who keeps that director's role in every program here.
-
-That director reviewed the work as thoroughly as they could, and the repo is built
-so the claims are checkable rather than taken on faith: the test suite in `tests/`
-(its browser-driven part lives in `tests/ui/`), CI on Windows and Linux — the Linux job starts a real
-server and asserts a healthy `/api/health` with remote access off — the
-end-to-end checklist in [INSTALL.md](INSTALL.md) §6, and an
-[architecture document](docs/ARCHITECTURE.md) that spells out the API surface,
-the security model and the decisions behind them.
-
-None of that makes it authority. This is AI-written code with a human editor —
-read it before you depend on it, and look hardest at the parts that handle other
-people's files and the network: document extraction, OCR input, and the
-remote-access token.
+- **The highlight follows the voice, not a guess.** Kokoro returns per-word timings
+  derived from phonemes, the reader keys those to the clip that is actually playing,
+  and each sentence holds its clip until it can decode, paints the first word, and
+  only then starts the voice. That combination is why the mark does not drift a
+  little further behind with every sentence. I measured forced aligners against it
+  and they lost — the numbers are in the commit history and in
+  [issue #57](https://github.com/endynamoo/rhapsode/issues/57).
+- **Search is two lanes over one index.** SQLite FTS5 gives the keyword lane; an
+  optional 23 MB sentence-embedding model gives the meaning lane. The two rankings
+  are fused with reciprocal rank fusion (`Σ 1/(60 + rank)`) and a recency decay, so
+  a phrase match does not lose to a vaguely similar paragraph. The model is off
+  until you ask for it, and the index is rebuildable at any time.
+- **The painter is a separate process with a budget.** FLUX.2 [klein] through
+  diffusers on CUDA/ROCm or mflux/MLX on Apple Silicon, quantized on a ladder that
+  trades quality for headroom, measured at 10.9 GB peak for an 832×480 frame in four
+  steps. It refuses to start when the card is already full rather than being killed
+  halfway through a chapter. Numbers in [docs/STILLS.md](docs/STILLS.md).
+- **One Python process serves the UI on loopback.** FastAPI over 127.0.0.1, the web
+  UI from the same origin, server-sent events for cross-tab work, an optional
+  pywebview shell, and a revalidating static mount so an upgrade cannot leave a
+  stale JavaScript module running against new server code.
 
 ## Try it
 
-Releases carry prebuilt artifacts for each platform; the source install works
-everywhere. **[Releases →](https://github.com/endynamoo/rhapsode/releases)**
+**[Releases →](https://github.com/endynamoo/rhapsode/releases)** carries prebuilt
+artifacts; the source install works everywhere.
 
 **Windows 10/11** (preview) — the per-user installer needs no admin rights and can
-build the stills engine during the wizard. Download
-`Rhapsode-<version>-Setup.exe`, or build it yourself with Inno Setup 7:
+build the stills engine during the wizard. Download `Rhapsode-<version>-Setup.exe`,
+or build it yourself with Inno Setup 7:
 
 ```powershell
 .\scripts\build_installer.ps1   # writes dist\Rhapsode-<version>-Setup.exe
@@ -122,8 +133,65 @@ your architecture from Releases, or:
 ./run.sh              # browser mode; see INSTALL.md Section C for the desktop window
 ```
 
-Step-by-step instructions, per-GPU notes (CUDA, DirectML, ROCm) and the
-verification checklist live in **[INSTALL.md](INSTALL.md)**.
+Step-by-step instructions, per-GPU notes (CUDA, ROCm, DirectML still planned) and
+the verification checklist live in **[INSTALL.md](INSTALL.md)**.
+
+## Platform status
+
+| Platform | Read / TTS / highlight | Chapter stills → MP4 | Native bundle |
+|---|---|---|---|
+| macOS 13+ (Apple Silicon) | supported | supported (MPS + MLX) | `.app` + DMG |
+| macOS Intel | supported | placeholder (CPU painting planned for 0.4) | `.app` + DMG |
+| Windows 10/11 x64 | preview, installer or source | NVIDIA CUDA or AMD ROCm; placeholder without one | Inno Setup installer (preview) |
+| Linux x64 | preview, source install | NVIDIA CUDA or AMD ROCm; placeholder without one | not yet |
+
+AMD ROCm is wired into the stills engine through diffusers — measured on an RX 9070
+XT — while DirectML and Intel OpenVINO are still planned. A machine with no usable
+GPU still reads, narrates, searches and exports; its stills are placeholders, because
+CPU painting is not shipped (it is issue
+[#81](https://github.com/endynamoo/rhapsode/issues/81), planned for 0.4). Details in
+[docs/PLATFORMS.md](docs/PLATFORMS.md).
+
+## Where this is going
+
+Rhapsode is one of three, and the other two are being built on what it taught:
+
+- **Rhapsode** — this one. Reading, narration, and the manga stills.
+- **Opsis** — next.
+- **Poiesis** — the portfolio site that will gather the family together.
+
+## How this was built
+
+Rhapsode is AI-written software with a human director. Most of the code came from
+**DeepSeek V4.1 Flash 1017** working in long supervised sessions, and the
+architecture, the standards and the decision about what ships stayed with one
+person — who keeps that director's role across every program here.
+
+The repo is built so the claims are checkable rather than taken on faith: the suite
+in `tests/` (its browser-driven half in `tests/ui/`), the workflows in
+`.github/workflows/`, the local runner `scripts/ci-local.ps1` that can replay those
+workflows on your own machines when CI minutes are gone, the end-to-end checklist in
+[INSTALL.md](INSTALL.md) §6, and an [architecture
+document](docs/ARCHITECTURE.md) that spells out the API surface, the security model
+and the decisions behind them.
+
+None of that makes it authority. This is AI-written code with a human editor — read
+it before you depend on it, and look hardest at the parts that handle other people's
+files and the network: document extraction, OCR input, and the remote-access token.
+
+## Bugs are the priority, and pull requests move slowly
+
+The app is fully functional. It is not looking for new surface area; it is looking
+for the same experience on every system, and for the bug you found that I did not.
+
+- **Bug reports are the most useful thing you can send**, and a reproduction beats a
+  description: which platform, which file type, what you expected, what happened.
+- **Pull requests will be slow.** I review them myself, I do not merge anything I
+  cannot verify on the machine in front of me, and I would rather leave a good patch
+  sitting for a week than merge one I cannot stand behind. Please be patient, and do
+  not read silence as no.
+- **Expectations are in [CONTRIBUTING.md](CONTRIBUTING.md)** — branch names, the
+  changelog entry that rides with a change, and the suites to run before you push.
 
 ## Documentation
 
@@ -141,30 +209,17 @@ verification checklist live in **[INSTALL.md](INSTALL.md)**.
 | [AGENTS.md](AGENTS.md) | The rules an automated agent works to in this repository |
 | [THIRD_PARTY.md](THIRD_PARTY.md) | Dependency, model and license inventory |
 
-## Platform status
-
-| Platform | Read / TTS / highlight | Chapter stills → MP4 | Native bundle |
-|---|---|---|---|
-| macOS 13+ (Apple Silicon) | supported | supported (MPS + MLX) | `.app` + DMG |
-| macOS Intel | supported | CPU only, opt-in | `.app` + DMG |
-| Windows 10/11 x64 | preview, installer or source | NVIDIA CUDA or AMD ROCm; CPU opt-in | Inno Setup installer (preview) |
-| Linux x64 | preview, source install | NVIDIA CUDA or AMD ROCm; CPU opt-in | not yet |
-
-AMD ROCm is wired into the stills engine through diffusers — measured on an
-RX 9070 XT — while DirectML and Intel OpenVINO are still planned. Details in
-[docs/PLATFORMS.md](docs/PLATFORMS.md).
-
-
 ## License
 
 Rhapsode's own code is MIT — see [LICENSE](LICENSE). Kokoro-82M weights are
-Apache-2.0, so commercial use is fine. Two GPL components (`phonemizer` and eSpeak
-NG) reach the app through the dependency chain, so redistributing a **built
-bundle** carries GPL obligations even though the source stays MIT; the inventory
-is in [THIRD_PARTY.md](THIRD_PARTY.md).
+Apache-2.0, so commercial use is fine. A GPL-3.0 component (eSpeak NG, reached
+through `phonemizer`) is inside every built bundle because the narration engine
+phonemises with it, so redistributing a **built bundle** carries GPL obligations even
+though the source stays MIT; the inventory is in [THIRD_PARTY.md](THIRD_PARTY.md).
 
-The licence texts for the copyleft components, the exact versions this build
-uses, and the written offer for their source are in [`licenses/`](licenses/).
+The licence texts for the copyleft components, the exact versions this build uses,
+and the written offer for their source are in [`licenses/`](licenses/), and every
+release ships that folder inside the installer and inside the `.app`.
 
 ## Changelog
 
@@ -172,16 +227,17 @@ uses, and the written offer for their source are in [`licenses/`](licenses/).
 
 Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is generated from it by `scripts/changelog_render.py`, so edit the changelog, not this copy.
 
+### Unreleased
+
+**Changed**
+
+- **The README says who the app is for**: somebody turning anything they can read into an audiobook, somebody who likes generated manga stills, and somebody who wants to lift the parts into a different program. It now also says what to expect from pull requests (bugs first, reviews slow) and where the family of apps is going - and it corrects two stale claims: a platform table that still promised CPU stills, and a version badge stuck one release behind.
+
 ### 0.3.4-beta - 2026-11-19
 
 **Added**
 
 - **Licensing now matches what actually ships, and the build is compliant**: `THIRD_PARTY.md` called YuNet MIT (it is Apache-2.0), blamed the MIT `espeakng-loader` for eSpeak's GPL-3.0, and omitted the copyleft inside wheels (libsndfile, libheif, 41 MB of OpenCV FFmpeg we never call). Every download now also carries a `licenses/` folder: the GPL-3.0 and LGPL texts, OpenCV's notice, a `NOTICE.txt` the installer shows, and `SOURCES.md` with versions, upstream links and the written offer. `tests/test_licences.py` keeps it true.
-- **Run the CI workflows locally, Linux included**: `scripts\ci-local.ps1` mirrors `.github/workflows/` job for job - the suite in a venv built from `requirements-test.txt` alone, the browser journeys, a real server asked for `/api/health`, and the PyInstaller + Inno cycle with a silent install, the `licenses\` check and the uninstall. `-Job linux` runs `linux.yml` inside WSL through `scripts/ci-local-linux.sh`: the suite, a real server asserting the **Tesseract** OCR backend, and the browser journeys. For when Actions minutes run out. The macOS job needs a Mac and reports itself skipped, never passed.
-
-**Changed**
-
-- **A hidden search note removes its own progress bar**, so nothing from the meaning-model download can be left painted above the results.
 
 ### 0.3.2-beta - 2026-11-19
 
@@ -189,12 +245,21 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
 
+**Fixed**
+
+- A damaged or mislabelled file is now **refused with a sentence** instead of a bare 500, and every setting keeps to its own type and range, so a playback rate arriving as text cannot break playback.
+
 ### 0.3.0-beta - 2026-11-19
 
 **Added**
 
 - **Repair faces** is a new opt-in pass under Polish stills: each detected face is cropped, upsampled to 1024 px, re-drawn at a strength that can actually rebuild an eye, blended back through a feathered mask, and kept only if the repaint still contains a face and the region kept its ink - otherwise that face is restored from the copy taken before it. Two faces per still by default, `MURMUR_POLISH_FACE_MAX` to raise it. **Off by default**, because a crop repaint can redraw a character's face into someone else. `tests/test_face_repair.py` covers the crop maths, the cap, both revert paths and the cache variant without needing a GPU.
 
-*...and 95 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 96 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
+
+---
+
+I hope this makes a book more accessible, and more fun to get through, than it was
+before you opened it.
