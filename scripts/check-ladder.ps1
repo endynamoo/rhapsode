@@ -16,6 +16,12 @@ $ErrorActionPreference = 'Continue'   # native commands write progress to stderr
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $problems = @()
 
+# Never let git ask a human for a password: a promotion check ran by an agent must
+# either use the token this repo already has or report that the refs may be stale.
+$env:GIT_TERMINAL_PROMPT = '0'
+. (Join-Path $PSScriptRoot 'sentinel-credential.ps1')
+$hasCredential = Enable-SentinelGit
+
 function Invoke-Git {
     param([string[]]$GitArgs)
     $output = & git -C $repo @GitArgs 2>$null
@@ -24,7 +30,15 @@ function Invoke-Git {
 }
 
 Write-Host "fetching origin..." -ForegroundColor DarkGray
-Invoke-Git @('fetch', '--prune', 'origin') | Out-Null
+try {
+    Invoke-Git @('fetch', '--prune', 'origin') | Out-Null
+} catch {
+    # No credential, or no network. The check is still worth running: it compares
+    # the refs already in this clone. Say so rather than dying or, worse, hanging
+    # on a credential dialog.
+    $why = if ($hasCredential) { 'the fetch failed' } else { 'no git credential is available' }
+    Write-Host "note: $why - comparing the refs this clone already has" -ForegroundColor Yellow
+}
 
 $dirty = @(Invoke-Git @('status', '--porcelain'))
 if ($dirty.Count -gt 0) {
@@ -81,37 +95,34 @@ foreach ($tag in $tags) {
 
 if (-not $SkipCI) {
     Write-Host "`nCI" -ForegroundColor Cyan
-    $gh = Get-Command gh -ErrorAction SilentlyContinue
-    if (-not $gh) {
-        Write-Host "  skipped (gh not on PATH)" -ForegroundColor Yellow
+    $url = (@(Invoke-Git @('remote', 'get-url', 'origin'))) -join ''
+    $slug = $null
+    if ($url -match 'github\.com[:/]+([^/]+)/(.+?)(\.git)?$') {
+        $slug = "$($Matches[1])/$($Matches[2])"
+    }
+    if (-not $slug) {
+        Write-Host "  skipped (origin is not a GitHub URL)" -ForegroundColor Yellow
     } else {
-        $url = (@(Invoke-Git @('remote', 'get-url', 'origin'))) -join ''
-        $slug = $null
-        if ($url -match 'github\.com[:/]+([^/]+)/(.+?)(\.git)?$') {
-            $slug = "$($Matches[1])/$($Matches[2])"
-        }
-        if (-not $slug) {
-            Write-Host "  skipped (origin is not a GitHub URL)" -ForegroundColor Yellow
-        } else {
-            foreach ($branch in @('main', 'testing', 'stable')) {
-                $runs = gh api "repos/$slug/actions/runs?branch=$branch&per_page=1" 2>$null | ConvertFrom-Json
-                $run = $runs.workflow_runs[0]
-                if (-not $run) {
-                    Write-Host ("  ???  {0,-8} no runs" -f $branch) -ForegroundColor Yellow
-                    continue
-                }
-                $verdict = if ($run.status -ne 'completed') { $run.status } else { $run.conclusion }
-                $sha = $run.head_sha.Substring(0, 7)
-                if ($verdict -eq 'success' -and $sha -eq $shas[$branch]) {
-                    Write-Host ("  ok   {0,-8} {1}" -f $branch, $verdict) -ForegroundColor Green
-                } elseif ($verdict -eq 'success') {
-                    Write-Host ("  warn {0,-8} last run was {1} but HEAD is another commit" -f $branch, $sha) -ForegroundColor Yellow
-                } elseif ($run.status -ne 'completed') {
-                    Write-Host ("  warn {0,-8} CI is {1}" -f $branch, $verdict) -ForegroundColor Yellow
-                } else {
-                    Write-Host ("  FAIL {0,-8} {1}" -f $branch, $verdict) -ForegroundColor Red
-                    $problems += "CI on $branch is $verdict"
-                }
+        foreach ($branch in @('main', 'testing', 'stable')) {
+            # sentinel's read token, not `gh`: that CLI is deliberately logged out
+            # here, and a missing answer must read as "unknown", never as a crash.
+            $runs = Invoke-SentinelApi "/repos/$slug/actions/runs?branch=$branch&per_page=1"
+            $run = @($runs.workflow_runs) | Select-Object -First 1
+            if (-not $run) {
+                Write-Host ("  ???  {0,-8} no runs" -f $branch) -ForegroundColor Yellow
+                continue
+            }
+            $verdict = if ($run.status -ne 'completed') { $run.status } else { $run.conclusion }
+            $sha = $run.head_sha.Substring(0, 7)
+            if ($verdict -eq 'success' -and $sha -eq $shas[$branch]) {
+                Write-Host ("  ok   {0,-8} {1}" -f $branch, $verdict) -ForegroundColor Green
+            } elseif ($verdict -eq 'success') {
+                Write-Host ("  warn {0,-8} last run was {1} but HEAD is another commit" -f $branch, $sha) -ForegroundColor Yellow
+            } elseif ($run.status -ne 'completed') {
+                Write-Host ("  warn {0,-8} CI is {1}" -f $branch, $verdict) -ForegroundColor Yellow
+            } else {
+                Write-Host ("  FAIL {0,-8} {1}" -f $branch, $verdict) -ForegroundColor Red
+                $problems += "CI on $branch is $verdict"
             }
         }
     }

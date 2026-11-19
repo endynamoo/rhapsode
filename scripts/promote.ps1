@@ -16,6 +16,16 @@ param(
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 
+# The push at the end needs a credential, and this machine answers git only from
+# $env:SENTINEL_GIT_TOKEN - the credential manager is out of the picture so it
+# cannot pop a dialog at whoever is not watching. Load the token first, and stop
+# with an explanation instead of hanging if there is none.
+$env:GIT_TERMINAL_PROMPT = '0'
+. (Join-Path $PSScriptRoot 'sentinel-credential.ps1')
+if (-not (Enable-SentinelGit) -and -not $DryRun) {
+    throw "No git credential: run this where sentinel's token store is available, or set SENTINEL_GIT_TOKEN. Use -DryRun to inspect without pushing."
+}
+
 if ($Tag -and $To -ne 'stable') {
     throw "Only 'stable' gets a known-good tag; promote through testing first."
 }

@@ -190,6 +190,6 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 - First Windows-capable build of the reader and stills app: PDF, EPUB, DOCX, RTF, TXT, Markdown and HTML imports.
 - OCR through Windows' own engine, and translation through any local OpenAI-compatible server.
 
-*...and 72 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 73 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
