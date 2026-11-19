@@ -15,6 +15,7 @@ phrased for a user, not for a diff reader.
 
 ### Fixed
 
+- **A scanned page now marks the word on the page itself**: the reader asks the on-device recogniser where each word sat, then draws the mark there. Text-layer pages never call it.
 - Every sentence now starts with its first word already marked. The clip is held
   until it can decode, its opening word is highlighted, and only then does the
   voice start, so a sentence the reader reached by finishing the one before it can
