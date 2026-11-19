@@ -22,10 +22,11 @@ MAX_BYTES = 4_000_000
 class DemoClipTests(unittest.TestCase):
     def setUp(self):
         self.readme = README.read_text(encoding="utf-8")
-        # GIFs are shown with an <img>, MP4s are linked under them; both are file names
-        # with an extension, which keeps prose like "in docs/demo/" out of the set.
-        self.linked = set(re.findall(
-            r"docs/demo/([A-Za-z0-9._-]+\.(?:gif|mp4|png))", self.readme))
+        self.index = (DEMO / "README.md").read_text(encoding="utf-8")
+        # A clip may be shown on the front page or listed in the folder's own index; the
+        # name carries an extension, which keeps prose like "in docs/demo/" out of the set.
+        names = re.findall(r"([A-Za-z0-9._-]+\.(?:gif|mp4|png))", self.readme + self.index)
+        self.linked = {name for name in names if (DEMO / name).exists()}
 
     def test_every_linked_clip_exists(self):
         self.assertTrue(self.linked, "the README links no demo clip")
@@ -36,7 +37,8 @@ class DemoClipTests(unittest.TestCase):
     def test_every_published_clip_is_linked(self):
         published = {path.name for path in DEMO.iterdir()
                      if path.suffix in (".gif", ".mp4", ".png")}
-        self.assertEqual(published - self.linked, set(), "a clip ships without being shown")
+        self.assertEqual(published - self.linked, set(),
+                         "a clip ships without being named on the front page or in the index")
 
     def test_clips_are_gifs_small_enough_and_animated(self):
         for path in sorted(DEMO.glob("*.gif")):

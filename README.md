@@ -71,44 +71,38 @@ you deliberately turn it on and hand out the tokenised link.
 
 Five things that are easier to watch than to read about. Every clip is a recording of this
 build playing text written for the demo - no mock-ups, nothing staged by hand. The files it
-plays and the method that records it are in [docs/demo](docs/demo/README.md), and each GIF is
-shown with the same clip in full motion beside it.
+plays, the full-motion MP4 of every clip, and the method that records them are all in
+[docs/demo](docs/demo/README.md).
 
 **The word being spoken is the word marked.** Kokoro returns phoneme timings, so the mark
 tracks the voice at any speed instead of guessing from the clock, and every sentence paints
 its first word before the sound starts.
 
 <img src="docs/demo/reading.gif" width="880" alt="Book view playing: the spoken word is marked as the voice reads">
-[Watch the full-motion clip (MP4)](docs/demo/reading.mp4)
 
 **A scanned page, marked on the page itself.** This PDF has no text layer at all: the page
 is OCR'd, the words are located on the image, and the box follows the voice across it - not
 a caption underneath pretending to be one.
 
 <img src="docs/demo/scanned-page.gif" width="880" alt="A scanned PDF page with the spoken word boxed on the image">
-[Watch the full-motion clip (MP4)](docs/demo/scanned-page.mp4)
 
 **Search every book at once, by words or by meaning.** Nine passages in 15 ms, grouped by
 book, each snippet showing what matched, and Enter opens that sentence.
 
 <img src="docs/demo/search.gif" width="880" alt="Library search across books with highlighted matches">
-[Watch the full-motion clip (MP4)](docs/demo/search.mp4)
 
 **A chapter drawn while it is read.** Each beat of the text becomes one still, painted
 locally, played against the narration - and the same stills assemble into a chapter film.
 
 <img src="docs/demo/manga.gif" width="880" alt="Manga view: a generated still behind the narration">
-[Watch the full-motion clip (MP4)](docs/demo/manga.mp4)
 
 **English text, Japanese voice, both on this machine.** With a Japanese voice chosen,
 the sentence is translated first and then read in Japanese - the translation bar shows what is
 being said, and the audio follows it. The translation comes from a local OpenAI-compatible
-server, the voice from Kokoro; nothing leaves the machine. This one is a clip rather than a GIF
-because the point is the voice.
+server, the voice from Kokoro; nothing leaves the machine. It is a clip rather than a GIF
+because the point is the voice - and it is the one clip with sound, so press it.
 
 [<img src="docs/demo/translation-poster.png" width="880" alt="A Japanese translation bar under an English sentence being read by a Japanese voice">](docs/demo/translation.mp4)
-
-[Watch with sound (MP4)](docs/demo/translation.mp4)
 
 ## The stack, and why this mix
 
@@ -294,7 +288,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 **Added**
 
-- **Five demo clips, recorded from this build.** The README now shows the reader marking the spoken word, a scanned PDF page marked on the page itself, a library search across three books, a chapter read over a still the stills engine painted, and an English sentence read in Japanese through a local translation server - the last one with sound, muxed from the audio the app actually played. GIFs inline with the full-motion MP4 beside each, in `docs/demo/`, along with the demo corpus and the recording method, so a clip can be reproduced rather than trusted.
+- **Five demo clips, recorded from this build.** The README now shows the reader marking the spoken word, a scanned PDF page marked on the page itself, a library search across three books, a chapter read over a still the stills engine painted, and an English sentence read in Japanese through a local translation server - the last one with sound, muxed from the audio the app actually played. The GIFs sit in the README, and every clip's full-motion MP4, the demo corpus and the recording method live in `docs/demo/`, so a clip can be reproduced rather than trusted.
 
 **Changed**
 
