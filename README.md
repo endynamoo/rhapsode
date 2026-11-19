@@ -105,6 +105,23 @@ server, the voice from Kokoro; nothing leaves the machine.
 The GIF is silent - a README cannot play a video file, so this is the picture of the feature
 working, not the sound of it. The voice is Kokoro's Japanese, chosen from the voice menu.
 
+**One sentence, three languages.** Same sentence, same reader, three voices - the word mark
+stays on the English word being spoken while the bar carries the translation, and the reader
+takes whichever voice you pick:
+
+<img src="docs/demo/three-languages.gif" width="880" alt="The same English sentence read in Japanese, then Spanish, then French, with the matching translation bar">
+
+The sound is real, and it is in this repository as plain files - download and play them in
+whatever you already use:
+
+- **[one-sentence-four-voices.mp3](docs/demo/audio/one-sentence-four-voices.mp3)** (27 s) - that
+  sentence in English, then Japanese, then Spanish, then French
+- **[reading-sample.mp3](docs/demo/audio/reading-sample.mp3)** (26 s) - the demo book's opening,
+  read by one English voice
+
+GitHub renders no audio or video from a repository, so a README cannot play them; docs/demo
+explains the two ways to get a playing player into one.
+
 ## The stack, and why this mix
 
 No single piece here is exotic. What makes the combination work is that the voice is not a
@@ -286,19 +303,23 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 ### Unreleased
 
+- **Audio you can actually play, and one sentence in three languages.** The demo now includes `docs/demo/audio/one-sentence-four-voices.mp3` (one sentence read in English, Japanese, Spanish and French, the last three translated locally) and `reading-sample.mp3` (26 seconds of the demo book), both produced through the app's own `/api/tts` and published as files because GitHub renders no media from a repository. A three-panel clip shows the same sentence with the Japanese, Spanish and French bar, so the front page still shows the feature working.
+
 **Added**
 
 - **Five demo clips, recorded from this build.** The README now shows the reader marking the spoken word, a scanned PDF page marked on the page itself, a library search across three books, a chapter read over a still the stills engine painted, and an English sentence read in Japanese through a local translation server - the last one with sound, muxed from the audio the app actually played. The GIFs sit in the README, and every clip's full-motion MP4, the demo corpus and the recording method live in `docs/demo/`, so a clip can be reproduced rather than trusted.
-
-**Changed**
-
-- **The README says who the app is for**: somebody turning anything they can read into an audiobook, somebody who likes generated manga stills, and somebody who wants to lift the parts into a different program. It now also says what to expect from pull requests (bugs first, reviews slow) and where the family of apps is going, including what the next one does (Opsis turns a book into a film of directed, generated and polished scenes; an alpha is running, and the open beta is targeted for before the new year) - and it replaces "the parts that were actually hard" with what each technology in the build is and why this mix works: the voice returns phoneme timings, so the highlight, the warm-ahead, the still beats and the MP4 cut are all read off the same clock instead of being guessed. It also corrects two stale claims: a platform table that still promised CPU stills, and a version badge stuck one release behind.
 
 ### 0.3.4-beta - 2026-11-19
 
 **Added**
 
 - **Licensing now matches what actually ships, and the build is compliant**: `THIRD_PARTY.md` called YuNet MIT (it is Apache-2.0), blamed the MIT `espeakng-loader` for eSpeak's GPL-3.0, and omitted the copyleft inside wheels (libsndfile, libheif, 41 MB of OpenCV FFmpeg we never call). Every download now also carries a `licenses/` folder: the GPL-3.0 and LGPL texts, OpenCV's notice, a `NOTICE.txt` the installer shows, and `SOURCES.md` with versions, upstream links and the written offer. `tests/test_licences.py` keeps it true.
+
+### 0.3.2-beta - 2026-11-19
+
+**Added**
+
+- **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
 
 *...and 100 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
