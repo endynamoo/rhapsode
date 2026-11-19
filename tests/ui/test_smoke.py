@@ -53,6 +53,21 @@ def free_port() -> int:
         return sock.getsockname()[1]
 
 
+def wav_base64(seconds: float, rate: int = 22050) -> str:
+    """A short silent WAV as base64, so a test can play a sentence without a model."""
+    import base64
+    import io
+    import wave
+
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(rate)
+        handle.writeframes(b"\x00\x00" * int(rate * seconds))
+    return base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
 def wait_for(url: str, timeout: float = 45.0) -> dict:
     deadline = time.time() + timeout
     last: Exception | None = None
@@ -314,6 +329,87 @@ class SmokeTests(unittest.TestCase):
         )
         # Leave the suite's data folder as it found it.
         httpx.put(f"{self.base}/api/settings", json={"highlightWords": True}, timeout=10)
+
+    def test_the_mark_is_on_the_page_before_the_voice_starts(self) -> None:
+        # At a sentence boundary the clip used to start playing and the mark only
+        # arrived on the next animation frame, so every sentence began with the
+        # voice a frame or two ahead of the highlight. The clip is now held until
+        # it can decode and its first word is painted, so no call to play() may
+        # happen while the sentence on screen has no word marked.
+        #
+        # The voice is stubbed with silence: the ordering asserted here is
+        # client-side, and real synthesis would make CI depend on the weights.
+        payload = {
+            "duration": 0.9,
+            "words": [
+                {"text": f"w{index}", "start": round(0.04 + index * 0.2, 3),
+                 "end": round(0.22 + index * 0.2, 3)}
+                for index in range(4)
+            ],
+            "spoken": "stub",
+            "translated": False,
+            "urls": [],
+        }
+        # Record what the page looks like at the instant the player is asked to
+        # make a sound, which is the moment this test is about.
+        self.page.add_init_script(
+            """
+            (() => {
+              window.__plays = [];
+              const realPlay = HTMLMediaElement.prototype.play;
+              HTMLMediaElement.prototype.play = function (...args) {
+                window.__plays.push({
+                  marks: document.querySelectorAll('#reader .w.is-active').length,
+                  t: +this.currentTime.toFixed(3),
+                });
+                return realPlay.apply(this, args);
+              };
+            })();
+            """
+        )
+        self.open_app()
+        # The app's CSP allows media from this page and blob:, but not data:, so
+        # the silent clip is handed over as a blob URL.
+        payload["urls"] = self.page.evaluate(
+            """(base64) => {
+                const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+                const urls = [];
+                for (let i = 0; i < 6; i += 1) {
+                    urls.push(URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' })));
+                }
+                return urls;
+            }""",
+            wav_base64(0.9),
+        )
+        handed_out: list[str] = []
+
+        def handle(route) -> None:
+            index = min(len(handed_out), len(payload["urls"]) - 1)
+            handed_out.append(payload["urls"][index])
+            body = dict(payload, url=payload["urls"][index])
+            body.pop("urls")
+            route.fulfill(status=200, content_type="application/json", body=json.dumps(body))
+
+        self.page.route("**/api/tts", handle)
+        try:
+            self.page.locator(".lib-item", has_text=TITLE).first.click()
+            self.page.wait_for_selector("#reader .unit, #reader p")
+            self.page.click("#playBtn")
+            deadline = time.time() + 10
+            while time.time() < deadline:
+                if self.page.evaluate("() => (window.__plays || []).length"):
+                    break
+                self.page.wait_for_timeout(100)
+            plays = self.page.evaluate("() => window.__plays || []")
+        finally:
+            self.page.unroute("**/api/tts", handle)
+
+        self.assertTrue(plays, "the player was never asked to start, so nothing was measured")
+        unmarked = [entry for entry in plays if not entry["marks"]]
+        self.assertEqual(
+            unmarked, [],
+            f"the voice was started while no word was marked: {unmarked}",
+        )
 
     def test_search_finds_a_phrase_in_the_book(self) -> None:
         self.open_app()
