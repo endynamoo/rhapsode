@@ -41,7 +41,7 @@ build exists.
 | Tier | Platform | Window | TTS | OCR | Films (High) | Films (Fast) | Package |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | A (current) | macOS 13+, Apple Silicon | WKWebView | Kokoro ONNX (CPU/CoreML) | Vision | FLUX.2 klein via MLX | FLUX.2 klein 720p (MLX) | `.app` + DMG |
-| A | macOS Intel | WKWebView | Kokoro ONNX CPU | Vision | CPU painting, opt-in | CPU painting, opt-in | `.app` + DMG |
+| A | macOS Intel | WKWebView | Kokoro ONNX CPU | Vision | placeholder (CPU painting planned for 0.4) | placeholder | `.app` + DMG |
 | B | Windows 11, NVIDIA | WebView2 | Kokoro ONNX (CUDA provider) | Windows OCR | FLUX.2 klein via diffusers CUDA (≥12 GB) | FLUX.2 klein 720p CUDA | Inno Setup installer |
 | B | Windows 11, AMD (ROCm) | WebView2 | Kokoro ONNX (CPU or DirectML) | Windows OCR | FLUX.2 klein via diffusers ROCm (≥12 GB) | FLUX.2 klein 720p ROCm | Inno Setup installer |
 | B | Windows 11, Intel | WebView2 | Kokoro ONNX (DirectML/OpenVINO) | Windows OCR | placeholder (no FLUX path yet) | placeholder | Inno Setup installer |
@@ -117,7 +117,8 @@ classDiagram
     class DiffusersDirectMLBackend
     class DiffusersRocmBackend
     class OpenVinoBackend
-    class CpuFluxBackend %% planned for 0.4, not implemented
+    %% CpuFluxBackend is planned for 0.4, not implemented today.
+    class CpuFluxBackend
     class PlaceholderBackend
 
     class OcrBackend {
@@ -275,7 +276,7 @@ explanation when FLUX is not viable.
 
 - Intel Extension for PyTorch (IPEX) or OpenVINO; oneAPI runtime.
 - No FLUX.2 path via IPEX yet; TTS via OpenVINO, stills stay placeholder.
-- Integrated GPUs: Fast/CPU only.
+- Integrated GPUs: Fast quality only, or placeholder stills.
 
 ### 5.5 Linux packaging
 
