@@ -307,13 +307,13 @@ def _has_packages(python: Path, names: tuple[str, ...] = _PACKAGES) -> bool:
     gets torch from an unrelated studio environment exactly that way. "Not found"
     means "ask the interpreter", not "not installed".
     """
-    roots = _site_packages(python)
-    for root in roots:
-        roots = roots + _pth_paths(root)
+    search = _site_packages(python)
+    for root in list(search):
+        search += _pth_paths(root)
     for name in names:
         found = any(
             (root / name / "__init__.py").exists() or (root / f"{name}.py").exists()
-            for root in roots
+            for root in search
         )
         if not found:
             return False
