@@ -10,34 +10,29 @@ phrased for a user, not for a diff reader.
 
 ## [Unreleased]
 
-### Fixed
-
-- **HEIC imports work in an installed build**: the frozen app never bundled `pillow-heif`, so a `.heic` file opened from an installer would be refused while the same file worked from a source checkout.
-- **The README badge caught up, and so did three visible messages**: the badge said 0.3.2 while the app said 0.3.3, and the setup banner, the private-access notice and an untitled chapter's exported film still said Murmur - that film now exports as "Rhapsode - chapter 1".
-
-### Changed
-
-- **The licence notice now matches what ships**: `THIRD_PARTY.md` called YuNet MIT (it is Apache-2.0), described the MIT `espeakng-loader` as GPL instead of the eSpeak NG it carries, left out the copyleft inside wheels (libsndfile LGPL-2.1, libheif LGPL-3.0, 41 MB of OpenCV FFmpeg we never call), and now says plainly that the installer bundles the GPL-3.0 phonemiser, so a distributed build carries GPL-3.0 obligations.
-- **Repository housekeeping**: the source-tarball script works from any checkout, six tracked files lost their byte-order marks, `.gitignore` names the icon it generates and covers a contributor's caches, and a workshop script plus a stale generator claim are gone.
+## [0.3.3-beta] - 2026-11-19
 
 ### Added
 
-- **Run the CI workflows locally**: `scripts\ci-local.ps1` mirrors `.github/workflows/` job for job - the suite in a venv built from `requirements-test.txt` alone, the browser journeys, a real server asked for `/api/health`, and the PyInstaller + Inno cycle with a silent install, the `licenses\` check, a health call and the uninstall. For when Actions minutes run out or a release needs the installer verified before a tag exists. The macOS job needs a Mac and is reported as skipped, never as passed.
-- **A `licenses/` folder, so a build can be redistributed cleanly**: the installer includes GPL-3.0 code (eSpeak NG through `phonemizer`), which obliges us to ship the licence texts and the source offer with every download. That folder now holds the GPL-3.0, LGPL-2.1 and LGPL-3.0 texts, OpenCV's own third-party notice, a `NOTICE.txt` the installer shows, and `SOURCES.md` naming each copyleft component with its exact version, upstream link and the written offer. Both build paths copy it, and `tests/test_licences.py` fails if any of that stops being true.
-## [0.3.3-beta] - 2026-11-19
+- **Licensing now matches what actually ships, and the build is compliant**: `THIRD_PARTY.md` called YuNet MIT (it is Apache-2.0), blamed the MIT `espeakng-loader` for eSpeak's GPL-3.0, and omitted the copyleft inside wheels (libsndfile, libheif, 41 MB of OpenCV FFmpeg we never call). Every download now also carries a `licenses/` folder: the GPL-3.0 and LGPL texts, OpenCV's notice, a `NOTICE.txt` the installer shows, and `SOURCES.md` with versions, upstream links and the written offer. `tests/test_licences.py` keeps it true.
+- **Run the CI workflows locally**: `scripts\ci-local.ps1` mirrors `.github/workflows/` job for job - the suite in a venv built from `requirements-test.txt` alone, the browser journeys, a real server asked for `/api/health`, and the PyInstaller + Inno cycle with a silent install, the `licenses\` check and the uninstall. For when Actions minutes run out. macOS needs a Mac, so it reports itself skipped, never passed.
+
+### Changed
+
+- **A hidden search note removes its own progress bar**, so nothing from the meaning-model download can be left painted above the results.
+- **Repository housekeeping**: the source-tarball script works from any checkout, six files lost their byte-order marks, `.gitignore` covers a contributor's caches, and a workshop script plus a stale generator claim are gone.
+
 ### Fixed
 
 - **First-run setup no longer dies on a plain console**: the download progress and its tick marks were printed as Unicode, which a legacy (cp1252) console cannot encode - the download aborted with an encoding error while reporting itself. The text now degrades to whatever the console can print.
-- **Follow along now works in Book view**: both scroll paths ignored the switch - the chapter highlight moved the page to keep the spoken sentence in sight, and the advance to the next sentence scrolled regardless - so turning it off changed nothing while reading. A sentence you jump to deliberately is still brought into view.
+- **Follow along now works in Book view**: both scroll paths ignored the switch: the chapter highlight kept the spoken sentence in sight and the advance to the next one scrolled regardless, so turning it off changed nothing. A sentence you jump to is still brought into view.
 - **The translated-sentence bar no longer covers the sidebar**: centred on the window it landed on the theme and settings buttons and swallowed their clicks. It is anchored to the reading column and takes no pointer events.
 - **Export asks where the file should go**: the save dialog comes first, the export is written to the chosen file, and the copy under the data folder is removed once the reader has it. Browsers that cannot choose a path say which folder the download went to.
 - **A voice model file that is a stub is now named and repaired**: a 4-byte `kokoro-v1.0.onnx` passed every "does the model exist" check, so play threw a raw ONNX error and `python -m murmur.bootstrap` reported nothing to do. The engine, the downloader and `/api/health` now share one size check, bootstrap re-downloads a bad file, and Settings offers **Download it again**.
 - **Dark themes: the voice dropdown opens a dark popup** instead of the platform's light default, because its options are painted with the theme's colours.
 - **The Search dialog's footer sits inside the card**, so the keyboard hint and the button no longer touch the border.
-
-### Changed
-
-- **A hidden search note removes its own progress bar**, so nothing from the meaning-model download can be left painted in the gap above the results.
+- **HEIC imports work in an installed build**: the frozen app never bundled `pillow-heif`, so a `.heic` file opened from an installer would be refused while the same file worked from a source checkout.
+- **The README badge caught up, and so did three visible messages**: the badge said 0.3.2 while the app said 0.3.3, and the setup banner, the private-access notice and an untitled chapter's exported film still said Murmur - that film now exports as "Rhapsode - chapter 1".
 
 ## [0.3.2-beta] - 2026-11-19
 ### Added
