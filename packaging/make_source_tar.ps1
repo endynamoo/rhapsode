@@ -2,7 +2,8 @@
 $ErrorActionPreference = 'Stop'
 $root = 'C:\Apps\Rhapsode'
 $stage = 'C:\Users\corte\AppData\Local\Temp\opencode\rhapsode-src'
-$out = 'C:\Apps\Rhapsode\dist\rhapsode-0.2.0-alpha-win-source.tar.gz'
+$version = (& 'C:\Apps\Rhapsode\.venv\Scripts\python.exe' -c "import murmur; print(murmur.__version__)").Trim()
+$out = "C:\Apps\Rhapsode\dist\rhapsode-$version-win-source.tar.gz"
 
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 robocopy $root $stage /E /XD .venv dist build __pycache__ .pytest_cache .git /XF *.log *.txt.bak t1_err.txt t2_err.txt dbg_err.txt selftest_err.txt selftest_out.txt /NFL /NDL /NJH /NJS | Out-Null
