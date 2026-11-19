@@ -17,6 +17,8 @@ The format follows Keep a Changelog. Add an entry under `## [Unreleased]
 - Cinema reports what the stills engine is actually doing — planning, loading the model, painting, cleaning up, polishing, or showing a placeholder — instead of one static "Painting scene…", with the backend, model and profile on screen and a Retry button when a scene fails.
 
 ### Changed
+- The Settings panel moved out of `web/app.js` into `web/views/settings.js`, and the browser now loads `app.js` as an ES module. No bundler, no new build step, and no behaviour change: the view receives `$`, `$$`, `api`, `state` and the few helpers it needs instead of reaching into the module scope, so what it depends on is visible at the top of the file. This is the first slice of the UI split (#36); the browser suite grew a test that fails if the panel stops being wired.
+### Changed
 
 - The install and build guide is now **[INSTALL.md](INSTALL.md)**, written for a person rather than an automated agent: support status, per-platform prerequisites, GPU notes, verification steps and troubleshooting, unchanged in substance. `AGENTS.md` keeps the rules an agent must work to.
 - The README now reads as an argument rather than a feature list: what it does, **the parts that were actually hard** (phoneme-timed highlight, the two-lane search index, the painter's memory budget, one loopback server), how it was built, and then how to try it — with a link to Releases for the prebuilt Windows installer and macOS DMGs.

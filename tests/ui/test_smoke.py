@@ -195,6 +195,23 @@ class SmokeTests(unittest.TestCase):
         self.assertNotIn("Add a document to begin", subtitle, subtitle)
         self.assertIn("Press play", subtitle, subtitle)
 
+    def test_the_settings_panel_is_wired(self) -> None:
+        # The settings view used to be 450 lines in the middle of app.js; it is a
+        # module now, so this checks the seam rather than the styling: the panel
+        # opens, its remote fetches land, and nothing threw while it did.
+        self.open_app()
+        self.open_settings()
+        self.page.wait_for_selector("#setEngineProfile button")
+        summary = self.page.locator("#engineSummary").inner_text()
+        self.assertTrue(summary.strip(), "the engine summary never filled in")
+        self.assertNotIn("unavailable", summary.lower(), summary)
+        status = self.page.locator("#remoteStatus").inner_text()
+        self.assertIn("off", status.lower(), status)
+        self.assertGreater(self.page.locator("#setEngineProfile button").count(), 1)
+        self.assertGreater(self.page.locator("#setFontFamily option").count(), 1)
+        errors = [line for line in self.console if line.startswith("pageerror:")]
+        self.assertEqual(errors, [], "the page threw while opening Settings")
+
     def test_search_finds_a_phrase_in_the_book(self) -> None:
         self.open_app()
         self.page.click("#searchBtn")
