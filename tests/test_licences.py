@@ -47,6 +47,13 @@ class LicenceFolderTests(unittest.TestCase):
             self.assertFalse(data.startswith(b"\xef\xbb\xbf"), f"{path.name} has a BOM")
             self.assertNotIn(b"\r\n", data, f"{path.name} has CRLF line endings")
 
+    def test_every_licence_file_is_valid_utf8(self):
+        # A notice nobody can open is not a notice; the OpenCV one is 181 KB of
+        # prose from a dozen projects, so it is the likely place for a stray byte.
+        for path in LICENSES.iterdir():
+            if path.is_file():
+                path.read_bytes().decode("utf-8")
+
     def test_sources_names_every_copyleft_component_the_notice_lists(self):
         sources = read(LICENSES / "SOURCES.md")
         for component in ("phonemizer", "eSpeak NG", "libsndfile", "libheif", "FFmpeg"):
