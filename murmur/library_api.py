@@ -142,30 +142,33 @@ def get_doc(doc_id: str) -> dict:
     return doc
 
 
-@router.get("/api/docs/{doc_id}/page/{page}/words")
-def doc_page_words(doc_id: str, page: int):
-    """Word boxes for a PDF page, normalized to the rendered page."""
-    doc = store.get_doc(doc_id)
-    if not doc or doc.get("viewer") != "pdf":
-        raise HTTPException(status_code=404, detail="This document has no text boxes")
-    total = doc.get("pageCount") or 0
-    if page < 0 or page >= total:
-        raise HTTPException(status_code=404, detail="Page out of range")
+def _normalise_boxes(width: float, height: float, words: list[dict]) -> list[dict]:
+    """Word boxes as fractions of the page, which is what the reader draws with."""
+    if not width or not height:
+        return []
+    out: list[dict] = []
+    for word in words:
+        text = str(word.get("text") or "").strip()
+        if not text:
+            continue
+        out.append(
+            {
+                "text": text,
+                "x": round(float(word["x"]) / width, 6),
+                "y": round(float(word["y"]) / height, 6),
+                "w": round(max(0.0, float(word["w"])) / width, 6),
+                "h": round(max(0.0, float(word["h"])) / height, 6),
+            }
+        )
+    return out
 
-    source = store.doc_file(doc_id)
-    if not source or not source.exists():
-        raise HTTPException(status_code=404, detail="The original file is missing")
 
-    fingerprint = {"size": source.stat().st_size, "mtime": int(source.stat().st_mtime)}
-    cache = config.PAGES_DIR / f"{doc_id}_{page}_words.json"
-    if cache.exists():
-        try:
-            cached = json.loads(cache.read_text("utf-8"))
-            if cached.get("source") == fingerprint:
-                return cached
-        except (OSError, json.JSONDecodeError, AttributeError):
-            pass
+def _text_layer_boxes(source: Path, page: int) -> tuple[float, float, str, list[dict]]:
+    """The page's own word boxes in PDF points, as `(width, height, text, words)`.
 
+    Empty for a scanned page: there is text on the image, but nothing selectable
+    to take positions from.
+    """
     with PDF_LOCK:
         try:
             import pypdfium2 as pdfium
@@ -208,23 +211,6 @@ def doc_page_words(doc_id: str, page: int):
                         current["top"] = max(current["top"], box[3])
                 if current:
                     words.append(current)
-                payload = {
-                    "page": page,
-                    "width": width,
-                    "height": height,
-                    "text": text,
-                    "source": fingerprint,
-                    "words": [
-                        {
-                            "text": word["text"],
-                            "x": round(word["left"] / width, 6),
-                            "y": round((height - word["top"]) / height, 6),
-                            "w": round((word["right"] - word["left"]) / width, 6),
-                            "h": round((word["top"] - word["bottom"]) / height, 6),
-                        }
-                        for word in words
-                    ],
-                }
             finally:
                 textpage.close()
                 page_obj.close()
@@ -233,6 +219,117 @@ def doc_page_words(doc_id: str, page: int):
             raise
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Could not read page words: {exc}") from exc
+
+    # PDF points put the origin at the bottom; the reader draws from the top.
+    boxes = [
+        {
+            "text": word["text"],
+            "x": word["left"],
+            "y": height - word["top"],
+            "w": word["right"] - word["left"],
+            "h": word["top"] - word["bottom"],
+        }
+        for word in words
+    ]
+    return width, height, text, boxes
+
+
+def _render_page_png(doc_id: str, page: int, dpi: int) -> Path | None:
+    """The rendered page, from cache or freshly rendered under the PDFium lock."""
+    cached = config.PAGES_DIR / f"{doc_id}_{page}_{dpi}.png"
+    if cached.exists():
+        return cached
+    source = store.doc_file(doc_id)
+    if not source or not source.exists():
+        return None
+    with PDF_LOCK:
+        try:
+            import pypdfium2 as pdfium
+
+            pdf = pdfium.PdfDocument(str(source))
+            if page >= len(pdf):
+                pdf.close()
+                return None
+            bitmap = pdf[page].render(scale=dpi / 72.0)
+            image = bitmap.to_pil().convert("RGB")
+            pdf.close()
+        except Exception:
+            return None
+    tmp = cached.with_suffix(".tmp")
+    image.save(tmp, format="PNG")
+    tmp.replace(cached)
+    return cached
+
+
+def _page_words_from_ocr(doc_id: str, page: int) -> list[dict]:
+    """Word boxes for a page with no text layer, or [] when OCR cannot say.
+
+    A scanned page renders as an image with nothing selectable on it, so the
+    reader had no word to mark even though the caption underneath had one. The
+    recogniser already runs on these pages at import time; asking it for boxes
+    the first time a page is shown is what lets the mark land on the page.
+    """
+    if not ocr.available():
+        return []
+    png = _render_page_png(doc_id, page, 140)
+    if png is None:
+        return []
+    try:
+        boxes = ocr.word_boxes_bytes(png.read_bytes())
+    except Exception:
+        return []
+    if not boxes:
+        return []
+    return _normalise_boxes(boxes["width"], boxes["height"], boxes.get("words", []))
+
+
+@router.get("/api/docs/{doc_id}/page/{page}/words")
+def doc_page_words(doc_id: str, page: int):
+    """Word boxes for a PDF page, normalized to the rendered page."""
+    doc = store.get_doc(doc_id)
+    if not doc or doc.get("viewer") != "pdf":
+        raise HTTPException(status_code=404, detail="This document has no text boxes")
+    total = doc.get("pageCount") or 0
+    if page < 0 or page >= total:
+        raise HTTPException(status_code=404, detail="Page out of range")
+
+    source = store.doc_file(doc_id)
+    if not source or not source.exists():
+        raise HTTPException(status_code=404, detail="The original file is missing")
+
+    fingerprint = {"size": source.stat().st_size, "mtime": int(source.stat().st_mtime)}
+    cache = config.PAGES_DIR / f"{doc_id}_{page}_words.json"
+    if cache.exists():
+        try:
+            cached = json.loads(cache.read_text("utf-8"))
+            # A file written before the OCR fallback existed says "no words" for a
+            # scanned page without ever having asked the recogniser; treat it as
+            # absent so the page is read again once.
+            attempted_ocr = cached.get("origin") == "ocr"
+            if cached.get("source") == fingerprint and (cached.get("words") or attempted_ocr):
+                return cached
+        except (OSError, json.JSONDecodeError, AttributeError):
+            pass
+
+    width, height, text, words = _text_layer_boxes(source, page)
+    payload = {
+        "page": page,
+        "width": width,
+        "height": height,
+        "text": text,
+        "source": fingerprint,
+        "origin": "text",
+        "words": _normalise_boxes(width, height, words),
+    }
+
+    if not payload["words"]:
+        # A scanned page: no text layer to take boxes from, so ask the recogniser
+        # where each word sits. Cached like any other page, so only the first view
+        # of a page pays for it.
+        boxes = _page_words_from_ocr(doc_id, page)
+        if boxes:
+            payload["words"] = boxes
+            payload["origin"] = "ocr"
 
     tmp = cache.with_suffix(".tmp")
     tmp.write_text(json.dumps(payload, ensure_ascii=False), "utf-8")
@@ -253,27 +350,10 @@ def doc_page(doc_id: str, page: int, dpi: int = 140):
     dpi = max(96, min(int(dpi), 240))
     cached = config.PAGES_DIR / f"{doc_id}_{page}_{dpi}.png"
     if not cached.exists():
-        source = store.doc_file(doc_id)
-        if not source or not source.exists():
+        if not store.doc_file(doc_id):
             raise HTTPException(status_code=404, detail="The original file is missing")
-        with PDF_LOCK:
-            try:
-                import pypdfium2 as pdfium
-
-                pdf = pdfium.PdfDocument(str(source))
-                if page >= len(pdf):
-                    pdf.close()
-                    raise HTTPException(status_code=404, detail="Page out of range")
-                bitmap = pdf[page].render(scale=dpi / 72.0)
-                image = bitmap.to_pil().convert("RGB")
-                pdf.close()
-            except HTTPException:
-                raise
-            except Exception as exc:
-                raise HTTPException(status_code=500, detail=f"Could not render that page: {exc}") from exc
-        tmp = cached.with_suffix(".tmp")
-        image.save(tmp, format="PNG")
-        tmp.replace(cached)
+        if _render_page_png(doc_id, page, dpi) is None:
+            raise HTTPException(status_code=500, detail="Could not render that page")
 
     return FileResponse(
         cached,
