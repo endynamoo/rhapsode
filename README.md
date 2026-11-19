@@ -177,15 +177,14 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 **Changed**
 
-- **Repository housekeeping**: the source-tarball script works from any checkout rather than one hard-coded path, six tracked files lost their byte-order marks, `.gitignore` names the icon it generates and covers a contributor's caches, and a workshop script plus a stale generator claim are gone.
+- **The licence notice now matches what ships**: `THIRD_PARTY.md` called YuNet MIT (it is Apache-2.0), described the MIT `espeakng-loader` as GPL instead of the eSpeak NG it carries, left out the copyleft inside wheels (libsndfile LGPL-2.1, libheif LGPL-3.0, 41 MB of OpenCV FFmpeg we never call), and now says plainly that the installer bundles the GPL-3.0 phonemiser, so a distributed build carries GPL-3.0 obligations.
+- **Repository housekeeping**: the source-tarball script works from any checkout, six tracked files lost their byte-order marks, `.gitignore` names the icon it generates and covers a contributor's caches, and a workshop script plus a stale generator claim are gone.
 
 ### 0.3.3-beta - 2026-11-19
 
 **Fixed**
 
 - **First-run setup no longer dies on a plain console**: the download progress and its tick marks were printed as Unicode, which a legacy (cp1252) console cannot encode - the download aborted with an encoding error while reporting itself. The text now degrades to whatever the console can print.
-- **Follow along now works in Book view**: both scroll paths ignored the switch - the chapter highlight moved the page to keep the spoken sentence in sight, and the advance to the next sentence scrolled regardless - so turning it off changed nothing while reading. A sentence you jump to deliberately is still brought into view.
-- **The translated-sentence bar no longer covers the sidebar**: centred on the window it landed on the theme and settings buttons and swallowed their clicks. It is anchored to the reading column and takes no pointer events.
 
 ### 0.3.2-beta - 2026-11-19
 
@@ -193,6 +192,12 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
 
-*...and 91 more entries in [CHANGELOG.md](CHANGELOG.md).*
+### 0.3.0-beta - 2026-11-19
+
+**Added**
+
+- **Repair faces** is a new opt-in pass under Polish stills: each detected face is cropped, upsampled to 1024 px, re-drawn at a strength that can actually rebuild an eye, blended back through a feathered mask, and kept only if the repaint still contains a face and the region kept its ink - otherwise that face is restored from the copy taken before it. Two faces per still by default, `MURMUR_POLISH_FACE_MAX` to raise it. **Off by default**, because a crop repaint can redraw a character's face into someone else. `tests/test_face_repair.py` covers the crop maths, the cap, both revert paths and the cache variant without needing a GPU.
+
+*...and 92 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->

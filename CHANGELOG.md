@@ -16,7 +16,8 @@ phrased for a user, not for a diff reader.
 
 ### Changed
 
-- **Repository housekeeping**: the source-tarball script works from any checkout rather than one hard-coded path, six tracked files lost their byte-order marks, `.gitignore` names the icon it generates and covers a contributor's caches, and a workshop script plus a stale generator claim are gone.
+- **The licence notice now matches what ships**: `THIRD_PARTY.md` called YuNet MIT (it is Apache-2.0), described the MIT `espeakng-loader` as GPL instead of the eSpeak NG it carries, left out the copyleft inside wheels (libsndfile LGPL-2.1, libheif LGPL-3.0, 41 MB of OpenCV FFmpeg we never call), and now says plainly that the installer bundles the GPL-3.0 phonemiser, so a distributed build carries GPL-3.0 obligations.
+- **Repository housekeeping**: the source-tarball script works from any checkout, six tracked files lost their byte-order marks, `.gitignore` names the icon it generates and covers a contributor's caches, and a workshop script plus a stale generator claim are gone.
 
 ## [0.3.3-beta] - 2026-11-19
 ### Fixed
