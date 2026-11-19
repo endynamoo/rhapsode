@@ -244,9 +244,16 @@ class RecordTest(unittest.TestCase):
                 "version": polish.POLISH_VERSION, "action": "refined",
                 "output_hash": digest,
             }), "utf-8")
-
+            # inspect() is patched out: this test is about the sidecar's variant,
+            # and leaving the real detector in made it fail on a runner without
+            # opencv for a reason that had nothing to do with caching.
+            found = {"faces": [(120.0, 90.0, 200.0, 170.0)], "people": [], "hands": [],
+                     "flags": [], "error": None}
             with mock.patch.object(polish.store, "get_settings", return_value={"polishStills": True}), \
-                    mock.patch.object(polish.detectors, "available", return_value=True):
+                    mock.patch.object(polish.detectors, "available", return_value=True), \
+                    mock.patch.object(polish.detectors, "inspect", return_value=found), \
+                    mock.patch.object(polish.config, "IMAGE_PYTHON",
+                                      Path(tmp) / "no-such-python.exe"):
                 base = polish.apply(still)
                 self.assertEqual(base["action"], "cached")
 
@@ -256,3 +263,20 @@ class RecordTest(unittest.TestCase):
                     # here because the test has no stills interpreter.
                     result = polish.apply(still)
             self.assertNotEqual(result["action"], "cached")
+
+
+class DetectorGuardTest(unittest.TestCase):
+    def test_a_missing_opencv_is_reported_not_raised(self):
+        # A source install can have the detector wheels and no opencv. inspect()'s
+        # job is to say why, so the polish pass carries on with the global pass
+        # instead of aborting the still: a bare ImportError used to escape here.
+        import numpy as np
+
+        from murmur import detectors
+
+        blank = np.zeros((32, 32, 3), dtype=np.uint8)
+        with mock.patch.object(detectors, "_cv2",
+                               side_effect=detectors.DetectorUnavailable("opencv is not installed")):
+            result = detectors.inspect(blank)
+        self.assertEqual(result["faces"], [])
+        self.assertIn("opencv", result["error"] or "")

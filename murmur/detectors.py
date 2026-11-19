@@ -112,6 +112,22 @@ def available() -> bool:
         return False
 
 
+def _cv2():
+    """OpenCV, or a reason it cannot be used - never a bare ImportError.
+
+    `inspect()` reports what stopped it in `result["error"]`, which is what the
+    still's sidecar and Settings show. A raw ModuleNotFoundError escaping from
+    here would instead abort the whole polish pass on a source install that has
+    the detectors' wheels but not opencv.
+    """
+    try:
+        import cv2
+    except Exception as exc:  # noqa: BLE001 - any import failure means unavailable
+        raise DetectorUnavailable(f"opencv is not installed ({exc})") from exc
+    _quiet_cv2()
+    return cv2
+
+
 def _quiet_cv2() -> None:
     """OpenCV logs a DNN-backend warning on every FaceDetectorYN; drop it."""
     try:
@@ -135,7 +151,7 @@ def _letterbox(array_bgr: np.ndarray, size: int) -> tuple[np.ndarray, float, tup
 
 
 def cv2_resize(array: np.ndarray, size: tuple[int, int]) -> np.ndarray:
-    import cv2
+    cv2 = _cv2()
 
     return cv2.resize(array, size, interpolation=cv2.INTER_LINEAR)
 
@@ -150,9 +166,8 @@ def _iou(a, b) -> float:
 
 def faces(image_bgr: np.ndarray, threshold: float = 0.6) -> list[tuple[float, float, float, float]]:
     """Face boxes in pixel coordinates."""
-    import cv2
+    cv2 = _cv2()
 
-    _quiet_cv2()
     session_path = _fetch(FACES_MODEL)
     height, width = image_bgr.shape[:2]
     detector = cv2.FaceDetectorYN_create(str(session_path), "", (width, height), threshold, 0.3, 5000)
@@ -204,7 +219,7 @@ def pose(image_bgr: np.ndarray, box: tuple[float, float, float, float]) -> list[
     Per-bin probability is meaningless (a good pose still scores ~0.004 because
     the mass is spread over hundreds of bins), so the geometry is what counts.
     """
-    import cv2
+    cv2 = _cv2()
 
     session = _session(POSE_MODEL)
     x1, y1, x2, y2 = box
