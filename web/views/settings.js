@@ -85,46 +85,69 @@ export function createSettingsView(deps) {
     preview.title = `${theme.name} — ${theme.mode}${theme.note ? `, ${theme.note}` : ''}`;
   }
 
-    let fontsLoaded = false;
+  const FONT_LABELS = { sans: 'System sans', serif: 'System serif' };
 
+  let fontsLoaded = false;
+
+  function fontLabel(value) {
+    return FONT_LABELS[value] || value;
+  }
+
+  function addFontOption(parent, value, label) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    parent.appendChild(option);
+  }
+
+  // Enumerating the machine's fonts is a scan, and on a cold start it can take a
+  // moment. The control shows the saved font straight away and swaps in the
+  // families when the answer lands: an empty <select> reads as "this machine has
+  // no fonts" and is what a first-time reader sees if it is left to fill itself
+  // only after the request returns.
   async function loadFonts() {
     const select = $('#setFontFamily');
     if (!select) return;
+    const current = state.settings.font || 'sans';
+    if (!select.options.length) {
+      addFontOption(select, current, fontLabel(current));
+      select.value = current;
+    }
     if (fontsLoaded) {
-      select.value = state.settings.font || 'sans';
+      select.value = current;
       return;
     }
-    const addOption = (value, label, parent) => {
-      const option = document.createElement('option');
-      option.value = value;
-      option.textContent = label;
-      (parent || select).appendChild(option);
-    };
+    select.setAttribute('aria-busy', 'true');
     try {
       const data = await api('/api/fonts');
       fontsLoaded = true;
-      select.innerHTML = '';
-      addOption('sans', 'System sans');
-      addOption('serif', 'System serif');
+      const options = document.createDocumentFragment();
+      addFontOption(options, 'sans', FONT_LABELS.sans);
+      addFontOption(options, 'serif', FONT_LABELS.serif);
       const families = (data.fonts || []).filter(
         (name) => name && name !== 'sans' && name !== 'serif'
       );
       if (families.length) {
         const group = document.createElement('optgroup');
         group.label = 'Installed fonts';
-        for (const name of families) addOption(name, name, group);
-        select.appendChild(group);
+        for (const name of families) addFontOption(group, name, name);
+        options.appendChild(group);
       }
-      const current = state.settings.font || 'sans';
-      if (![...select.options].some((option) => option.value === current)) {
-        addOption(current, current);
+      if (![...options.querySelectorAll('option')].some((option) => option.value === current)) {
+        addFontOption(options, current, fontLabel(current));
       }
+      select.replaceChildren(options);
       select.value = current;
     } catch (_) {
-      select.innerHTML = '';
-      addOption('sans', 'System sans');
-      addOption('serif', 'System serif');
-      select.value = state.settings.font || 'sans';
+      select.replaceChildren();
+      addFontOption(select, 'sans', FONT_LABELS.sans);
+      addFontOption(select, 'serif', FONT_LABELS.serif);
+      if (current !== 'sans' && current !== 'serif') {
+        addFontOption(select, current, fontLabel(current));
+      }
+      select.value = current;
+    } finally {
+      select.removeAttribute('aria-busy');
     }
   }
 
