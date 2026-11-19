@@ -10,6 +10,15 @@ phrased for a user, not for a diff reader.
 
 ## [Unreleased]
 
+### Added
+
+- **Four demo clips, recorded from this build.** The README now shows the reader marking the
+  spoken word, a scanned PDF page marked on the page itself, a library search across three books,
+  and a chapter read over a still the stills engine painted - as GIFs inline and MP4s beside them
+  in `docs/demo/`, with the three-file demo corpus and the recording method published alongside so
+  anyone can reproduce a clip instead of trusting one.
+
+
 ### Changed
 
 - **The README says who the app is for**: somebody turning anything they can read into an audiobook, somebody who likes generated manga stills, and somebody who wants to lift the parts into a different program. It now also says what to expect from pull requests (bugs first, reviews slow) and where the family of apps is going, including what the next one does (Opsis turns a book into a film of directed, generated and polished scenes; an alpha is running, and the open beta is targeted for before the new year) - and it replaces "the parts that were actually hard" with what each technology in the build is and why this mix works: the voice returns phoneme timings, so the highlight, the warm-ahead, the still beats and the MP4 cut are all read off the same clock instead of being guessed. It also corrects two stale claims: a platform table that still promised CPU stills, and a version badge stuck one release behind.

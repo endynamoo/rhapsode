@@ -28,9 +28,12 @@ node_modules/
 .coverage
 htmlcov/
 
-# demo recordings and generated art land in dist/ or here, never in git
+# demo recordings and generated art land in dist/ or here, never in git,
+# except the clips the README publishes
 *.mp4
 demo/
+!docs/demo/
+!docs/demo/*.mp4
 *.bak
 *.orig
 *.rej
