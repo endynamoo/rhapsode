@@ -280,7 +280,7 @@ export function createSettingsView(deps) {
     } else if (info.enabled && !wantsRemote) {
       status.textContent = 'Restart Rhapsode to turn off remote access';
     } else {
-      status.textContent = 'Off — this Mac only';
+      status.textContent = 'Off — this computer only';
     }
     $('#setRemote').setAttribute('aria-checked', String(wantsRemote));
 
@@ -290,7 +290,7 @@ export function createSettingsView(deps) {
       return;
     }
 
-    const entries = (info.urls || []).filter((entry) => entry.label !== 'This Mac');
+    const entries = (info.urls || []).filter((entry) => entry.label !== 'This computer');
     if (!entries.length) {
       links.hidden = true;
       return;
@@ -324,8 +324,8 @@ export function createSettingsView(deps) {
     note.className = 'remote-note';
     const tailscaleOff = info.tailscale && !['Running', 'unknown'].includes(info.tailscale);
     note.textContent = tailscaleOff
-      ? 'Tailscale is stopped on this Mac. Start it, then reopen Settings to get the tailnet links.'
-      : 'Open these once on another device; the token is remembered. The key lives in ~/.murmur/access_token.';
+      ? 'Tailscale is stopped on this computer. Start it, then reopen Settings to get the tailnet links.'
+      : 'Open these once on another device; the token is remembered. The key lives in the app\'s data folder as access_token.';
     links.appendChild(note);
     links.hidden = false;
   }
