@@ -11,12 +11,13 @@ library is listed separately, because its license is the one that matters.
 
 ## The one thing to know before distributing a build
 
-The Windows installer carries **GPL-3.0 code**: `phonemizer` (GPL-3.0-or-later) and
-**eSpeak NG** — `espeak-ng.dll` plus 364 data files from `espeakng-loader`. They are
-a hard dependency of `kokoro-onnx`'s tokenizer (`kokoro_onnx/tokenizer.py` imports
-`phonemizer` at module level and loads the eSpeak library to turn text into
-phonemes), and `packaging/Rhapsode-win.spec` collects both packages into the
-bundle.
+The Windows installer carries **GPL-3.0 code**: `phonemizer` (GPL-3.0-or-later, 165 KB of
+Python) and **eSpeak NG** — `espeak-ng.dll` plus 364 data files, 18.8 MB in total, from
+`espeakng-loader`. They are a hard dependency of `kokoro-onnx`'s tokenizer
+(`kokoro_onnx/tokenizer.py` imports `phonemizer` at module level and loads the eSpeak
+library to turn text into phonemes), and `packaging/Rhapsode-win.spec` collects both
+packages into the bundle. Both macOS specs collect them too, so every artifact in a
+release — the Setup exe and both DMGs — carries them.
 
 So a distributed `Rhapsode-<version>-Setup.exe` **is a distribution of those GPL-3.0
 works**, and GPL-3.0 obligations attach to it: ship the license texts and provide
