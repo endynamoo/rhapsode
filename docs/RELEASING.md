@@ -254,6 +254,23 @@ someone else's machine:
 Record the transcript of a real build here when it exists. Until then this
 document is a plan, not a claim.
 
+## 6b. When Actions minutes are gone
+
+The workflows are the release path, but they are not the only way to verify one. If the
+organisation's minutes are exhausted (or a runner is down) and a build is needed anyway:
+
+```powershell
+.\scripts\ci-local.ps1 -Job unit,ui      # the suite and the browser journeys
+.\scripts\ci-local.ps1 -Job installer    # PyInstaller + Inno, silent install, health, uninstall
+```
+
+`unit` builds a venv from `requirements-test.txt` alone, the way a runner does; `installer`
+installs into a temp directory, checks that `licenses\` arrived, runs the shipped engine
+script, starts the app and asks for `/api/health`, then uninstalls and confirms the app is
+gone. What it cannot do is macOS - `build_app.sh` needs a Mac - so a release cut this way
+either waits for minutes to reset or ships Windows and source only, with the DMGs attached
+later. Say which, in the release notes, rather than leaving the gap implicit.
+
 ## 7. Risks and fallbacks
 
 | Risk | Mitigation |

@@ -27,6 +27,26 @@ python -m unittest discover -s tests -v
 CI (`windows.yml`) runs the same suite on `windows-latest` for every push to `main`, `testing`
 and `stable`. If it is red, nothing gets promoted — fix forward, do not force.
 
+**When CI is not available** — minutes exhausted, a runner outage, or a release that needs the
+installer before a tag exists — run the workflows locally instead:
+
+```powershell
+.\scripts\ci-local.ps1                    # every job this host can run
+.\scripts\ci-local.ps1 -Job unit,ui       # the fast ones
+.\scripts\ci-local.ps1 -Job installer     # build, install into a temp dir, health, uninstall
+```
+
+It mirrors `.github/workflows/` job for job: the suite in a venv built from
+`requirements-test.txt` alone (`unit`), the browser journeys in Edge or Chromium (`ui`), a real
+server asked for `/api/health` and `/api/network` (`run`), and the PyInstaller + Inno cycle with
+a silent install, the licence folder check and the uninstall (`installer`). `-SkipBuild` reuses
+`dist\`, `-Setup <path>` verifies an installer you already built. The `macos` job cannot run off
+a Mac and the script reports it as `skipped` rather than passed — say so in the PR rather than
+implying four green jobs.
+
+It is a mirror, not a runner: it uses this machine's Edge, ffmpeg and GPU, which the real
+window shows as a fresh machine. Treat a local pass as evidence, not as CI.
+
 The suite deliberately excludes the TTS weights, the film stack, pywebview and `winsdk`, so it
 stays a fast unit/integration check. That means green CI does **not** prove the app runs —
 install it, read a page, render a still. Say which of those you did.
