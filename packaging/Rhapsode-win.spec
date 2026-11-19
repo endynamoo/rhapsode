@@ -30,6 +30,9 @@ hiddenimports = [
     "pypdfium2",
     "pypdfium2_raw",
     "PIL",
+    # pillow_heif imports this compiled module by name; if anything in the
+    # package is imported dynamically PyInstaller misses it.
+    "_pillow_heif",
     "uvicorn.logging",
     "uvicorn.loops.auto",
     "uvicorn.loops.asyncio",

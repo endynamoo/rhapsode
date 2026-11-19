@@ -25,6 +25,7 @@ hiddenimports = [
     "pypdfium2",
     "pypdfium2_raw",
     "PIL",
+    "_pillow_heif",
     "torch",
     "torch.backends.mps",
     "diffusers",
