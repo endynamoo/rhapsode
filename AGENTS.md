@@ -449,7 +449,7 @@ Sections 0-9 are about installing and running. This section is about changing th
 - **More than one agent.** Another session may be working in this repository. Take your own
   worktree (`git worktree add ..\rhapsode-<slug> feat/<slug>`) instead of `git switch` in a
   checkout someone else is using, never `git add -A` in a shared checkout, and run
-  `.\scripts\check-ladder.ps1` when you finish. See `docs/CONCURRENCY.md`.
+  `.\scripts\check-ladder.ps1` when you finish.
 - **Branches.** Cut `feat/<slug>` or `fix/<slug>` from `main`; merge to `main` only. Never
   push to `testing` or `stable`, and never create `known-good-*` tags - promotion is the
   user's decision, via `scripts/promote.ps1`. Details: `docs/BRANCHING.md`.

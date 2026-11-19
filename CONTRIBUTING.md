@@ -112,7 +112,6 @@ evidence is not done.
 - `INSTALL.md` — install paths, supported platforms and per-GPU notes.
 - `AGENTS.md` — the rules an agent must not break while working here.
 - `docs/BRANCHING.md` — the ladder, hotfixes, rollback.
-- `docs/CONCURRENCY.md` — several agents, one repo: worktrees, who pushes, how to untangle.
 - `docs/ARCHITECTURE.md` — modules, API, security model.
 - `docs/PLATFORMS.md`, `docs/STILLS.md` — GPU/packaging plan and the stills pipeline.
 - `THIRD_PARTY.md` — licenses for weights and bundled assets.
