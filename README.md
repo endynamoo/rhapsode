@@ -69,36 +69,41 @@ you deliberately turn it on and hand out the tokenised link.
 
 ## In motion
 
-Four things that are easier to watch than to read about. Each clip is a recording of this
-build, playing a three-chapter book written for the demo - no mock-ups, nothing staged by
-hand. The book and the method are in [docs/demo](docs/demo/README.md), and the same clips
-in full motion are beside them as MP4s.
+Five things that are easier to watch than to read about. Every clip is a recording of this
+build playing text written for the demo - no mock-ups, nothing staged by hand. The files it
+plays, and the method that records them, are in [docs/demo](docs/demo/README.md).
 
 **The word being spoken is the word marked.** Kokoro returns phoneme timings, so the mark
 tracks the voice at any speed instead of guessing from the clock, and every sentence paints
 its first word before the sound starts.
 
 <img src="docs/demo/reading.gif" width="880" alt="Book view playing: the spoken word is marked as the voice reads">
-<sub>[watch the full-motion clip](docs/demo/reading.mp4)</sub>
 
 **A scanned page, marked on the page itself.** This PDF has no text layer at all: the page
 is OCR'd, the words are located on the image, and the box follows the voice across it - not
 a caption underneath pretending to be one.
 
 <img src="docs/demo/scanned-page.gif" width="880" alt="A scanned PDF page with the spoken word boxed on the image">
-<sub>[watch the full-motion clip](docs/demo/scanned-page.mp4)</sub>
 
 **Search every book at once, by words or by meaning.** Nine passages in 15 ms, grouped by
 book, each snippet showing what matched, and Enter opens that sentence.
 
 <img src="docs/demo/search.gif" width="880" alt="Library search across books with highlighted matches">
-<sub>[watch the full-motion clip](docs/demo/search.mp4)</sub>
 
 **A chapter drawn while it is read.** Each beat of the text becomes one still, painted
 locally, played against the narration - and the same stills assemble into a chapter film.
 
 <img src="docs/demo/manga.gif" width="880" alt="Manga view: a generated still behind the narration">
-<sub>[watch the full-motion clip](docs/demo/manga.mp4)</sub>
+
+**English text, Japanese voice, both on this machine.** With a Japanese voice chosen, the
+sentence is translated first and then read in Japanese - the translation bar shows what is
+being said, and the audio follows it. The translation comes from a local OpenAI-compatible
+server, the voice from Kokoro; nothing leaves the machine.
+
+<img src="docs/demo/translation.gif" width="880" alt="A Japanese translation bar under an English sentence being read by a Japanese voice">
+
+The GIF is silent - a README cannot play a video file, so this is the picture of the feature
+working, not the sound of it. The voice is Kokoro's Japanese, chosen from the voice menu.
 
 ## The stack, and why this mix
 
@@ -145,7 +150,7 @@ What that buys, in one sentence: it plays as soon as you ask because the clip is
 warm, the mark sits on the word because the timing is the model's own and not an estimate,
 and it works with the network unplugged because every piece above is a file on your disk.
 
-## Try it
+## Install
 
 **[Releases →](https://github.com/endynamoo/rhapsode/releases)** carries prebuilt
 artifacts; the source install works everywhere.
@@ -256,7 +261,6 @@ for the same experience on every system, and for the bug you found that I did no
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | VRAM and RAM guards, where the logs are, failure modes already fixed |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module map, pipelines, API surface, security model, UML |
 | [docs/PLATFORMS.md](docs/PLATFORMS.md) | Windows and Linux port, GPU backends, packaging |
-| [docs/CONCURRENCY.md](docs/CONCURRENCY.md) | Several agents, one repository: worktrees, pushes, cleanup |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branches, commits, pull requests and releases |
 | [INSTALL.md](INSTALL.md) | Install, build and verify, platform by platform |
 | [AGENTS.md](AGENTS.md) | The rules an automated agent works to in this repository |

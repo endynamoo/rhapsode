@@ -11,7 +11,7 @@ headless browser driving the real app - not storyboarded, not composited.
 | Scanned page | OCR'd page marked on the image, no text layer | `scanned-page.gif` | `scanned-page.mp4` |
 | Search | Nine passages across three books, matched words shown | `search.gif` | `search.mp4` |
 | Manga | A chapter read over a painted still | `manga.gif` | `manga.mp4` |
-| Translation | English text read in Japanese, with sound | `translation-poster.png` | `translation.mp4` |
+| Translation | English text read in Japanese | `translation.gif` | `translation.mp4` (with sound) |
 
 The GIFs are what the front page shows inline; the MP4s are the same recordings without GIF
 dithering, at the full frame rate. Both are quiet unless the row says otherwise.
@@ -72,6 +72,17 @@ The translation itself is whatever local model the machine offers. The clip was 
 `MURMUR_TRANSLATE_URL` pointed at a local server on port 8091; the alternative is Apple's
 Translation framework on macOS. Nothing about the picture is retouched - the wording, including
 any word a model leaves in English, is exactly what was spoken.
+
+## Why there is no video on the front page
+
+GitHub plays no video file from a repository inline - in a README a `.mp4` is a link, and
+clicking it opens the file page rather than a player. So the front page shows GIFs only and
+does not link a video it cannot play. The MP4s in this folder are downloads: the same picture at
+the full frame rate, and in the translation clip's case the actual Japanese audio. If a clip
+with sound ever needs to play in the README itself, the file has to be attached through
+GitHub's own uploader (drag it into a comment box, which returns a
+`github.com/user-attachments/assets/...` URL); a release asset or a raw repository path does not
+render a player.
 
 ## The still in `manga.gif`
 
