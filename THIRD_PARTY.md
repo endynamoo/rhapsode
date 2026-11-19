@@ -75,7 +75,7 @@ are the ones with real consequences, above.
 | `beautifulsoup4` | HTML/EPUB parsing | MIT |
 | `Pillow` | Image drawing and page images | MIT-CMU |
 | `pillow-heif` | HEIC/HEIF plugin (see `libheif` above) | BSD-3-Clause |
-| `opencv-contrib-python-headless` | YuNet face detection, image resizing | Apache-2.0 |
+| `opencv-contrib-python-headless` | YuNet face detection, image resizing (MIT packaging layer, Apache-2.0 OpenCV; the wheel also carries the FFmpeg above) | Apache-2.0 |
 | `winsdk` | On-device OCR and system APIs on Windows | MIT |
 | `pyobjc-framework-Vision` | On-device OCR on macOS | MIT |
 | `pywebview`, `pythonnet`, `clr-loader` | Native window | BSD-3-Clause / MIT / MIT |
@@ -93,7 +93,7 @@ Weights are downloaded separately and are not bundled.
 | `diffusers` | FLUX.2 inference on CUDA/ROCm | Apache-2.0 |
 | `transformers`, `tokenizers` | FLUX.2 text encoder | Apache-2.0 |
 | `accelerate`, `safetensors`, `huggingface_hub` | Model loading and downloads | Apache-2.0 |
-| `torch` | Tensor backend (bundles ROCm/MKL libraries; permissive up to Apache-2.0/BSD/MIT) | BSD-3-Clause |
+| `torch` | Tensor backend (bundles ROCm/MKL libraries, permissive up to Apache-2.0/BSD/MIT; the GCC runtime `libgomp` it links is GPL-3.0 **with the GCC runtime exception**, which places no obligation on Rhapsode) | BSD-3-Clause |
 | `mflux` (macOS path) | FLUX.2 inference on Apple MLX | MIT |
 | `mlx` (macOS path) | Apple's tensor framework | MIT |
 
