@@ -50,6 +50,22 @@ class ChangelogTests(unittest.TestCase):
         self.assertIn("CHANGELOG.md", block)
         self.assertNotRegex(block, r"(?m)^## ", "the block sits under the README's own heading")
 
+    def test_the_block_fits_its_ceiling_by_dropping_entries(self):
+        # Six entries of ~400 characters plus the preamble overflow 2600. The
+        # renderer used to raise and demand shorter prose; it drops the oldest
+        # visible entry instead, and "...and N more" already says where it went.
+        module = load_module()
+        entry = "- **" + "x" * 390 + "**\n"
+        text = (
+            "# Changelog\n\n## [Unreleased]\n\n### Added\n\n"
+            + entry * 3
+            + "\n## [0.9.9] - 2026-01-01\n\n### Fixed\n\n"
+            + entry * 3
+        )
+        block = module.render_block(text)
+        self.assertLessEqual(len(block), module.MAX_BLOCK)
+        self.assertIn("more", block, "the block should point at the rest")
+
     def test_release_notes_carry_the_whole_section(self):
         module = load_module()
         text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")

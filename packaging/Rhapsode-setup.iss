@@ -4,7 +4,7 @@
 
 #define AppName        "Rhapsode"
 #ifndef AppVersion
-  #define AppVersion   "0.3.3-beta"
+  #define AppVersion   "0.3.4-beta"
 #endif
 #define AppPublisher   "endynamoo"
 #define AppExe         "Rhapsode.exe"

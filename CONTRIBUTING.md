@@ -34,13 +34,14 @@ installer before a tag exists — run the workflows locally instead:
 .\scripts\ci-local.ps1                    # every job this host can run
 .\scripts\ci-local.ps1 -Job unit,ui       # the fast ones
 .\scripts\ci-local.ps1 -Job installer     # build, install into a temp dir, health, uninstall
+.\scripts\ci-local.ps1 -Job linux         # linux.yml, inside WSL
 ```
 
 It mirrors `.github/workflows/` job for job: the suite in a venv built from
 `requirements-test.txt` alone (`unit`), the browser journeys in Edge or Chromium (`ui`), a real
 server asked for `/api/health` and `/api/network` (`run`), and the PyInstaller + Inno cycle with
 a silent install, the licence folder check and the uninstall (`installer`). `-SkipBuild` reuses
-`dist\`, `-Setup <path>` verifies an installer you already built. The `macos` job cannot run off
+`dist\`, `-Setup <path>` verifies an installer you already built, and `-Job linux -Distro <name>` runs `linux.yml` through `scripts/ci-local-linux.sh` in a WSL distro (default `Ubuntu-24.04`): the suite, a real server with Tesseract as the OCR backend, and the browser journeys. The `macos` job cannot run off
 a Mac and the script reports it as `skipped` rather than passed — say so in the PR rather than
 implying four green jobs.
 

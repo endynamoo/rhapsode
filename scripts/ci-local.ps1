@@ -3,13 +3,14 @@
 #   .\scripts\ci-local.ps1                    # every job this host can run
 #   .\scripts\ci-local.ps1 -Job unit,ui       # just those
 #   .\scripts\ci-local.ps1 -Job installer -SkipBuild
-#   .\scripts\ci-local.ps1 -Job installer -Setup dist\Rhapsode-0.3.3-beta-Setup.exe
+#   .\scripts\ci-local.ps1 -Job installer -Setup dist\Rhapsode-<version>-Setup.exe
 #
 # Mirrors .github/workflows/, job for job:
 #   windows.yml   -> unit       the suite, in a venv built from requirements-test.txt
 #   linux.yml ui  -> ui         the browser journeys, in a real browser
 #   linux.yml run -> run        a real server started the README way, asked for health
 #   installer.yml -> installer  build, install into a temp dir, health, uninstall
+#   linux.yml     -> linux      the same three Linux jobs, inside WSL (unit, run, ui)
 #   macos.yml     -> macos      impossible off a Mac; reported as skipped, not passed
 #
 # Exists because Actions minutes can run out and a release still has to be
@@ -17,8 +18,9 @@
 # uses this box's Edge, this box's ffmpeg, and this box's GPU. The macOS job it
 # cannot do at all, and says so.
 param(
-    [ValidateSet('unit', 'ui', 'run', 'installer', 'macos')]
-    [string[]]$Job = @('unit', 'ui', 'run', 'installer', 'macos'),
+    [ValidateSet('unit', 'ui', 'run', 'installer', 'linux', 'macos')]
+    [string[]]$Job = @('unit', 'ui', 'run', 'installer', 'linux', 'macos'),
+    [string]$Distro = 'Ubuntu-24.04',
     [switch]$SkipBuild,
     [string]$Setup,
     [string]$CiVenv = (Join-Path $env:TEMP 'rhapsode-ci-venv')
@@ -228,6 +230,36 @@ function Invoke-Installer {
     return $true
 }
 
+function Invoke-Linux {
+    # linux.yml runs on ubuntu-latest. Windows cannot exercise that backend -
+    # tesseract instead of Windows.Media.Ocr, POSIX paths, a case-sensitive
+    # filesystem - and those were the failures CI caught first. A WSL distro is
+    # the nearest thing this machine has.
+    $wsl = Get-Command wsl -ErrorAction SilentlyContinue
+    if (-not $wsl) { Say 'wsl is not installed'; return $null }
+    # Judge the distro on an exit code, not on stderr: wsl writes warnings there,
+    # and with $ErrorActionPreference = Stop a native stderr line is terminating.
+    $probe = Invoke-Native $wsl.Source @('-d', $Distro, '--', 'true') (Join-Path $logDir 'wsl-probe.log')
+    if ($probe) {
+        Say "distro $Distro is not available (see wsl -l -v)"
+        return $null
+    }
+    # C:\Apps\rhapsode -> /mnt/c/Apps/rhapsode, whatever the drive letter is
+    $share = $PWD.Path -replace '\\', '/'
+    if ($share -match '^([A-Za-z]):') {
+        $share = '/mnt/' + $Matches[1].ToLower() + $share.Substring(2)
+    }
+    $ok = $true
+    foreach ($sub in @('unit', 'run', 'ui')) {
+        Say "linux.yml: $sub"
+        $log = Join-Path $logDir "linux-$sub.log"
+        $code = Invoke-Native $wsl.Source @('-d', $Distro, '--', 'bash', "$share/scripts/ci-local-linux.sh", $sub) $log
+        Get-Content $log | Select-String -Pattern '^   |^Ran |^OK|^FAILED' | ForEach-Object { Write-Host "   $($_.Line)" }
+        if ($code) { Say "linux $sub failed ($code), see $log"; $ok = $false; break }
+    }
+    return $ok
+}
+
 function Invoke-Macos {
     if (-not ($PSVersionTable.Platform -eq 'Unix' -and (Test-Path '/usr/bin/sw_vers'))) {
         Say 'macos.yml needs a Mac: build_app.sh uses sips, .icns and macOS PyInstaller settings'
@@ -251,6 +283,7 @@ foreach ($name in $Job) {
         'ui' { $ok = Invoke-Ui }
         'run' { $ok = Invoke-Run }
         'installer' { $ok = Invoke-Installer }
+        'linux' { $ok = Invoke-Linux }
         'macos' { $ok = Invoke-Macos }
     }
     $seconds = [math]::Round(((Get-Date) - $started).TotalSeconds, 1)

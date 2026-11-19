@@ -10,12 +10,12 @@ phrased for a user, not for a diff reader.
 
 ## [Unreleased]
 
-## [0.3.3-beta] - 2026-11-19
+## [0.3.4-beta] - 2026-11-19
 
 ### Added
 
 - **Licensing now matches what actually ships, and the build is compliant**: `THIRD_PARTY.md` called YuNet MIT (it is Apache-2.0), blamed the MIT `espeakng-loader` for eSpeak's GPL-3.0, and omitted the copyleft inside wheels (libsndfile, libheif, 41 MB of OpenCV FFmpeg we never call). Every download now also carries a `licenses/` folder: the GPL-3.0 and LGPL texts, OpenCV's notice, a `NOTICE.txt` the installer shows, and `SOURCES.md` with versions, upstream links and the written offer. `tests/test_licences.py` keeps it true.
-- **Run the CI workflows locally**: `scripts\ci-local.ps1` mirrors `.github/workflows/` job for job - the suite in a venv built from `requirements-test.txt` alone, the browser journeys, a real server asked for `/api/health`, and the PyInstaller + Inno cycle with a silent install, the `licenses\` check and the uninstall. For when Actions minutes run out. macOS needs a Mac, so it reports itself skipped, never passed.
+- **Run the CI workflows locally, Linux included**: `scripts\ci-local.ps1` mirrors `.github/workflows/` job for job - the suite in a venv built from `requirements-test.txt` alone, the browser journeys, a real server asked for `/api/health`, and the PyInstaller + Inno cycle with a silent install, the `licenses\` check and the uninstall. `-Job linux` runs `linux.yml` inside WSL through `scripts/ci-local-linux.sh`: the suite, a real server asserting the **Tesseract** OCR backend, and the browser journeys. For when Actions minutes run out. The macOS job needs a Mac and reports itself skipped, never passed.
 
 ### Changed
 
