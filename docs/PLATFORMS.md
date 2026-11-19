@@ -15,7 +15,9 @@ This is a plan plus the architecture it requires.
   Tesseract on Linux.
 - TTS provider selection through `MURMUR_TTS_PROVIDER` / `ONNX_PROVIDER`.
 - One stills engine: FLUX.2 [klein] 4B, through mflux on Apple MLX or diffusers
-  in `image-venv` on CUDA/ROCm (CPU painting behind an explicit opt-in).
+  in `image-venv` on CUDA/ROCm. CPU painting is not implemented: it is
+  planned for the 0.4 refactor, and until then a machine with no GPU shows
+  placeholder stills while the reader, narration and export work normally.
 - Capability probe exposed through `/api/health`.
 - Pillow-based TIFF/BMP/WebP conversion with a `sips` fallback; HEIC uses
   `pillow-heif` when installed.
@@ -46,7 +48,7 @@ build exists.
 | B | Linux, NVIDIA | GTK/WebKitGTK | Kokoro ONNX (CUDA) | Tesseract | FLUX.2 klein diffusers CUDA | FLUX.2 klein 720p CUDA | AppImage + deb |
 | C | Linux, AMD | GTK/WebKitGTK | Kokoro ONNX (ROCm) | Tesseract | FLUX.2 klein diffusers ROCm | FLUX.2 klein 720p ROCm | AppImage + deb |
 | C | Linux, Intel | GTK/WebKitGTK | Kokoro ONNX (OpenVINO) | Tesseract | placeholder | placeholder | AppImage + deb |
-| C | Any, no GPU | any | Kokoro ONNX CPU | OS/Tesseract | CPU painting, opt-in (hours) | CPU painting, opt-in | same |
+| C | Any, no GPU | any | Kokoro ONNX CPU | OS/Tesseract | placeholder (CPU painting planned for 0.4) | placeholder | same |
 
 Definitions:
 
@@ -54,7 +56,8 @@ Definitions:
 - **Fast** = quick preview quality; must finish a chapter in minutes on the
   target machine.
 - **CPU-only** must still open, read, highlight, export audio, and show stills;
-  film generation may take hours but must not crash.
+  film generation may take hours but must not crash. Today such a machine gets
+  placeholder stills: CPU painting is planned for 0.4, not shipped.
 
 ---
 
@@ -114,7 +117,7 @@ classDiagram
     class DiffusersDirectMLBackend
     class DiffusersRocmBackend
     class OpenVinoBackend
-    class CpuFluxBackend
+    class CpuFluxBackend %% planned for 0.4, not implemented
     class PlaceholderBackend
 
     class OcrBackend {

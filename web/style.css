@@ -62,9 +62,16 @@ svg { width: 18px; height: 18px; display: block; }
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--faint); }
 
+:root {
+  --rail: clamp(238px, 23vw, 292px);
+}
+
 .app {
   display: grid;
-  grid-template-columns: clamp(238px, 23vw, 292px) minmax(0, 1fr);
+  /* One definition of the sidebar's width: the translated-sentence bar has to know
+     it, so it can stay inside the reading column instead of floating over the
+     sidebar's footer. */
+  grid-template-columns: var(--rail) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) auto;
   height: 100dvh;
 }
@@ -318,6 +325,11 @@ svg { width: 18px; height: 18px; display: block; }
 .lib-del svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .lib-item:hover .lib-del { opacity: 1; }
 .lib-del:hover { background: rgba(239, 122, 108, .14); color: var(--danger); }
+
+/* `hidden` is a UA `display: none`, which a class rule like `.setting{display:flex}`
+   overrides - so a row marked hidden stayed on screen. Spell it out, as the modal
+   and the search note already do. */
+.setting[hidden] { display: none; }
 
 .sidebar-foot {
   padding: 10px 6px 0;
@@ -1029,6 +1041,29 @@ html[data-mode="light"] .page-stage img { box-shadow: 0 14px 36px rgba(60, 45, 2
   max-width: 132px;
   text-overflow: ellipsis;
 }
+
+/* The control itself was transparent, so the platform painted the popup from the
+   default light background even under `color-scheme: dark`. Paint the control and
+   its options so the popup matches the theme. Safari draws an OS menu on macOS and
+   ignores option colours, which is why the pill keeps working there unchanged. */
+.pill-select select option {
+  background: var(--panel);
+  color: var(--text);
+}
+/* Voice list headers ("English (UK)") were painted by the platform in a pale
+   grey that all but vanished on a dark popup, so they carry the accent instead. */
+.pill-select select optgroup {
+  background: var(--panel);
+  color: var(--accent);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.pill-select select option:checked,
+.pill-select select option:hover {
+  background: color-mix(in srgb, var(--accent) 26%, var(--panel));
+  color: var(--text);
+}
 .pill-select select:hover { color: var(--text); }
 .pill-select::after {
   content: "";
@@ -1192,7 +1227,8 @@ html[data-mode="light"] .page-stage img { box-shadow: 0 14px 36px rgba(60, 45, 2
 }
 .scene-editor-foot { display: flex; align-items: center; gap: 10px; }
 .scene-editor-foot .field { flex: 1; }
-.scene-card .modal-foot {
+.scene-card .modal-foot,
+.search-card .modal-foot {
   flex: none;
   margin-top: 0;
   padding: 12px 20px 16px;
@@ -1615,7 +1651,10 @@ input[type="range"]::-webkit-slider-thumb {
 
 .translation-bar {
   position: fixed;
-  left: 50%;
+  /* Centred on the reading column, not the window: at 760px of width the old
+     centring put the bar over the sidebar footer, where the theme and settings
+     buttons live, and it swallowed their clicks. */
+  left: calc(var(--rail) + (100vw - var(--rail)) / 2);
   bottom: 98px;
   transform: translateX(-50%);
   z-index: 29;
@@ -1623,7 +1662,10 @@ input[type="range"]::-webkit-slider-thumb {
   align-items: flex-start;
   gap: 9px;
   width: max-content;
-  max-width: min(760px, calc(100vw - 48px));
+  max-width: min(760px, calc(100vw - var(--rail) - 48px));
+  /* Nothing in the bar is interactive, so it must never take a click from what it
+     happens to cover. */
+  pointer-events: none;
   padding: 10px 14px;
   border-radius: 11px;
   background: color-mix(in srgb, var(--panel) 92%, transparent);
@@ -1730,6 +1772,7 @@ body.focus .reader { max-width: 72ch; padding-bottom: 80px; }
 body.focus .page-view { padding: 0; }
 body.focus .page-stage { max-width: none; }
 body.focus .cinema-caption { bottom: 30px; }
+body.focus .translation-bar { left: 50%; max-width: min(760px, calc(100vw - 48px)); }
 
 .focus-exit {
   position: fixed;
@@ -1808,6 +1851,7 @@ body.focus .focus-exit { display: inline-flex; }
 
 @media (max-width: 700px) {
   .app { grid-template-columns: minmax(0, 1fr); }
+  .translation-bar { left: 50%; max-width: min(760px, calc(100vw - 32px)); }
   .main { grid-column: 1; }
   .sidebar {
     position: fixed;
@@ -1841,3 +1885,4 @@ body.focus .focus-exit { display: inline-flex; }
 .engine-block { align-items: flex-start; }
 .engine-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .engine-status { font-size: 12px; opacity: .65; margin-top: 4px; }
+#engineCpuNote { flex-basis: 100%; }

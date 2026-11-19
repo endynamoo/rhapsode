@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
-from . import access, config, extract, fonts, imaging, netinfo, ocr, polish, search, speak, store, translate
+from . import access, bootstrap, config, extract, fonts, imaging, netinfo, ocr, polish, search, speak, store, translate
 from .backends import detect
 from .engine import cache_stats, clip_cache_stats, engine, prune_cache
 from .voices import DEFAULT_VOICE, VOICES, voice_groups
@@ -29,6 +29,23 @@ class TTSIn(BaseModel):
 
 
 # ---------------------------------------------------------------- health
+@router.post("/api/voice-model", status_code=202)
+def repair_voice_model() -> dict:
+    """Download the voice weights again, in the background.
+
+    Reached from the error that names the cause: a truncated or placeholder
+    `kokoro-v1.0.onnx` used to leave an install broken with no way back short of
+    hand-deleting files.
+    """
+    if config.voice_model_ready():
+        return {"started": False, "state": bootstrap.state()}
+    try:
+        state = bootstrap.start_download()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return {"started": True, "state": state}
+
+
 @router.get("/api/health")
 def health() -> dict:
     engine.recheck()
@@ -36,6 +53,10 @@ def health() -> dict:
         "ok": True,
         "modelReady": engine.ready,
         "modelError": engine.last_error,
+        # Why the weights cannot be used, and what a repair is doing: a truncated
+        # file used to be invisible until ONNX Runtime threw.
+        "modelProblem": config.voice_model_problem(),
+        "modelDownload": bootstrap.state(),
         "voices": len(VOICES),
         "ocr": ocr.available(),
         "ocrBackend": ocr.backend_name(),

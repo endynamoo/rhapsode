@@ -319,6 +319,10 @@
         <div><label>Default voice</label><p>Used for new documents</p></div>
         <select class="field small" id="setVoice"></select>
       </div>
+      <div class="setting" id="voiceModelRow" hidden>
+        <div><label>Voice model</label><p id="voiceModelProblem">Checking the download…</p></div>
+        <button class="btn-ghost" id="voiceModelRepair">Download it again</button>
+      </div>
       <div class="setting">
         <div><label>Reading font</label><p>Uses fonts installed on this computer</p></div>
         <select class="field small" id="setFontFamily" aria-label="Reading font"></select>
@@ -352,10 +356,10 @@
             <button data-engine-profile="lite">Lite</button>
             <button data-engine-profile="balanced">Balanced</button>
             <button data-engine-profile="max">Max</button>
-            <button data-engine-profile="cpu">CPU</button>
           </div>
           <button class="btn-ghost" id="restartEngine" type="button">Restart engine</button>
         </div>
+        <p class="engine-status" id="engineCpuNote">No usable GPU? Reading, narration and export still work; CPU painting is planned for 0.4.</p>
       </div>
       <div class="setting">
         <div><label>Polish stills</label><p>Re-draw each painted still once to settle hands, faces and ink; doubles painting time</p></div>

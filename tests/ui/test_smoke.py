@@ -272,7 +272,15 @@ class SmokeTests(unittest.TestCase):
         self.assertNotIn("unavailable", summary.lower(), summary)
         status = self.page.locator("#remoteStatus").inner_text()
         self.assertIn("off", status.lower(), status)
-        self.assertGreater(self.page.locator("#setEngineProfile button").count(), 1)
+        profiles = self.page.locator("#setEngineProfile button")
+        self.assertEqual(profiles.count(), 3, "the engine offers exactly three profiles")
+        names = [profiles.nth(i).inner_text().strip() for i in range(profiles.count())]
+        self.assertEqual(names, ["Lite", "Balanced", "Max"])
+        # CPU painting is planned for 0.4. Until it exists, offering the profile meant
+        # choosing something that turns every scene into a placeholder, so the row says
+        # so in words instead of pretending to be a switch.
+        self.assertEqual(self.page.locator('[data-engine-profile="cpu"]').count(), 0)
+        self.assertIn("0.4", self.page.locator("#engineCpuNote").inner_text())
         # The font list comes from a scan, and the control used to stay empty until
         # the request returned: a first-time reader saw a blank row where the font
         # belongs. It must name the saved font from the first frame.
@@ -411,6 +419,80 @@ class SmokeTests(unittest.TestCase):
             f"the voice was started while no word was marked: {unmarked}",
         )
 
+    def test_follow_along_off_stops_the_page_following_the_voice(self) -> None:
+        # Book view has two scroll paths - the unit ticker and the chapter
+        # highlight - and the natural unit advance used to scroll unconditionally,
+        # so the switch changed nothing while reading. Reading must now leave the
+        # page alone; a sentence the reader asked for must still be brought into
+        # view, which is also the proof that nothing here is merely inert.
+        payload = {
+            "duration": 0.9,
+            "words": [
+                {"text": f"w{index}", "start": round(0.04 + index * 0.2, 3),
+                 "end": round(0.22 + index * 0.2, 3)}
+                for index in range(4)
+            ],
+            "spoken": "stub",
+            "translated": False,
+            "urls": [],
+        }
+        self.page.add_init_script(
+            """
+            (() => {
+              window.__scrolls = [];
+              const chip = () => {
+                const el = document.getElementById('autoBtn');
+                return el ? el.classList.contains('is-on') : null;
+              };
+              const realInto = Element.prototype.scrollIntoView;
+              Element.prototype.scrollIntoView = function (...args) {
+                window.__scrolls.push({ via: 'scrollIntoView', follow: chip(), id: this.id || '' });
+                return realInto.apply(this, args);
+              };
+              const realTo = Element.prototype.scrollTo;
+              Element.prototype.scrollTo = function (...args) {
+                window.__scrolls.push({ via: 'scrollTo', follow: chip(), id: this.id || '' });
+                return realTo.apply(this, args);
+              };
+            })();
+            """
+        )
+        self.open_app()
+        payload["urls"] = self.page.evaluate(
+            """(base64) => {
+                const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+                return Array.from({ length: 8 }, () => URL.createObjectURL(
+                    new Blob([bytes], { type: 'audio/wav' })));
+            }""",
+            wav_base64(0.9),
+        )
+
+        def handle(route) -> None:
+            body = dict(payload, url=payload["urls"][0])
+            body.pop("urls")
+            route.fulfill(status=200, content_type="application/json", body=json.dumps(body))
+
+        # A short window makes the reader scrollable, so "it did not move" is a
+        # measurement rather than a coincidence of the text fitting.
+        self.page.set_viewport_size({"width": 900, "height": 480})
+        self.page.route("**/api/tts", handle)
+        try:
+            self.page.locator(".lib-item", has_text=TITLE).first.click()
+            self.page.wait_for_selector("#reader .unit, #reader p")
+            if self.page.evaluate("() => document.getElementById('autoBtn').classList.contains('is-on')"):
+                self.page.click("#autoBtn")
+            self.page.evaluate("() => { window.__scrolls.length = 0; }")
+            self.page.click("#playBtn")
+            self.page.wait_for_timeout(3500)
+            while_reading = self.page.evaluate("() => window.__scrolls || []")
+        finally:
+            self.page.unroute("**/api/tts", handle)
+
+        followed = [call for call in while_reading if call["follow"] is False]
+        self.assertEqual(
+            followed, [],
+            f"the page followed the voice with Follow along off: {followed[:3]}",
+        )
     def test_search_finds_a_phrase_in_the_book(self) -> None:
         self.open_app()
         self.page.click("#searchBtn")
@@ -456,6 +538,161 @@ class SmokeTests(unittest.TestCase):
 
         films.click()
         self.page.wait_for_selector("#setAutoFilms[aria-checked='false']")
+
+    # ------------------------------------------- reported defects, 0.3.3
+    def test_the_cog_is_reachable_while_a_translation_shows(self) -> None:
+        # The translated-sentence bar is a fixed overlay. Centred on the window it
+        # sat over the sidebar footer and swallowed the click, so Settings could not
+        # be opened while reading with a foreign voice.
+        self.open_app()
+        self.page.set_viewport_size({"width": 808, "height": 420})
+        self.page.evaluate(
+            """
+            () => {
+              const bar = document.getElementById('translationBar');
+              document.getElementById('translationLang').textContent = 'ES';
+              document.getElementById('translationText').textContent =
+                'La oración número once tiene suficientes palabras para llenar un ritmo.';
+              bar.hidden = false;
+            }
+            """
+        )
+        self.page.wait_for_timeout(200)
+        geometry = self.page.evaluate(
+            """
+            () => {
+              const bar = document.getElementById('translationBar').getBoundingClientRect();
+              const side = document.querySelector('.sidebar').getBoundingClientRect();
+              const cog = document.querySelector('#settingsBtn').getBoundingClientRect();
+              const top = document.elementsFromPoint(
+                cog.x + cog.width / 2, cog.y + cog.height / 2)[0];
+              return {
+                overlap: bar.left < side.right,
+                topTag: top.tagName,
+                topIsCog: !!top.closest('#settingsBtn'),
+              };
+            }
+            """
+        )
+        self.assertFalse(geometry["overlap"], "the bar reaches into the sidebar")
+        self.assertTrue(geometry["topIsCog"], f"the cog is covered by {geometry['topTag']}")
+        self.page.click("#settingsBtn")
+        self.page.wait_for_selector("#settingsModal:not([hidden])")
+
+    def test_the_search_footer_sits_inside_the_card(self) -> None:
+        # The footer had no padding while the header and body inset their content by
+        # 20px, so the hint and the button sat on the card's border.
+        self.open_app()
+        self.page.click("#searchBtn")
+        self.page.wait_for_selector("#searchModal:not([hidden])")
+        gaps = self.page.evaluate(
+            """
+            () => {
+              const card = document.querySelector('.modal-card.search-card').getBoundingClientRect();
+              const hint = document.querySelector('.search-card .modal-foot .hint')
+                .getBoundingClientRect();
+              const button = document.querySelector('#searchIndexBtn').getBoundingClientRect();
+              return {
+                left: hint.left - card.left,
+                right: card.right - button.right,
+              };
+            }
+            """
+        )
+        self.assertGreaterEqual(gaps["left"], 18, f"hint is {gaps['left']}px from the edge")
+        self.assertGreaterEqual(gaps["right"], 18, f"button is {gaps['right']}px from the edge")
+
+    def test_the_voice_options_carry_the_theme_colours(self) -> None:
+        # A transparent control made Chromium paint the popup light under a dark
+        # theme; the options are painted now.
+        self.open_app()
+        colours = self.page.evaluate(
+            """
+            () => {
+              const option = document.querySelector('#voiceSel option');
+              const style = getComputedStyle(option);
+              const main = getComputedStyle(document.querySelector('.main'));
+              return { option: style.backgroundColor, main: main.backgroundColor };
+            }
+            """
+        )
+        self.assertNotIn(
+            colours["option"], ("rgba(0, 0, 0, 0)", "rgb(255, 255, 255)"),
+            "the option is unpainted, so the platform default wins",
+        )
+
+    def test_the_voice_model_row_names_a_broken_file(self) -> None:
+        # The row only exists when the weights cannot be used, and it has to say
+        # which file is wrong: the failure used to surface as a raw ONNX error when
+        # the reader pressed play.
+        health = httpx.get(f"{self.base}/api/health", timeout=10).json()
+        health["modelReady"] = False
+        health["modelError"] = "stub"
+        health["modelProblem"] = "kokoro-v1.0.onnx is 4 bytes, not the 100 MB it should be"
+        health["modelDownload"] = {"running": False, "done": False, "error": None, "size": 0}
+        self.page.route(
+            "**/api/health",
+            lambda route: route.fulfill(
+                status=200, content_type="application/json", body=json.dumps(health)
+            ),
+        )
+        self.open_app()
+        self.open_settings()
+        self.page.wait_for_selector("#voiceModelRow:not([hidden])")
+        problem = self.page.locator("#voiceModelProblem").inner_text()
+        self.assertIn("4 bytes", problem)
+        button = self.page.locator("#voiceModelRepair")
+        self.assertEqual(
+            button.inner_text().strip(), "Download it again", "the repair must be offered"
+        )
+        self.assertFalse(button.is_disabled())
+
+    def test_the_voice_model_row_hides_when_the_model_works(self) -> None:
+        # The suite runs on a home with no weights, so a healthy model has to be
+        # served: the row must disappear rather than nag a working install.
+        health = httpx.get(f"{self.base}/api/health", timeout=10).json()
+        health["modelReady"] = True
+        health["modelError"] = None
+        health["modelProblem"] = None
+        health["modelDownload"] = {"running": False, "done": False, "error": None, "size": 0}
+        self.page.route(
+            "**/api/health",
+            lambda route: route.fulfill(
+                status=200, content_type="application/json", body=json.dumps(health)
+            ),
+        )
+        self.open_app()
+        self.open_settings()
+        self.assertTrue(
+            self.page.locator("#voiceModelRow").is_hidden(),
+            "a healthy install should not show a repair row",
+        )
+
+    def test_an_idle_search_note_paints_nothing(self) -> None:
+        # The report was a purple sliver between the status line and the results. The
+        # note now removes its own children when it hides, so no part of it can
+        # outlive it.
+        self.open_app()
+        self.page.click("#searchBtn")
+        self.page.wait_for_selector("#searchModal:not([hidden])")
+        state = self.page.evaluate(
+            """
+            () => {
+              const note = document.getElementById('searchNote');
+              const bar = note.querySelector('.search-progress');
+              const stray = [...document.querySelectorAll('.search-progress')]
+                .filter(el => !el.closest('#searchNote'));
+              return {
+                noteHidden: note.hidden,
+                noteChildren: note.childElementCount,
+                strayBars: stray.length,
+              };
+            }
+            """
+        )
+        self.assertEqual(state["strayBars"], 0, "a progress bar lives outside the note")
+        if state["noteHidden"]:
+            self.assertEqual(state["noteChildren"], 0, "the hidden note kept its children")
 
     def test_a_document_can_be_added_through_the_modal(self) -> None:
         self.open_app()
