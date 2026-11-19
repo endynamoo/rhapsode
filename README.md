@@ -4,7 +4,7 @@ A read-aloud app that paints manga stills, entirely on your own machine. Drop in
 book, a PDF, a scanned page or a screenshot and it reads to you in a local voice —
 no account, no cloud, no per-word billing.
 
-![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/version-0.3.0--beta-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml) [![linux](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml)
+![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/version-0.3.2--beta-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml) [![linux](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml)
 
 ## What it does
 
@@ -177,7 +177,8 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 **Fixed**
 
-- A damaged or mislabelled file is now **refused with a sentence** instead of a bare 500, and each setting keeps to its own type and range: a playback rate arriving as text, or a speed of zero, is ignored rather than stored, because a value the player cannot apply breaks playback for that install.
+- A damaged or mislabelled file is now **refused with a sentence** instead of a bare 500, and every setting keeps to its own type and range, so a playback rate arriving as text cannot break playback.
+- Every sentence now starts with its first word already marked. The clip is held until it can decode, its opening word is highlighted, and only then does the voice start, so a sentence the reader reached by finishing the one before it can no longer begin with the sound a frame or two ahead of the highlight. `tests/ui/test_smoke.py` records what the page looks like at the instant the player is asked to start, and fails if a sentence has no word marked then.
 - The word highlight is bound to the **clip that is actually playing**: each sentence's timings are stored beside the audio it was made for, so a sentence still synthesising while the previous one finishes can no longer lend its word times to the next one under a slow machine. If the highlight still drifts behind the voice after this build, that is a separate measurement and the recording of it is welcome.
 
 ### 0.3.0-beta - 2026-11-19
@@ -192,12 +193,6 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - Linux is verified on a clean runner: `.github/workflows/linux.yml` runs the unit suite, then a real `python -m murmur` server with Tesseract as the OCR backend, asserting `/api/health` is healthy and remote access is off.
 
-### 0.1.0-alpha - 2026-11-16
-
-**Added**
-
-- First Windows-capable build of the reader and stills app: PDF, EPUB, DOCX, RTF, TXT, Markdown and HTML imports.
-
-*...and 78 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 79 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->

@@ -1111,6 +1111,41 @@ async function prepareThenPlay(index) {
   }
 }
 
+/* Wait until the element can decode far enough to play, never longer than a
+   moment: a cached clip is already ready, and a stalled one must not block. */
+function whenPlayable(element, timeout = 400) {
+  if (element.readyState >= 2) return Promise.resolve();
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      element.removeEventListener('loadeddata', finish);
+      element.removeEventListener('canplay', finish);
+      element.removeEventListener('error', finish);
+      resolve();
+    };
+    element.addEventListener('loadeddata', finish);
+    element.addEventListener('canplay', finish);
+    element.addEventListener('error', finish);
+    setTimeout(finish, timeout);
+  });
+}
+
+/* Let the browser paint what has just been written to the page. */
+function afterPaint(frames = 1) {
+  return new Promise((resolve) => {
+    const step = (left) => {
+      if (left <= 0) {
+        resolve();
+        return;
+      }
+      requestAnimationFrame(() => step(left - 1));
+    };
+    step(frames);
+  });
+}
+
 async function playUnit(i, { restart = false } = {}) {
   if (!state.doc || !state.units.length) return;
   if (i < 0) i = 0;
@@ -1150,6 +1185,12 @@ async function playUnit(i, { restart = false } = {}) {
       state.wordTimes.set(i, clip.words || []);
       state.wordIdx = -1;
       clearWordHighlight();
+      // Hold the voice until the clip can decode. On a sentence the reader
+      // reached by finishing the one before it, the mark used to appear a
+      // frame or two after the sound had already started; a locally cached
+      // clip answers this immediately, so nothing is added when it is ready.
+      await whenPlayable(audio);
+      if (gen !== state.gen) return;
     }
 
     audio.playbackRate = state.speed;
@@ -1164,6 +1205,16 @@ async function playUnit(i, { restart = false } = {}) {
       state.translateWarned = true;
     }
     updatePageCaption(state.index);
+
+    if (!canResume) {
+      // Paint the first word of the sentence, then give the browser two frames
+      // to put it on screen, before any sound comes out. The mark can then
+      // never trail the voice at the start of a sentence.
+      state.wordIdx = -1;
+      updateWordHighlight(0);
+      await afterPaint(2);
+      if (gen !== state.gen) return;
+    }
 
     await audio.play();
 
