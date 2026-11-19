@@ -1,4 +1,4 @@
-﻿# Several agents, one repository
+# Several agents, one repository
 
 Rhapsode is worked on by more than one session at a time. The branch ladder protects the
 *remote* pointers; it does nothing about three processes sharing one working tree. This page

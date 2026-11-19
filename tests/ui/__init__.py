@@ -1,1 +1,1 @@
-﻿"""Browser-driven UI tests (see test_smoke.py)."""
+"""Browser-driven UI tests (see test_smoke.py)."""

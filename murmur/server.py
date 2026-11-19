@@ -42,7 +42,7 @@ async def _lifespan(_app: FastAPI):
     # the first chunk is written, so this only wakes a worker after startup.
     search.start_background(delay=2.0)
     if PUBLIC:
-        print("Murmur is available on the network:")
+        print("Rhapsode is available on the network:")
         for item in access.access_urls():
             if item["label"] != netinfo.LOCAL_LABEL:
                 print(f"  {item['label']}: {item['url']}")
@@ -50,7 +50,7 @@ async def _lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="Murmur", docs_url=None, redoc_url=None, lifespan=_lifespan)
+app = FastAPI(title="Rhapsode", docs_url=None, redoc_url=None, lifespan=_lifespan)
 app.include_router(film_router)
 app.include_router(search_router)
 app.include_router(system_router)
@@ -98,7 +98,7 @@ async def access_guard(request: Request, call_next):
         return response
 
     return JSONResponse(
-        {"detail": "Murmur is private. Open the link containing ?token=… to continue."},
+        {"detail": "Rhapsode is private. Open the link containing ?token=… to continue."},
         status_code=401,
     )
 

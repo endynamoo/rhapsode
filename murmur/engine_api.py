@@ -28,7 +28,7 @@ async def _lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="Murmur Engine", docs_url=None, redoc_url=None, lifespan=_lifespan)
+app = FastAPI(title="Rhapsode Engine", docs_url=None, redoc_url=None, lifespan=_lifespan)
 app.include_router(film_router)
 
 

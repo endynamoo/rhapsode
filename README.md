@@ -4,7 +4,7 @@ A read-aloud app that paints manga stills, entirely on your own machine. Drop in
 book, a PDF, a scanned page or a screenshot and it reads to you in a local voice —
 no account, no cloud, no per-word billing.
 
-![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/version-0.3.2--beta-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml) [![linux](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml)
+![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/version-0.3.3--beta-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml) [![linux](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml)
 
 ## What it does
 
@@ -105,7 +105,7 @@ From source (needs `uv` and `ffmpeg`, Python 3.12):
 
 `setup.ps1` reads the card, picks an engine profile, downloads the q4 transformer
 and the detectors, and writes `%LOCALAPPDATA%\Rhapsode\engine.json`. Override it
-whenever you like: `.\scripts\setup.ps1 -Profile lite` (or `balanced`, `max`, `cpu`).
+whenever you like: `.\scripts\setup.ps1 -Profile lite` (or `balanced`, `max`).
 
 **macOS** (Apple Silicon or Intel, needs `uv` and `ffmpeg`) — download the DMG for
 your architecture from Releases, or:
@@ -169,6 +169,16 @@ is in [THIRD_PARTY.md](THIRD_PARTY.md).
 
 Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is generated from it by `scripts/changelog_render.py`, so edit the changelog, not this copy.
 
+### Unreleased
+
+**Fixed**
+
+- **The README badge caught up, and so did three visible messages**: the badge said 0.3.2 while the app said 0.3.3, and the setup banner, the private-access notice and an untitled chapter's exported film still said Murmur - that film now exports as "Rhapsode - chapter 1".
+
+**Changed**
+
+- **Repository housekeeping**: the source-tarball script works from any checkout rather than one hard-coded path, six tracked files lost their byte-order marks, `.gitignore` names the icon it generates and covers a contributor's caches, and a workshop script plus a stale generator claim are gone.
+
 ### 0.3.3-beta - 2026-11-19
 
 **Fixed**
@@ -176,7 +186,6 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 - **First-run setup no longer dies on a plain console**: the download progress and its tick marks were printed as Unicode, which a legacy (cp1252) console cannot encode - the download aborted with an encoding error while reporting itself. The text now degrades to whatever the console can print.
 - **Follow along now works in Book view**: both scroll paths ignored the switch - the chapter highlight moved the page to keep the spoken sentence in sight, and the advance to the next sentence scrolled regardless - so turning it off changed nothing while reading. A sentence you jump to deliberately is still brought into view.
 - **The translated-sentence bar no longer covers the sidebar**: centred on the window it landed on the theme and settings buttons and swallowed their clicks. It is anchored to the reading column and takes no pointer events.
-- **Export asks where the file should go**: the save dialog comes first, the export is written to the chosen file, and the copy under the data folder is removed once the reader has it. Browsers that cannot choose a path say which folder the download went to.
 
 ### 0.3.2-beta - 2026-11-19
 
@@ -184,12 +193,6 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
 
-### 0.3.0-beta - 2026-11-19
-
-**Added**
-
-- **Repair faces** is a new opt-in pass under Polish stills: each detected face is cropped, upsampled to 1024 px, re-drawn at a strength that can actually rebuild an eye, blended back through a feathered mask, and kept only if the repaint still contains a face and the region kept its ink - otherwise that face is restored from the copy taken before it. Two faces per still by default, `MURMUR_POLISH_FACE_MAX` to raise it. **Off by default**, because a crop repaint can redraw a character's face into someone else. `tests/test_face_repair.py` covers the crop maths, the cap, both revert paths and the cache variant without needing a GPU.
-
-*...and 89 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 91 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->

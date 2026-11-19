@@ -1,4 +1,4 @@
-﻿# Rhapsode agent install guide
+# Rhapsode agent install guide
 
 This file is written for an automated agent (or a careful user) installing and
 building Rhapsode. Read it fully before running commands. Prefer non-interactive

@@ -10,6 +10,14 @@ phrased for a user, not for a diff reader.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The README badge caught up, and so did three visible messages**: the badge said 0.3.2 while the app said 0.3.3, and the setup banner, the private-access notice and an untitled chapter's exported film still said Murmur - that film now exports as "Rhapsode - chapter 1".
+
+### Changed
+
+- **Repository housekeeping**: the source-tarball script works from any checkout rather than one hard-coded path, six tracked files lost their byte-order marks, `.gitignore` names the icon it generates and covers a contributor's caches, and a workshop script plus a stale generator claim are gone.
+
 ## [0.3.3-beta] - 2026-11-19
 ### Fixed
 

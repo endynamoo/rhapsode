@@ -1,4 +1,4 @@
-# Murmur/Rhapsode Windows launcher -- follows INSTALL.md Section B (uv path).
+# Rhapsode Windows launcher -- follows INSTALL.md Section B (uv path).
 # Browser mode by default; -Desktop for the pywebview window (WebView2).
 #
 # The launcher only reports success when the server answers /api/health. Server

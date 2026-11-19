@@ -1,4 +1,4 @@
-﻿# Rhapsode — install and build guide
+# Rhapsode — install and build guide
 
 Everything needed to install, run, build and check Rhapsode, platform by platform.
 Read the section for your machine before running commands, and verify each stage as

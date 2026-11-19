@@ -191,6 +191,7 @@ steps:
   - name: Sign, notarize, staple, DMG
     if: env.APPLE_SIGNING_IDENTITY != ''
     run: ./scripts/sign_and_notarize.sh        # the block from sections 3-4
+    # ^ this script does not exist in the repository yet; see the checklist in section 8
   - name: Keychain cleanup
     if: always()
     run: security delete-keychain "$RUNNER_TEMP/sign.keychain-db" || true
@@ -264,7 +265,7 @@ the official release, not of the source tree.
 | `packaging/Rhapsode.spec` | pass `codesign_identity` and `entitlements_file` from the environment |
 | `build_app.sh` | replace the ad-hoc `--deep` call with the gated signing block; `--verify` afterwards |
 | `scripts/make_dmg.sh` | sign the DMG when an identity is available |
-| `scripts/sign_and_notarize.sh` | new: zip, submit, parse status, staple, DMG, verify |
+| `scripts/sign_and_notarize.sh` | to be written: zip, submit, parse status, staple, DMG, verify |
 | `.github/workflows/macos.yml` | import the certificate, write the API key, run the script, clean up |
 | `INSTALL.md` §A2 | "ad-hoc signed, not notarized" becomes "notarized when the secrets are present" |
 | `README.md`, `docs/PLATFORMS.md` | M5 release engineering: signing marked done and how it is verified |

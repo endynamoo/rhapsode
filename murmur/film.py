@@ -1773,7 +1773,7 @@ def render_chapter(doc: dict, chapter: int, voice: str, job: dict) -> None:
             job["done"] = len(scenes)
             job["total"] = len(scenes)
             job["file"] = str(output)
-            job["title"] = f"{doc.get('title', 'Murmur')} — chapter {chapter + 1}"
+            job["title"] = f"{doc.get('title', 'Rhapsode')} — chapter {chapter + 1}"
             job["reused"] = True
             return
 
@@ -1811,7 +1811,7 @@ def render_chapter(doc: dict, chapter: int, voice: str, job: dict) -> None:
         job["state"] = "done"
         job["phase"] = "done"
         job["file"] = str(output)
-        job["title"] = f"{doc.get('title', 'Murmur')} — chapter {chapter + 1}"
+        job["title"] = f"{doc.get('title', 'Rhapsode')} — chapter {chapter + 1}"
     except Exception as exc:  # pragma: no cover
         if job.get("cancelled"):
             job["state"] = "cancelled"
@@ -1868,7 +1868,7 @@ def start_job(doc: dict, chapter: int, voice: str, auto: bool = False) -> dict:
         "total": len(plan_chapter(doc, chapter)),
         "docId": doc["id"],
         "chapter": chapter,
-        "title": doc.get("title", "Murmur"),
+        "title": doc.get("title", "Rhapsode"),
         "created": time.time(),
         # Auto jobs are the ones a "stop auto-generation" may drain; a chapter
         # the user queued by hand is never touched by it.
