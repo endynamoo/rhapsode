@@ -67,32 +67,50 @@ Everything stays on the machine: the voice model, the audio cache, the stills an
 the library are local files. Nothing is uploaded, and remote access is off unless
 you deliberately turn it on and hand out the tokenised link.
 
-## The parts that were actually hard
+## The stack, and why this mix
 
-Most of a reading app is plumbing. These were not, and they are why the thing
-behaves the way it does — and where to look if you are forking it.
+No single piece here is exotic. What makes the combination work is that the voice is not a
+black box: Kokoro's ONNX model returns *phoneme* durations, so narration arrives as a
+timeline the rest of the program can read. Everything below is downstream of that fact.
 
-- **The highlight follows the voice, not a guess.** Kokoro returns per-word timings
-  derived from phonemes, the reader keys those to the clip that is actually playing,
-  and each sentence holds its clip until it can decode, paints the first word, and
-  only then starts the voice. That combination is why the mark does not drift a
-  little further behind with every sentence. I measured forced aligners against it
-  and they lost — the numbers are in the commit history and in
-  [issue #57](https://github.com/endynamoo/rhapsode/issues/57).
-- **Search is two lanes over one index.** SQLite FTS5 gives the keyword lane; an
-  optional 23 MB sentence-embedding model gives the meaning lane. The two rankings
-  are fused with reciprocal rank fusion (`Σ 1/(60 + rank)`) and a recency decay, so
-  a phrase match does not lose to a vaguely similar paragraph. The model is off
-  until you ask for it, and the index is rebuildable at any time.
-- **The painter is a separate process with a budget.** FLUX.2 [klein] through
-  diffusers on CUDA/ROCm or mflux/MLX on Apple Silicon, quantized on a ladder that
-  trades quality for headroom, measured at 10.9 GB peak for an 832×480 frame in four
-  steps. It refuses to start when the card is already full rather than being killed
-  halfway through a chapter. Numbers in [docs/STILLS.md](docs/STILLS.md).
-- **One Python process serves the UI on loopback.** FastAPI over 127.0.0.1, the web
-  UI from the same origin, server-sent events for cross-tab work, an optional
-  pywebview shell, and a revalidating static mount so an upgrade cannot leave a
-  stale JavaScript module running against new server code.
+- **TTS: Kokoro-82M through ONNX Runtime** — 54 voices, 9 languages, CPU only, and no
+  PyTorch anywhere in the reading path (the ~2.5 GB torch stack stays out unless you
+  install the stills). `create_timed()` hands back per-word offsets instead of a wall of
+  audio, and those offsets are the hinge the app turns on: the same numbers drive the
+  word highlight, decide where a sentence ends and the next begins (which is what the
+  player warms ahead of), become the timing the stills are played against, and set the
+  cut points of a chapter MP4. Nothing
+  downstream guesses at timing, so nothing downstream drifts.
+- **G2P: misaki for Japanese and Chinese, eSpeak NG behind Kokoro for the other seven
+  languages** — the phoneme inventory decides whether a word is sayable at all, so those
+  are two code paths and not a preference.
+- **Server: FastAPI + uvicorn on loopback; the UI is plain HTML, CSS and JavaScript** —
+  same origin as the API, no bundler, no Node runtime, no Electron, so the interface you
+  inspect in DevTools is the one that ships and the same files run on all three
+  platforms. Server-sent events carry cross-tab work like indexing and painter progress.
+- **Documents: PDFium (`pypdfium2`), `trafilatura`, `python-docx`, EPUB as a zip** — a
+  permissive stack that *renders* pages rather than only extracting their text, which is
+  the only reason the page-level highlight can exist.
+- **OCR: Apple Vision, `Windows.Media.Ocr`, Tesseract** — one per platform, all on-device,
+  nothing to download. The backend in use is named in `/api/health`, so a wrong one is
+  visible rather than silent.
+- **Search: SQLite FTS5 plus an optional 23 MB MiniLM embedding model on the same ONNX
+  runtime** — keyword search works with nothing installed; the meaning lane is a file you
+  may or may not have. Both rankings are fused with reciprocal rank fusion
+  (`Σ 1/(60 + rank)`) and a recency decay instead of being switched between, so a phrase
+  match does not lose to a vaguely similar paragraph.
+- **Stills: FLUX.2 [klein] 4B through diffusers on CUDA/ROCm or mflux/MLX on Apple
+  Silicon, q4 GGUF on tighter cards, YuNet and RTMDet ONNX detectors for the polish pass** —
+  in a separate process holding a VRAM budget, so it refuses early rather than being
+  killed halfway through a chapter. Measured at 10.9 GB peak for an 832×480 frame in four
+  steps; the numbers are in [docs/STILLS.md](docs/STILLS.md).
+- **Packaging: PyInstaller, Inno Setup 7, ad-hoc codesign** — per-user installs with no
+  admin rights and a bundle that launches without a developer account, which is what makes
+  "download it and read something" a single step.
+
+What that buys, in one sentence: it plays as soon as you ask because the clip is already
+warm, the mark sits on the word because the timing is the model's own and not an estimate,
+and it works with the network unplugged because every piece above is a file on your disk.
 
 ## Try it
 
@@ -231,7 +249,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 **Changed**
 
-- **The README says who the app is for**: somebody turning anything they can read into an audiobook, somebody who likes generated manga stills, and somebody who wants to lift the parts into a different program. It now also says what to expect from pull requests (bugs first, reviews slow) and where the family of apps is going - and it corrects two stale claims: a platform table that still promised CPU stills, and a version badge stuck one release behind.
+- **The README says who the app is for**: somebody turning anything they can read into an audiobook, somebody who likes generated manga stills, and somebody who wants to lift the parts into a different program. It now also says what to expect from pull requests (bugs first, reviews slow) and where the family of apps is going - and it replaces "the parts that were actually hard" with what each technology in the build is and why this mix works: the voice returns phoneme timings, so the highlight, the warm-ahead, the still beats and the MP4 cut are all read off the same clock instead of being guessed. It also corrects two stale claims: a platform table that still promised CPU stills, and a version badge stuck one release behind.
 
 ### 0.3.4-beta - 2026-11-19
 
@@ -245,17 +263,13 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
 
-**Fixed**
-
-- A damaged or mislabelled file is now **refused with a sentence** instead of a bare 500, and every setting keeps to its own type and range, so a playback rate arriving as text cannot break playback.
-
 ### 0.3.0-beta - 2026-11-19
 
 **Added**
 
 - **Repair faces** is a new opt-in pass under Polish stills: each detected face is cropped, upsampled to 1024 px, re-drawn at a strength that can actually rebuild an eye, blended back through a feathered mask, and kept only if the repaint still contains a face and the region kept its ink - otherwise that face is restored from the copy taken before it. Two faces per still by default, `MURMUR_POLISH_FACE_MAX` to raise it. **Off by default**, because a crop repaint can redraw a character's face into someone else. `tests/test_face_repair.py` covers the crop maths, the cap, both revert paths and the cache variant without needing a GPU.
 
-*...and 96 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 97 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
 
