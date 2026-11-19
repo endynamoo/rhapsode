@@ -1,6 +1,7 @@
 """The scene activity contract: one vocabulary for Cinema and Settings."""
 from __future__ import annotations
 
+import os
 import tempfile
 import time
 import unittest
@@ -18,7 +19,9 @@ from murmur import config, film, imaging, server, store
 def temp_home():
     with tempfile.TemporaryDirectory() as folder:
         base = Path(folder)
-        with mock.patch.multiple(
+        # Never load a real painter: warming would reach the installed image venv.
+        with mock.patch.dict(os.environ, {"MURMUR_WARM_STILLS": "0"}), \
+                mock.patch.multiple(
             config,
             HOME=base,
             MODELS_DIR=base / "models",

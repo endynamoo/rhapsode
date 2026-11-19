@@ -222,3 +222,34 @@ dist/Rhapsode.app/Contents/MacOS/Rhapsode --engine
 
 Rhapsode currently runs the same router in-process by default; the sidecar is the
 first step toward a separately packaged Murmur engine for other frontends.
+
+## The warm start: where the first still's time goes
+
+Measured on the reference machine (RX 9070 XT, 16 GB) on 2026-11-19, in the app's
+own path, with the painter cold:
+
+| Step | Cost |
+| --- | --- |
+| `imaging.available()` asking "is torch installed?" by importing it | **6.05 s** |
+| spawning the image interpreter and importing torch when asked for a still | 24.7 s |
+| painting the 1920x1080 still | ~27 s |
+| **first still, end to end** | **58.4 s** |
+
+None of that is the network, and the third row is the only one that is the model
+doing what it was asked. Two of the rows were pure overhead and both are gone:
+
+* `imaging._has_packages` reads the interpreter's `site-packages` instead of running
+  it. The import probe survives as a fallback for a layout it does not recognise,
+  because a wrong "yes" would become a placeholder still and a wrong "no" would
+  claim the engine is missing when it is not.
+* `film.warm_engine` starts the load when the chapter's plan is requested - the
+  gesture that opens Cinema or Review scenes, and always before the first scene
+  click - behind an `activity.phase("loading", ...)` so the panel says "starting"
+  rather than nothing. `warmStills` (Settings -> Stills engine, on by default)
+  turns it off on a machine where the GPU should stay free until asked.
+
+The load is about twenty seconds and the plan sits on screen longer than that, so
+the wait after clicking the scene is now the paint and nothing else. If the reader
+clicks immediately, the load is already in flight and is shared - `FluxWorker.warm`
+and `FluxWorker.run` hold the same lock, so a scene request joins the load instead
+of starting a second one.

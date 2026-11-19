@@ -58,6 +58,17 @@ def film_plan(doc: str, chapter: int = 0) -> dict:
     document = _document(doc)
     chapter = _chapter(document, chapter)
     scenes = film.plan_chapter(document, chapter)
+    model = film.film_model()[0]
+    if any(
+        not film.still_final(film.scene_image_path(document["id"], chapter, scene.index, model), model)
+        for scene in scenes
+    ):
+        # The plan is asked for before a scene is clicked, so this is where the
+        # twenty-second load can happen without anybody waiting for it.
+        try:
+            film.warm_engine()
+        except Exception:  # noqa: BLE001 - warming never fails a plan
+            pass
     return {
         "doc": document["id"],
         "chapter": chapter,

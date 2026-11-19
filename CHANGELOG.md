@@ -17,6 +17,17 @@ The format follows Keep a Changelog. Add an entry under `## [Unreleased]
 - Cinema reports what the stills engine is actually doing — planning, loading the model, painting, cleaning up, polishing, or showing a placeholder — instead of one static "Painting scene…", with the backend, model and profile on screen and a Retry button when a scene fails.
 
 ### Changed
+- The first manga still now arrives **sooner, and says what it is doing**. Two
+  changes, both measured rather than assumed. Checking whether the stills engine is
+  installed used to launch the image interpreter and import torch and diffusers,
+  which cost **6.0 s** of every cold first still to answer a question a directory
+  listing answers in a millisecond; it now reads the environment and only falls
+  back to importing when it finds a layout it does not recognise. And opening
+  Cinema - which asks for the plan before any scene is clicked - now starts loading
+  the engine while the reader is looking at the plan, instead of after the click.
+  Settings -> Stills engine gains a **Load the engine when Cinema opens** switch
+  (on by default) for machines where holding the GPU is unwelcome.
+### Changed
 - The Settings panel moved out of `web/app.js` into `web/views/settings.js`, and the browser now loads `app.js` as an ES module. No bundler, no new build step, and no behaviour change: the view receives `$`, `$$`, `api`, `state` and the few helpers it needs instead of reaching into the module scope, so what it depends on is visible at the top of the file. This is the first slice of the UI split (#36); the browser suite grew a test that fails if the panel stops being wired.
 ### Changed
 - Startup work moved from FastAPI's deprecated `on_event("startup")` hook to a `lifespan` on both the server and the engine sidecar. Same calls, same order - store init, the voice model warm-up, the cache-prune thread, search indexing, the network banner - but a start no longer prints a `DeprecationWarning`. `tests/test_lifespan.py` holds the behaviour: no app registers an `on_event` handler, importing one raises no deprecation, and entering the app's context leaves an initialised store behind.

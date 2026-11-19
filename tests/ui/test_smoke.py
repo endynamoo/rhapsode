@@ -79,6 +79,8 @@ class SmokeTests(unittest.TestCase):
         env = {
             **os.environ,
             "MURMUR_HOME": cls.home.name,
+            # The UI journey opens Cinema; a real painter must not start.
+            "MURMUR_WARM_STILLS": "0",
             "MURMUR_PORT": str(cls.port),
             "MURMUR_SEMANTIC": "off",
         }
