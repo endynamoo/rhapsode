@@ -22,6 +22,7 @@ phrased for a user, not for a diff reader.
 
 ### Added
 
+- **Run the CI workflows locally**: `scripts\ci-local.ps1` mirrors `.github/workflows/` job for job - the suite in a venv built from `requirements-test.txt` alone, the browser journeys, a real server asked for `/api/health`, and the PyInstaller + Inno cycle with a silent install, the `licenses\` check, a health call and the uninstall. For when Actions minutes run out or a release needs the installer verified before a tag exists. The macOS job needs a Mac and is reported as skipped, never as passed.
 - **A `licenses/` folder, so a build can be redistributed cleanly**: the installer includes GPL-3.0 code (eSpeak NG through `phonemizer`), which obliges us to ship the licence texts and the source offer with every download. That folder now holds the GPL-3.0, LGPL-2.1 and LGPL-3.0 texts, OpenCV's own third-party notice, a `NOTICE.txt` the installer shows, and `SOURCES.md` naming each copyleft component with its exact version, upstream link and the written offer. Both build paths copy it, and `tests/test_licences.py` fails if any of that stops being true.
 ## [0.3.3-beta] - 2026-11-19
 ### Fixed
