@@ -32,6 +32,11 @@ phrased for a user, not for a diff reader.
   Settings -> Stills engine gains a **Load the engine when Cinema opens** switch
   (on by default) for machines where holding the GPU is unwelcome.
 
+- The Linux CI job **retries its package install** instead of reporting the runner's
+  mirror as a test failure. Two of this repository's CI failures were `apt-get`
+  fetching from `security.ubuntu.com` - once a long stall, once "Connection failed" -
+  so the step now asks for five transport retries, makes three attempts of its own,
+  and prints the `ffmpeg` and `tesseract` versions it ended up with.
 - Opening a book now **synthesises the sentence on screen in the background**, so
   pressing play starts almost immediately. The cost was always the voice model, not
   the network: a unit of about four seconds of speech takes roughly 0.8 s of CPU to
