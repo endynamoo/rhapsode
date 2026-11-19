@@ -10,6 +10,10 @@ phrased for a user, not for a diff reader.
 
 ## [Unreleased]
 
+### Changed
+
+- **The README says who the app is for**: somebody turning anything they can read into an audiobook, somebody who likes generated manga stills, and somebody who wants to lift the parts into a different program. It now also says what to expect from pull requests (bugs first, reviews slow) and where the family of apps is going - and it corrects two stale claims: a platform table that still promised CPU stills, and a version badge stuck one release behind.
+
 ## [0.3.4-beta] - 2026-11-19
 
 ### Added
