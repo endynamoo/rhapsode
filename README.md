@@ -69,9 +69,10 @@ you deliberately turn it on and hand out the tokenised link.
 
 ## In motion
 
-Five things that are easier to watch than to read about. Each clip is a recording of this
-build playing text written for the demo - no mock-ups, nothing staged by hand. The book and the method are in [docs/demo](docs/demo/README.md), and the same clips
-in full motion are beside them as MP4s.
+Five things that are easier to watch than to read about. Every clip is a recording of this
+build playing text written for the demo - no mock-ups, nothing staged by hand. The files it
+plays and the method that records it are in [docs/demo](docs/demo/README.md), and each GIF is
+shown with the same clip in full motion beside it.
 
 **The word being spoken is the word marked.** Kokoro returns phoneme timings, so the mark
 tracks the voice at any speed instead of guessing from the clock, and every sentence paints
