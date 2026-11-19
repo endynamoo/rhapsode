@@ -10,13 +10,13 @@ phrased for a user, not for a diff reader.
 
 ## [Unreleased]
 
-### Removed
+### Added
 
-- **`docs/CONCURRENCY.md` is no longer part of the repository.** It is a note about running
-  several agent sessions against one checkout, not something a reader of the app needs, so it is
-  now gitignored and stays in the working copy. The rule it carried - take your own worktree,
-  never `git add -A` in a shared checkout, run `check-ladder.ps1` when you finish - still lives in
-  `AGENTS.md` section 10, and the documentation table no longer links the file.
+- **Four demo clips, recorded from this build.** The README now shows the reader marking the
+  spoken word, a scanned PDF page marked on the page itself, a library search across three books,
+  and a chapter read over a still the stills engine painted - as GIFs inline and MP4s beside them
+  in `docs/demo/`, with the three-file demo corpus and the recording method published alongside so
+  anyone can reproduce a clip instead of trusting one.
 
 
 ### Changed
@@ -161,6 +161,7 @@ phrased for a user, not for a diff reader.
 
 ### Removed
 
+- **`docs/CONCURRENCY.md` is no longer part of the repository.** It is a note about running
 - **The CPU stills profile is no longer offered**: it could not paint anything - every scene came back as a placeholder - so choosing it read as a failure rather than a choice. Reading, narration and export are unaffected. CPU painting is planned for the 0.4 refactor.
 - `launch.bat` and `zip_and_relaunch.ps1` are no longer tracked. They were local shortcuts, and a repository someone is meant to read should not open with two scripts that only work on the author's machine.
 

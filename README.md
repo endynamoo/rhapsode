@@ -67,6 +67,39 @@ Everything stays on the machine: the voice model, the audio cache, the stills an
 the library are local files. Nothing is uploaded, and remote access is off unless
 you deliberately turn it on and hand out the tokenised link.
 
+## In motion
+
+Four things that are easier to watch than to read about. Each clip is a recording of this
+build, playing a three-chapter book written for the demo - no mock-ups, nothing staged by
+hand. The book and the method are in [docs/demo](docs/demo/README.md), and the same clips
+in full motion are beside them as MP4s.
+
+**The word being spoken is the word marked.** Kokoro returns phoneme timings, so the mark
+tracks the voice at any speed instead of guessing from the clock, and every sentence paints
+its first word before the sound starts.
+
+<img src="docs/demo/reading.gif" width="880" alt="Book view playing: the spoken word is marked as the voice reads">
+<sub>[watch the full-motion clip](docs/demo/reading.mp4)</sub>
+
+**A scanned page, marked on the page itself.** This PDF has no text layer at all: the page
+is OCR'd, the words are located on the image, and the box follows the voice across it - not
+a caption underneath pretending to be one.
+
+<img src="docs/demo/scanned-page.gif" width="880" alt="A scanned PDF page with the spoken word boxed on the image">
+<sub>[watch the full-motion clip](docs/demo/scanned-page.mp4)</sub>
+
+**Search every book at once, by words or by meaning.** Nine passages in 15 ms, grouped by
+book, each snippet showing what matched, and Enter opens that sentence.
+
+<img src="docs/demo/search.gif" width="880" alt="Library search across books with highlighted matches">
+<sub>[watch the full-motion clip](docs/demo/search.mp4)</sub>
+
+**A chapter drawn while it is read.** Each beat of the text becomes one still, painted
+locally, played against the narration - and the same stills assemble into a chapter film.
+
+<img src="docs/demo/manga.gif" width="880" alt="Manga view: a generated still behind the narration">
+<sub>[watch the full-motion clip](docs/demo/manga.mp4)</sub>
+
 ## The stack, and why this mix
 
 No single piece here is exotic. What makes the combination work is that the voice is not a
@@ -223,6 +256,7 @@ for the same experience on every system, and for the bug you found that I did no
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | VRAM and RAM guards, where the logs are, failure modes already fixed |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module map, pipelines, API surface, security model, UML |
 | [docs/PLATFORMS.md](docs/PLATFORMS.md) | Windows and Linux port, GPU backends, packaging |
+| [docs/CONCURRENCY.md](docs/CONCURRENCY.md) | Several agents, one repository: worktrees, pushes, cleanup |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branches, commits, pull requests and releases |
 | [INSTALL.md](INSTALL.md) | Install, build and verify, platform by platform |
 | [AGENTS.md](AGENTS.md) | The rules an automated agent works to in this repository |
@@ -248,9 +282,9 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 ### Unreleased
 
-**Removed**
+**Added**
 
-- **`docs/CONCURRENCY.md` is no longer part of the repository.** It is a note about running several agent sessions against one checkout, not something a reader of the app needs, so it is now gitignored and stays in the working copy. The rule it carried - take your own worktree, never `git add -A` in a shared checkout, run `check-ladder.ps1` when you finish - still lives in `AGENTS.md` section 10, and the documentation table no longer links the file.
+- **Four demo clips, recorded from this build.** The README now shows the reader marking the spoken word, a scanned PDF page marked on the page itself, a library search across three books, and a chapter read over a still the stills engine painted - as GIFs inline and MP4s beside them in `docs/demo/`, with the three-file demo corpus and the recording method published alongside so anyone can reproduce a clip instead of trusting one.
 
 **Changed**
 
@@ -268,7 +302,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
 
-*...and 98 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 99 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
 
