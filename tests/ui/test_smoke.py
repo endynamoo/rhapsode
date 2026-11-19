@@ -411,6 +411,80 @@ class SmokeTests(unittest.TestCase):
             f"the voice was started while no word was marked: {unmarked}",
         )
 
+    def test_follow_along_off_stops_the_page_following_the_voice(self) -> None:
+        # Book view has two scroll paths - the unit ticker and the chapter
+        # highlight - and the natural unit advance used to scroll unconditionally,
+        # so the switch changed nothing while reading. Reading must now leave the
+        # page alone; a sentence the reader asked for must still be brought into
+        # view, which is also the proof that nothing here is merely inert.
+        payload = {
+            "duration": 0.9,
+            "words": [
+                {"text": f"w{index}", "start": round(0.04 + index * 0.2, 3),
+                 "end": round(0.22 + index * 0.2, 3)}
+                for index in range(4)
+            ],
+            "spoken": "stub",
+            "translated": False,
+            "urls": [],
+        }
+        self.page.add_init_script(
+            """
+            (() => {
+              window.__scrolls = [];
+              const chip = () => {
+                const el = document.getElementById('autoBtn');
+                return el ? el.classList.contains('is-on') : null;
+              };
+              const realInto = Element.prototype.scrollIntoView;
+              Element.prototype.scrollIntoView = function (...args) {
+                window.__scrolls.push({ via: 'scrollIntoView', follow: chip(), id: this.id || '' });
+                return realInto.apply(this, args);
+              };
+              const realTo = Element.prototype.scrollTo;
+              Element.prototype.scrollTo = function (...args) {
+                window.__scrolls.push({ via: 'scrollTo', follow: chip(), id: this.id || '' });
+                return realTo.apply(this, args);
+              };
+            })();
+            """
+        )
+        self.open_app()
+        payload["urls"] = self.page.evaluate(
+            """(base64) => {
+                const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+                return Array.from({ length: 8 }, () => URL.createObjectURL(
+                    new Blob([bytes], { type: 'audio/wav' })));
+            }""",
+            wav_base64(0.9),
+        )
+
+        def handle(route) -> None:
+            body = dict(payload, url=payload["urls"][0])
+            body.pop("urls")
+            route.fulfill(status=200, content_type="application/json", body=json.dumps(body))
+
+        # A short window makes the reader scrollable, so "it did not move" is a
+        # measurement rather than a coincidence of the text fitting.
+        self.page.set_viewport_size({"width": 900, "height": 480})
+        self.page.route("**/api/tts", handle)
+        try:
+            self.page.locator(".lib-item", has_text=TITLE).first.click()
+            self.page.wait_for_selector("#reader .unit, #reader p")
+            if self.page.evaluate("() => document.getElementById('autoBtn').classList.contains('is-on')"):
+                self.page.click("#autoBtn")
+            self.page.evaluate("() => { window.__scrolls.length = 0; }")
+            self.page.click("#playBtn")
+            self.page.wait_for_timeout(3500)
+            while_reading = self.page.evaluate("() => window.__scrolls || []")
+        finally:
+            self.page.unroute("**/api/tts", handle)
+
+        followed = [call for call in while_reading if call["follow"] is False]
+        self.assertEqual(
+            followed, [],
+            f"the page followed the voice with Follow along off: {followed[:3]}",
+        )
     def test_search_finds_a_phrase_in_the_book(self) -> None:
         self.open_app()
         self.page.click("#searchBtn")

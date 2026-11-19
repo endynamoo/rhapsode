@@ -13,7 +13,7 @@ phrased for a user, not for a diff reader.
 ## [0.3.3-beta] - 2026-11-19
 ### Fixed
 
-- **Follow along now works in Book view**: the chapter highlight scrolled the page to keep the spoken sentence in sight whatever the switch said, so turning it off changed nothing while reading a book.
+- **Follow along now works in Book view**: both scroll paths ignored the switch - the chapter highlight moved the page to keep the spoken sentence in sight, and the advance to the next sentence scrolled regardless - so turning it off changed nothing while reading. A sentence you jump to deliberately is still brought into view.
 - **The translated-sentence bar no longer covers the sidebar**: centred on the window it landed on the theme and settings buttons and swallowed their clicks. It is anchored to the reading column and takes no pointer events.
 - **Export asks where the file should go**: the save dialog comes first, the export is written to the chosen file, and the copy under the data folder is removed once the reader has it. Browsers that cannot choose a path say which folder the download went to.
 - **A voice model file that is a stub is now named and repaired**: a 4-byte `kokoro-v1.0.onnx` passed every "does the model exist" check, so play threw a raw ONNX error and `python -m murmur.bootstrap` reported nothing to do. The engine, the downloader and `/api/health` now share one size check, bootstrap re-downloads a bad file, and Settings offers **Download it again**.

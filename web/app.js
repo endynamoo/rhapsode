@@ -862,7 +862,7 @@ async function openDoc(id, { autoplay = false, position = null } = {}) {
     // A search hit can point into the book that is already open.
     if (position != null) {
       state.index = Math.min(Math.max(0, position), state.units.length - 1);
-      setCurrentUnit(state.index);
+      setCurrentUnit(state.index, { reveal: true });
       updatePlayerUI();
       savePosition(true);
       warmAudioAhead(state.index);
@@ -940,7 +940,7 @@ async function openDoc(id, { autoplay = false, position = null } = {}) {
   $('#nowSub').textContent = idleSubtitle();
   history.replaceState(null, '', `#${doc.id}`);
 
-  setCurrentUnit(state.index);
+  setCurrentUnit(state.index, { reveal: true });
   applyView();
   updatePlayerUI();
   renderContents();
@@ -1095,7 +1095,7 @@ async function prepareThenPlay(index) {
   state.spoken = '';
   state.targetLang = '';
   state.wordIdx = -1;
-  setCurrentUnit(index);
+  setCurrentUnit(index, { reveal: true });
   pause();
   setLoading(true);
 
@@ -1609,7 +1609,7 @@ function updateProgress(t) {
   $('#nowSub').textContent = `${language}${fmtTime(remaining)} left · ${sentence.slice(0, 90)}`;
 }
 
-function setCurrentUnit(i) {
+function setCurrentUnit(i, { reveal = false } = {}) {
   const unit = state.units[i];
   if (!unit) return;
   clearSearchMatch();
@@ -1621,7 +1621,7 @@ function setCurrentUnit(i) {
   if (state.view === 'page' && state.doc && state.doc.viewer) {
     renderPageForIndex(i);
   } else {
-    scrollToUnit(i);
+    scrollToUnit(i, 'smooth', reveal);
   }
   updatePageCaption(i);
   updateTocActive();
@@ -1661,7 +1661,7 @@ function applyView() {
   } else if (isPage) {
     renderPageForIndex(state.index);
   } else if (hasDoc) {
-    requestAnimationFrame(() => scrollToUnit(state.index, 'auto'));
+    requestAnimationFrame(() => scrollToUnit(state.index, 'auto', true));
   }
   updatePageCaption(state.index);
 }
@@ -1791,7 +1791,7 @@ function goToPage(n) {
   const first = pages.indexOf(n);
   if (first >= 0 && first !== state.index) {
     state.index = first;
-    setCurrentUnit(first);
+    setCurrentUnit(first, { reveal: true });
     savePosition();
     if (state.playing) playUnit(first, { restart: true });
   }
@@ -2994,9 +2994,12 @@ function clearChapterHighlight() {
   state.chapter.activeStart = null;
 }
 
-function scrollToUnit(i, behavior = 'smooth') {
+function scrollToUnit(i, behavior = 'smooth', reveal = false) {
   const unit = state.units[i];
   if (!unit || !unit.el) return;
+  // Following the voice is a setting; landing on a sentence the reader chose is
+  // not. Playback asks for nothing here, so it obeys the switch.
+  if (!reveal && !state.autoScroll) return;
   const scroller = $('#readerScroll');
   const rect = unit.el.getBoundingClientRect();
   const bounds = scroller.getBoundingClientRect();
@@ -3114,7 +3117,7 @@ function setVoice(voice) {
   if (state.doc && wasPlaying) {
     playUnit(state.index, { restart: true });
   } else if (state.doc) {
-    setCurrentUnit(state.index);
+    setCurrentUnit(state.index, { reveal: true });
     updatePlayerUI();
   }
   savePosition(true);

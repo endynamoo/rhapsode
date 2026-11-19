@@ -63,6 +63,25 @@ class FollowAlongGateTests(unittest.TestCase):
                 f"{name} scrolls the page without asking the setting",
             )
 
+    def test_the_playback_advance_does_not_force_a_scroll(self) -> None:
+        # Reading on is "following"; it must not ask to reveal, or the switch stops
+        # working again the moment the unit changes. The signature carries a
+        # destructured argument, so the region is read by line rather than by brace.
+        lines = self.source.splitlines()
+        start = next(
+            index for index, line in enumerate(lines) if "function playUnit(" in line
+        )
+        window = lines[start:start + 80]
+        advances = [line.strip() for line in window if "setCurrentUnit(" in line]
+        self.assertEqual(len(advances), 1, f"the advance moved: {advances}")
+        self.assertIn("setCurrentUnit(i);", advances[0])
+
+    def test_a_deliberate_jump_asks_to_reveal(self) -> None:
+        # The complement: a jump the reader asked for must land even with Follow
+        # along off, so at least one call site has to request it.
+        self.assertIn("{ reveal: true }", self.source)
+        self.assertIn("if (!reveal && !state.autoScroll) return;", self.source)
+
 
 if __name__ == "__main__":
     unittest.main()
