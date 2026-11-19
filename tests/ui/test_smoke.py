@@ -218,6 +218,33 @@ class SmokeTests(unittest.TestCase):
         # And it is the sentence on screen, not something arbitrary.
         self.assertNotIn("#", requests[0].split("/api/tts")[0])
 
+    def test_the_font_row_names_a_font_before_the_list_arrives(self) -> None:
+        # The font list comes from a scan of the machine. Hold the answer back for
+        # good, which is the far end of "a slow first scan": the row must name the
+        # saved font the whole time rather than rendering as an empty control that
+        # reads like "this machine has no fonts".
+        self.page.add_init_script(
+            """
+            (() => {
+              const realFetch = window.fetch.bind(window);
+              window.fetch = (input, init) => {
+                const url = typeof input === 'string' ? input : (input && input.url) || '';
+                if (url.includes('/api/fonts')) {
+                  return new Promise(() => {});
+                }
+                return realFetch(input, init);
+              };
+            })();
+            """
+        )
+        self.open_app()
+        self.page.click("#settingsBtn")
+        self.page.wait_for_selector("#settingsModal:not([hidden])")
+        value = self.page.evaluate("document.querySelector('#setFontFamily').value")
+        options = self.page.evaluate("document.querySelector('#setFontFamily').options.length")
+        self.assertTrue(value, "the Reading font row rendered blank while the list loaded")
+        self.assertGreaterEqual(options, 1, "the Reading font row had no options at all")
+
     def test_the_settings_panel_is_wired(self) -> None:
         # The settings view used to be 450 lines in the middle of app.js; it is a
         # module now, so this checks the seam rather than the styling: the panel
@@ -231,6 +258,11 @@ class SmokeTests(unittest.TestCase):
         status = self.page.locator("#remoteStatus").inner_text()
         self.assertIn("off", status.lower(), status)
         self.assertGreater(self.page.locator("#setEngineProfile button").count(), 1)
+        # The font list comes from a scan, and the control used to stay empty until
+        # the request returned: a first-time reader saw a blank row where the font
+        # belongs. It must name the saved font from the first frame.
+        value = self.page.locator("#setFontFamily").input_value()
+        self.assertTrue(value.strip(), "the Reading font row rendered blank")
         self.assertGreater(self.page.locator("#setFontFamily option").count(), 1)
         # Repair faces is a real switch in the panel: the pass may redraw a
         # character's face into someone else, so it ships off - the default itself is

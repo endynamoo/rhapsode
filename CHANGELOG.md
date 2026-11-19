@@ -60,6 +60,11 @@ phrased for a user, not for a diff reader.
 
 ### Fixed
 
+- The **Reading font row is never blank** while its list loads. Enumerating the
+  machine's fonts is a scan, and the control used to stay empty until the answer
+  arrived: a first-time reader opening Settings saw a nameless dropdown that reads
+  like "this machine has no fonts". It now shows the saved font from the first
+  frame and swaps in the installed families when they arrive.
 - A polish pass no longer aborts when **opencv** is missing. `detectors.faces()`, `cv2_resize()` and the pose path imported `cv2` directly, so on a source install without it a `ModuleNotFoundError` escaped `detectors.inspect()` instead of being reported in its `error` field - the still then failed to polish at all, rather than polishing with the global pass only. Every cv2 use now goes through `detectors._cv2()`, which raises `DetectorUnavailable` with a reason the pass already knows how to record. Found by CI on a runner without opencv, not on a dev box. `detectors._session()` does the same for a missing **onnxruntime**, so the person and pose detectors report unavailability instead of raising it.
 - The line under the book title in the player no longer reads *"Add a document to begin"* while a book is open. An unplayed book says *"Press play, or click any paragraph to start there"*, and a finished book says it is finished, instead of the empty-library prompt staying on screen until something is spoken.
 - The Stills engine panel no longer says *"below the RAM floor - painting will refuse"* while the engine is resident and painting: the floor is a **cold-load** guard, and a resident worker holds the model, so free memory sits under it by design. It now only warns when no worker is running, which is the only time a load can be refused.
