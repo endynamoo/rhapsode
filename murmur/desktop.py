@@ -134,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
     if config.PUBLIC:
         print(f"Listening on {host}:{port}")
         for item in netinfo.access_urls(port, config.access_token()):
-            if item["label"] != "This Mac":
+            if item["label"] != netinfo.LOCAL_LABEL:
                 print(f"  {item['label']}: {item['url']}")
 
     if args.selftest:

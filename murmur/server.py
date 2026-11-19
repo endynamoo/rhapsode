@@ -18,7 +18,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import access, config, proc, search, speak, store
+from . import access, config, netinfo, proc, search, speak, store
 from .engine import engine, prune_cache
 from .film_api import router as film_router
 from .library_api import router as library_router
@@ -43,7 +43,7 @@ async def _lifespan(_app: FastAPI):
     if PUBLIC:
         print("Murmur is available on the network:")
         for item in access.access_urls():
-            if item["label"] != "This Mac":
+            if item["label"] != netinfo.LOCAL_LABEL:
                 print(f"  {item['label']}: {item['url']}")
         print(f"  token file: {config.HOME / 'access_token'}", flush=True)
     yield
