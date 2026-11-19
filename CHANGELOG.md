@@ -10,6 +10,15 @@ phrased for a user, not for a diff reader.
 
 ## [Unreleased]
 
+### Removed
+
+- **`docs/CONCURRENCY.md` is no longer part of the repository.** It is a note about running
+  several agent sessions against one checkout, not something a reader of the app needs, so it is
+  now gitignored and stays in the working copy. The rule it carried - take your own worktree,
+  never `git add -A` in a shared checkout, run `check-ladder.ps1` when you finish - still lives in
+  `AGENTS.md` section 10, and the documentation table no longer links the file.
+
+
 ### Changed
 
 - **The README says who the app is for**: somebody turning anything they can read into an audiobook, somebody who likes generated manga stills, and somebody who wants to lift the parts into a different program. It now also says what to expect from pull requests (bugs first, reviews slow) and where the family of apps is going, including what the next one does (Opsis turns a book into a film of directed, generated and polished scenes; an alpha is running, and the open beta is targeted for before the new year) - and it replaces "the parts that were actually hard" with what each technology in the build is and why this mix works: the voice returns phoneme timings, so the highlight, the warm-ahead, the still beats and the MP4 cut are all read off the same clock instead of being guessed. It also corrects two stale claims: a platform table that still promised CPU stills, and a version badge stuck one release behind.

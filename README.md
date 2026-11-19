@@ -223,7 +223,6 @@ for the same experience on every system, and for the bug you found that I did no
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | VRAM and RAM guards, where the logs are, failure modes already fixed |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module map, pipelines, API surface, security model, UML |
 | [docs/PLATFORMS.md](docs/PLATFORMS.md) | Windows and Linux port, GPU backends, packaging |
-| [docs/CONCURRENCY.md](docs/CONCURRENCY.md) | Several agents, one repository: worktrees, pushes, cleanup |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branches, commits, pull requests and releases |
 | [INSTALL.md](INSTALL.md) | Install, build and verify, platform by platform |
 | [AGENTS.md](AGENTS.md) | The rules an automated agent works to in this repository |
@@ -248,6 +247,10 @@ release ships that folder inside the installer and inside the `.app`.
 Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is generated from it by `scripts/changelog_render.py`, so edit the changelog, not this copy.
 
 ### Unreleased
+
+**Removed**
+
+- **`docs/CONCURRENCY.md` is no longer part of the repository.** It is a note about running several agent sessions against one checkout, not something a reader of the app needs, so it is now gitignored and stays in the working copy. The rule it carried - take your own worktree, never `git add -A` in a shared checkout, run `check-ladder.ps1` when you finish - still lives in `AGENTS.md` section 10, and the documentation table no longer links the file.
 
 **Changed**
 
