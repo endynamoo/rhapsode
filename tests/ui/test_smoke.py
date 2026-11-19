@@ -209,8 +209,36 @@ class SmokeTests(unittest.TestCase):
         self.assertIn("off", status.lower(), status)
         self.assertGreater(self.page.locator("#setEngineProfile button").count(), 1)
         self.assertGreater(self.page.locator("#setFontFamily option").count(), 1)
+        # Repair faces is a real switch in the panel: the pass may redraw a
+        # character's face into someone else, so it ships off - the default itself is
+        # asserted in test_the_face_repair_switch_persists, which owns its own state.
+        faces = self.page.locator("#setPolishFaces")
+        self.assertEqual(faces.count(), 1, "the Repair faces switch is missing")
+        self.assertIn(faces.get_attribute("aria-checked"), ("true", "false"))
         errors = [line for line in self.console if line.startswith("pageerror:")]
         self.assertEqual(errors, [], "the page threw while opening Settings")
+
+    def test_the_face_repair_switch_persists(self) -> None:
+        # Establish the state this test asserts instead of inheriting whatever the
+        # previous run left behind: the data folder is shared across the suite.
+        httpx.post(f"{self.base}/api/settings", json={"polishFaces": False}, timeout=10)
+        self.open_app()
+        self.open_settings()
+        faces = self.page.locator("#setPolishFaces")
+        self.assertEqual("false", faces.get_attribute("aria-checked"), "Repair faces defaults off")
+        faces.click()
+        self.page.wait_for_selector("#setPolishFaces[aria-checked='true']")
+        saved = httpx.get(f"{self.base}/api/settings", timeout=10).json()
+        self.assertTrue(saved["polishFaces"], saved)
+        self.page.reload(wait_until="load")
+        self.open_settings()
+        self.assertEqual(
+            "true",
+            self.page.locator("#setPolishFaces").get_attribute("aria-checked"),
+            "the switch is saved through /api/settings, so a reload must keep it",
+        )
+        # Leave the suite's data folder as it found it.
+        httpx.post(f"{self.base}/api/settings", json={"polishFaces": False}, timeout=10)
 
     def test_search_finds_a_phrase_in_the_book(self) -> None:
         self.open_app()

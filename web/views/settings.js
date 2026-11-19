@@ -35,6 +35,7 @@ export function createSettingsView(deps) {
     $('#setRemote').setAttribute('aria-checked', String(!!s.remoteAccess));
     $('#setTranslate').setAttribute('aria-checked', String(s.translateToVoice !== false));
     $('#setPolish').setAttribute('aria-checked', String(s.polishStills !== false));
+    $('#setPolishFaces').setAttribute('aria-checked', String(s.polishFaces === true));
     $('#setAutoScenes').setAttribute('aria-checked', String(s.autoScenes !== false));
     $('#setAutoFilms').setAttribute('aria-checked', String(!!s.autoFilms));
     syncVoiceSelects();

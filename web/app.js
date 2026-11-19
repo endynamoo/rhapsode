@@ -384,6 +384,14 @@ function bindUI() {
     applySettings();
     toast(next ? 'Polish pass on - each still is re-drawn once' : 'Polish pass off - stills are painted once');
   });
+  $('#setPolishFaces').addEventListener('click', async () => {
+    const next = $('#setPolishFaces').getAttribute('aria-checked') !== 'true';
+    await saveSettings({ polishFaces: next });
+    applySettings();
+    toast(next
+      ? 'Face repair on - up to two faces per still are re-painted from a crop'
+      : 'Face repair off - faces are only sharpened by the whole-frame pass');
+  });
   $('#setAutoScenes').addEventListener('click', async () => {
     const next = $('#setAutoScenes').getAttribute('aria-checked') !== 'true';
     await saveSettings({ autoScenes: next });
