@@ -19,6 +19,15 @@ The format follows Keep a Changelog. Add an entry under `## [Unreleased]
 - Cinema reports what the stills engine is actually doing — planning, loading the model, painting, cleaning up, polishing, or showing a placeholder — instead of one static "Painting scene…", with the backend, model and profile on screen and a Retry button when a scene fails.
 
 ### Changed
+- Opening a book now **synthesises the sentence on screen in the background**, so
+  pressing play starts almost immediately. The cost was always the voice model, not
+  the network: a unit of about four seconds of speech takes roughly 0.8 s of CPU to
+  render, and it was paid after the click, which made it the whole time-to-first-
+  sound. Measured in the app's own browser journey on this machine: **1257 ms**
+  from pressing Listen to the first audio frame before the change, **75 ms**
+  after. A browser test asserts that opening a book issues the `/api/tts`
+  request with no play interaction.
+### Changed
 - The Settings panel moved out of `web/app.js` into `web/views/settings.js`, and the browser now loads `app.js` as an ES module. No bundler, no new build step, and no behaviour change: the view receives `$`, `$$`, `api`, `state` and the few helpers it needs instead of reaching into the module scope, so what it depends on is visible at the top of the file. This is the first slice of the UI split (#36); the browser suite grew a test that fails if the panel stops being wired.
 ### Changed
 - Startup work moved from FastAPI's deprecated `on_event("startup")` hook to a `lifespan` on both the server and the engine sidecar. Same calls, same order - store init, the voice model warm-up, the cache-prune thread, search indexing, the network banner - but a start no longer prints a `DeprecationWarning`. `tests/test_lifespan.py` holds the behaviour: no app registers an `on_event` handler, importing one raises no deprecation, and entering the app's context leaves an initialised store behind.

@@ -902,3 +902,19 @@ it; the README shows the newest few without a second copy to maintain.
 **What it costs:** the rendered block is a merge-conflict magnet — every parallel
 branch touches it, and the only clean resolution is to take the other side and
 re-render.
+
+## Audio latency
+
+Speech is synthesised per unit (one or two sentences) and cached on disk by
+`engine._key`. On this machine Kokoro costs about 165 ms of CPU per second of
+rendered audio - a four-second unit is roughly 0.8 s, a cache hit is about 20 ms -
+and that cost does not change with ONNX thread counts (measured 662 ms default,
+659 ms at 12 intra-op threads, 738 ms at 16). The pipeline is therefore already
+faster than realtime; the only latency that matters is the one the reader waits
+for at a gesture.
+
+`web/app.js::warmAudioAhead` covers that: opening a document (or jumping into one
+that is already open) starts synthesising the current unit and the next two while
+the reader is still looking at the page. `state.pending` holds the in-flight
+promise, so pressing play reuses that request instead of making a second one, and
+`prefetch()` keeps the window of ready clips three units ahead of playback.
