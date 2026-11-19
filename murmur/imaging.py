@@ -1,4 +1,4 @@
-﻿"""Local text-to-image for the stills pipeline: FLUX.2 [klein] 4B only.
+"""Local text-to-image for the stills pipeline: FLUX.2 [klein] 4B only.
 
 One model family, two presets â€” High paints 1920x1080 in four distilled steps,
 Fast paints 1280x720 in two. Two ways to run it: mflux on Apple Silicon (the

@@ -1,4 +1,4 @@
-# Murmur — local read-aloud for macOS
+# Rhapsode — local read-aloud and manga stills (macOS, Windows, Linux)
 # TTS: Kokoro-82M via ONNX Runtime (same weights as hexgrad/Kokoro, no PyTorch needed)
 kokoro-onnx>=0.6.1
 soundfile>=0.14.0

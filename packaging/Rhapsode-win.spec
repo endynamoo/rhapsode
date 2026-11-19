@@ -4,10 +4,10 @@
 Windows branch of the macOS Rhapsode.spec. Differences:
   - webview.platforms.winforms/edgechromium instead of cocoa
   - no Foundation/AppKit/Vision/objc, no swift helpers
-  - torch/diffusers/transformers family EXCLUDED: on Windows the film engine
-    is CPU-only preview per AGENTS.md B4, and pulling torch here would add
-    ~2.5 GB to the folder. Reader (Kokoro ONNX) needs none of it.
-    Set RHAPSODE_WITH_FILM=1 at build time to include them.
+  - torch/diffusers/transformers family EXCLUDED: stills are painted by the
+    optional image-venv (murmur/fluxgen.py is handed to that interpreter), and
+    pulling torch in here would add ~2.5 GB to the folder. Reader (Kokoro ONNX)
+    needs none of it. Set RHAPSODE_WITH_FILM=1 at build time to include them.
 """
 import os
 
@@ -30,6 +30,9 @@ hiddenimports = [
     "pypdfium2",
     "pypdfium2_raw",
     "PIL",
+    # pillow_heif imports this compiled module by name; if anything in the
+    # package is imported dynamically PyInstaller misses it.
+    "_pillow_heif",
     "uvicorn.logging",
     "uvicorn.loops.auto",
     "uvicorn.loops.asyncio",
@@ -60,6 +63,7 @@ packages = [
     "charset_normalizer",
     "lxml",
     "soundfile",
+    "pillow_heif",
     "uvicorn",
     "misaki",
     "jieba",

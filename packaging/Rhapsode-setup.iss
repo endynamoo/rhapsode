@@ -6,7 +6,7 @@
 #ifndef AppVersion
   #define AppVersion   "0.3.3-beta"
 #endif
-#define AppPublisher   "Anthony Cortez"
+#define AppPublisher   "endynamoo"
 #define AppExe         "Rhapsode.exe"
 #define SourceDir      "..\dist\Rhapsode"
 
@@ -27,7 +27,9 @@ OutputBaseFilename=Rhapsode-{#AppVersion}-Setup
 SetupIconFile=..\branding\rhapsode.ico
 UninstallDisplayIcon={app}\{#AppExe}
 UninstallDisplayName={#AppName} {#AppVersion}
-LicenseFile=..\LICENSE
+; The bundle contains GPL-3.0 components (eSpeak NG via phonemizer), so the
+; page the user agrees to is the notice that says so, not the MIT text alone.
+LicenseFile=..\licenses\NOTICE.txt
 InfoBeforeFile=..\packaging\first-run.txt
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -54,6 +56,7 @@ Source: "{#SourceDir}\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\THIRD_PARTY.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\licenses\*"; DestDir: "{app}\licenses"; Flags: ignoreversion
 Source: "..\scripts\setup_engine.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
 
 [Icons]

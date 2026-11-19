@@ -535,7 +535,7 @@ table {{ max-width: 100% !important; }}
 ::selection {{ background: {hl}; color: {hl_ink}; }}
 """
 
-    title = re.sub(r"[<>&]", "", doc.get("title", "Murmur"))
+    title = re.sub(r"[<>&]", "", doc.get("title", "Rhapsode"))
     page = f"""<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">

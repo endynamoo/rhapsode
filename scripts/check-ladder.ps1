@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 Verify the promotion ladder is intact: main -> testing -> stable, fast-forward only,
 every rung under a known-good tag, CI green on each head.

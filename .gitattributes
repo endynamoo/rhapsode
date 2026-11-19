@@ -13,3 +13,8 @@
 *.png binary
 *.jpg binary
 *.wav binary
+
+# copyleft texts: byte-exact, LF, never normalised away
+# every file in licenses/ is a legal artefact: byte-exact and LF on every OS,
+# because a Windows checkout with core.autocrlf=true would otherwise rewrite them
+licenses/* text eol=lf

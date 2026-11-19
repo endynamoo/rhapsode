@@ -1,8 +1,8 @@
 # UTF-8
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 0, 0, 0),
-    prodvers=(1, 0, 0, 0),
+    filevers=(0, 3, 3, 0),
+    prodvers=(0, 3, 3, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -16,14 +16,14 @@ VSVersionInfo(
         StringTable(
           "040904B0",
           [
-            StringStruct("CompanyName", "Anthony Cortez"),
+            StringStruct("CompanyName", "endynamoo"),
             StringStruct("FileDescription", "Rhapsode - read-aloud and manga-film"),
-            StringStruct("FileVersion", "0.2.0.0"),
+            StringStruct("FileVersion", "0.3.3.0"),
             StringStruct("InternalName", "Rhapsode"),
-            StringStruct("LegalCopyright", "Copyright (C) 2026 Anthony Cortez"),
+            StringStruct("LegalCopyright", "Copyright (C) 2026 endynamoo"),
             StringStruct("OriginalFilename", "Rhapsode.exe"),
             StringStruct("ProductName", "Rhapsode"),
-            StringStruct("ProductVersion", "0.2.0-alpha"),
+            StringStruct("ProductVersion", "0.3.3-beta"),
           ],
         )
       ]

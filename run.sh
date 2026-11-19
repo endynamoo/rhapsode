@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start Murmur (installs dependencies and downloads the voice model on first run).
+# Start Rhapsode (installs dependencies and downloads the voice model on first run).
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -7,7 +7,7 @@ PORT="${MURMUR_PORT:-8765}"
 URL="http://127.0.0.1:${PORT}"
 
 if ! command -v uv >/dev/null 2>&1; then
-  echo "Murmur needs uv to manage its Python environment."
+  echo "Rhapsode needs uv to manage its Python environment."
   echo "Install it with:  brew install uv"
   exit 1
 fi
@@ -59,12 +59,12 @@ if [ ! -f "$MURMUR_HOME/models/kokoro-v1.0.onnx" ] || [ ! -f "$MURMUR_HOME/model
 fi
 
 if curl -sf "${URL}/api/health" >/dev/null 2>&1; then
-  echo "Murmur is already running at ${URL}"
+  echo "Rhapsode is already running at ${URL}"
   [ "${MURMUR_NO_OPEN:-0}" = "1" ] || open "${URL}"
   exit 0
 fi
 
-echo "Murmur → ${URL}"
+echo "Rhapsode → ${URL}"
 if [ "${MURMUR_NO_OPEN:-0}" != "1" ]; then
   ( sleep 1.4; open "${URL}" ) &
 fi

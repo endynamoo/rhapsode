@@ -47,6 +47,24 @@ if (-not $version) { Fail 'could not read murmur.__version__' }
 $version = $version.Trim()
 Say "version: $version"
 
+# ---- the Windows file properties, from the same version -----------------------
+# packaging/version_info.txt is static, and it had drifted to 0.2.0-alpha while the
+# app was on 0.3.x - the exe's Properties dialog showed the old numbers. Rewrite it
+# from murmur.__version__ on every build. No BOM: PyInstaller reads it as UTF-8.
+$quad = $version.Split('-')[0]
+$parts = @($quad.Split('.'))
+while ($parts.Count -lt 4) { $parts += '0' }
+$versionTuple = ($parts[0..3] -join ', ')
+$fileVersion = ($parts[0..3] -join '.')
+$infoPath = Join-Path $PWD 'packaging\version_info.txt'
+$info = [System.IO.File]::ReadAllText($infoPath)
+$info = [regex]::Replace($info, 'filevers=\(\d+, \d+, \d+, \d+\)', "filevers=($versionTuple)")
+$info = [regex]::Replace($info, 'prodvers=\(\d+, \d+, \d+, \d+\)', "prodvers=($versionTuple)")
+$info = [regex]::Replace($info, 'StringStruct\("FileVersion", "[^"]*"\)', "StringStruct(`"FileVersion`", `"$fileVersion`")")
+$info = [regex]::Replace($info, 'StringStruct\("ProductVersion", "[^"]*"\)', "StringStruct(`"ProductVersion`", `"$version`")")
+[System.IO.File]::WriteAllText($infoPath, $info, (New-Object System.Text.UTF8Encoding($false)))
+Say "file properties: $fileVersion / $version"
+
 # ---- build --------------------------------------------------------------------
 if (-not $SkipBuild) {
     $venvPyinstaller = '.venv\Scripts\pyinstaller.exe'

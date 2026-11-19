@@ -1,4 +1,4 @@
-﻿# Rhapsode agent install guide
+# Rhapsode agent install guide
 
 This file is written for an automated agent (or a careful user) installing and
 building Rhapsode. Read it fully before running commands. Prefer non-interactive
@@ -13,9 +13,9 @@ Repository root = the directory containing this file.
 | Platform | Read / TTS / highlight | Chapter films | Native app bundle | Path to use |
 | --- | --- | --- | --- | --- |
 | macOS 13+, Apple Silicon | supported | supported (MPS + MLX) | supported (`.app` + DMG) | Section A |
-| macOS Intel | supported | CPU only, opt-in | supported (`.app` + DMG) | Section A |
-| Windows 10/11 x64 | **preview** (installer or source) | FLUX.2 [klein] via diffusers (CUDA or ROCm); CPU opt-in | **preview** (Inno Setup installer) | Section B |
-| Linux x64 | **preview** (source install) | NVIDIA CUDA / AMD ROCm / CPU opt-in | **not yet** | Section C |
+| macOS Intel | supported | placeholder (CPU painting planned for 0.4) | supported (`.app` + DMG) | Section A |
+| Windows 10/11 x64 | **preview** (installer or source) | FLUX.2 [klein] via diffusers (CUDA or ROCm); placeholder without one | **preview** (Inno Setup installer) | Section B |
+| Linux x64 | **preview** (source install) | NVIDIA CUDA / AMD ROCm / placeholder | **not yet** | Section C |
 
 Rules:
 
@@ -28,7 +28,7 @@ Rules:
   PyInstaller settings). Do not run it on Windows or Linux.
 - Windows and Linux source installs remain supported; on Windows the installer
   is the shorter path. Reading, highlighting, audio export, and the UI must
-  work; films may use CPU or the placeholder until a GPU backend is configured.
+  work; films fall back to the placeholder until a GPU backend is configured.
 - `packaging/Rhapsode-win.spec` (Windows PyInstaller build): from the repo root
   with `.venv` on PATH run `.venv\Scripts\pyinstaller.exe --noconfirm packaging\Rhapsode-win.spec`
   → `dist\Rhapsode\Rhapsode.exe` (one-folder). Then robocopy `web` into
@@ -172,7 +172,8 @@ curl -s http://127.0.0.1:8765/api/network
 ### A4. GPU notes
 
 - Apple Silicon: FLUX.2 [klein] through mflux/MLX. Nothing extra to install.
-- Intel Mac: CPU only. Painting on the CPU requires an explicit opt-in (see 8.3).
+- Intel Mac: no GPU backend, so stills are placeholders. CPU painting is planned for
+  0.4 (issue #81) - it is not a supported option today.
 
 ---
 
@@ -267,14 +268,11 @@ Current preview status:
   - DirectML (`torch-directml`, `onnxruntime-directml`) is **planned**, not
     wired in. Without a ROCm torch, treat AMD as CPU-only preview.
 - **Intel**
-  - OpenVINO/DirectML is **planned**. Treat as CPU-only preview.
-- CPU film generation is intentionally disabled unless the user opts in:
-
-```powershell
-$env:MURMUR_ALLOW_CPU_FILM = "1"
-```
-
-Expect very slow generation; confirm with the user before enabling.
+  - OpenVINO/DirectML is **planned**. Treat as placeholder preview.
+- CPU film generation is **not supported**. The painter's own gate
+  (`MURMUR_ALLOW_CPU_FILM=1`) exists for hand-runs and is not wired to the app's
+  timeouts or engine profile, so a machine with no GPU gets placeholder stills.
+  CPU painting is planned for 0.4 (issue #81). Do not promise it to a user.
 
 ### B5. Verify
 
@@ -328,7 +326,7 @@ export MURMUR_TTS_PROVIDER=CUDAExecutionProvider
 
 AMD ROCm uses the same diffusers path as CUDA: install a ROCm `torch` wheel
 matching the driver into the stills interpreter. The reader does not need it,
-and without one film generation is CPU preview only.
+and without one film generation is a placeholder only.
 
 Download the model:
 
@@ -402,7 +400,7 @@ still loading.
 | No desktop window on Linux | WebKitGTK missing | install `libwebkit2gtk-4.1-0` or use browser mode |
 | No desktop window on Windows | WebView2 missing | install the Evergreen runtime |
 | `Could not render that page` | PDF source missing | re-upload the document |
-| Films stuck on placeholder | no supported image backend | install film requirements; on CPU set `MURMUR_ALLOW_CPU_FILM=1` |
+| Films stuck on placeholder | no supported image backend | install film requirements; a machine with no GPU gets placeholders (CPU painting is planned for 0.4) |
 | `ONNX_PROVIDER ... not available` | provider mismatch | unset `MURMUR_TTS_PROVIDER` or install the matching onnxruntime build |
 | CUDA out of memory | model too large for VRAM | use Fast quality, close other GPU apps, or set `MURMUR_FLUX_OFFLOAD=1` |
 | `Permission denied` writing data | sandboxed install | set `MURMUR_HOME` to a writable directory |

@@ -191,6 +191,7 @@ steps:
   - name: Sign, notarize, staple, DMG
     if: env.APPLE_SIGNING_IDENTITY != ''
     run: ./scripts/sign_and_notarize.sh        # the block from sections 3-4
+    # ^ this script does not exist in the repository yet; see the checklist in section 8
   - name: Keychain cleanup
     if: always()
     run: security delete-keychain "$RUNNER_TEMP/sign.keychain-db" || true
@@ -206,6 +207,20 @@ Notes:
 - Do not notarize on pull requests: it is a network round-trip to Apple for an
   artifact nobody will ship. Gate it on `github.event_name == 'push'` to a `v*`
   tag.
+
+## 5b. Attach the licence notice to the release
+
+The bundles contain GPL-3.0 components (eSpeak NG through `phonemizer`), so the
+release page is part of the licence obligation, not decoration:
+
+- The release body must say that the build includes GPL-3.0 components and point
+  at `licenses/SOURCES.md` in the tag, which carries the written offer.
+- `licenses/` must be present in the tag being released - the installer copies it
+  to `{app}\licenses` and `build_app.sh` copies it into the bundle's `Resources`.
+- Just before tagging, confirm the versions in `licenses/SOURCES.md` still match
+  the wheels the build uses (`phonemizer`, `espeakng-loader`, `soundfile`,
+  `pillow-heif`, `opencv-contrib-python-headless`). A bump that changes one of
+  them updates that file in the same commit.
 
 ## 6. Verification (what "done" looks like)
 
@@ -264,7 +279,7 @@ the official release, not of the source tree.
 | `packaging/Rhapsode.spec` | pass `codesign_identity` and `entitlements_file` from the environment |
 | `build_app.sh` | replace the ad-hoc `--deep` call with the gated signing block; `--verify` afterwards |
 | `scripts/make_dmg.sh` | sign the DMG when an identity is available |
-| `scripts/sign_and_notarize.sh` | new: zip, submit, parse status, staple, DMG, verify |
+| `scripts/sign_and_notarize.sh` | to be written: zip, submit, parse status, staple, DMG, verify |
 | `.github/workflows/macos.yml` | import the certificate, write the API key, run the script, clean up |
 | `INSTALL.md` §A2 | "ad-hoc signed, not notarized" becomes "notarized when the secrets are present" |
 | `README.md`, `docs/PLATFORMS.md` | M5 release engineering: signing marked done and how it is verified |

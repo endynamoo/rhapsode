@@ -1,7 +1,7 @@
 # One-shot Windows setup for Rhapsode.
 #
 #   .\scripts\setup.ps1                    # detect the card, pick a profile, install
-#   .\scripts\setup.ps1 -Profile lite      # force a profile (lite|balanced|max|cpu)
+#   .\scripts\setup.ps1 -Profile lite      # force a profile (lite|balanced|max)
 #   .\scripts\setup.ps1 -Profile max -NoGguf
 #
 # What it does, in order: checks the prerequisites, builds .venv, installs the

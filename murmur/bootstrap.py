@@ -116,7 +116,7 @@ def start_download() -> dict:
 
 def main() -> None:
     config.ensure_dirs()
-    _emit("Murmur setup")
+    _emit("Rhapsode setup")
     _emit(f"  Home: {config.HOME}")
     # The same predicate the engine uses: a stub file must be repaired here, not
     # reported as "already downloaded".
@@ -129,7 +129,7 @@ def main() -> None:
 
     store.init()
     _emit("  ✓ Library ready")
-    _emit("Done. Start Murmur with ./run.sh")
+    _emit("Done. Start Rhapsode.")
 
 
 if __name__ == "__main__":

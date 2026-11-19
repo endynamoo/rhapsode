@@ -75,6 +75,7 @@ chmod +x dist/Rhapsode.app/Contents/Frameworks/bin/murmur-prompts 2>/dev/null ||
 
 # Ship the license texts with the bundle.
 cp -f LICENSE THIRD_PARTY.md dist/Rhapsode.app/Contents/Resources/ 2>/dev/null || true
+cp -Rf licenses dist/Rhapsode.app/Contents/Resources/ 2>/dev/null || true
 
 # Ad-hoc signature so macOS will launch it locally.
 codesign --force --deep --sign - dist/Rhapsode.app 2>/dev/null || true
