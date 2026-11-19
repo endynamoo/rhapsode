@@ -197,6 +197,27 @@ class SmokeTests(unittest.TestCase):
         self.assertNotIn("Add a document to begin", subtitle, subtitle)
         self.assertIn("Press play", subtitle, subtitle)
 
+    def test_opening_a_book_warms_the_audio(self) -> None:
+        # A unit of ~4 s of speech costs ~0.8 s of CPU. Paid after the click, that
+        # is the whole time-to-first-sound; paid while the reader is looking at the
+        # page, pressing play is instant. This asserts the request happens without
+        # any play interaction.
+        requests: list[str] = []
+        self.page.on("request", lambda request: requests.append(request.url)
+                     if request.url.endswith("/api/tts") else None)
+        try:
+            self.open_app()
+            self.page.locator(".lib-item", has_text=TITLE).first.click()
+            self.page.wait_for_selector("#reader .unit, #reader p")
+            deadline = time.time() + 20
+            while time.time() < deadline and not requests:
+                self.page.wait_for_timeout(200)
+        finally:
+            self.page.remove_listener("request", lambda request: None)
+        self.assertTrue(requests, "opening a book did not warm any audio")
+        # And it is the sentence on screen, not something arbitrary.
+        self.assertNotIn("#", requests[0].split("/api/tts")[0])
+
     def test_the_settings_panel_is_wired(self) -> None:
         # The settings view used to be 450 lines in the middle of app.js; it is a
         # module now, so this checks the seam rather than the styling: the panel
@@ -211,8 +232,36 @@ class SmokeTests(unittest.TestCase):
         self.assertIn("off", status.lower(), status)
         self.assertGreater(self.page.locator("#setEngineProfile button").count(), 1)
         self.assertGreater(self.page.locator("#setFontFamily option").count(), 1)
+        # Repair faces is a real switch in the panel: the pass may redraw a
+        # character's face into someone else, so it ships off - the default itself is
+        # asserted in test_the_face_repair_switch_persists, which owns its own state.
+        faces = self.page.locator("#setPolishFaces")
+        self.assertEqual(faces.count(), 1, "the Repair faces switch is missing")
+        self.assertIn(faces.get_attribute("aria-checked"), ("true", "false"))
         errors = [line for line in self.console if line.startswith("pageerror:")]
         self.assertEqual(errors, [], "the page threw while opening Settings")
+
+    def test_the_face_repair_switch_persists(self) -> None:
+        # Establish the state this test asserts instead of inheriting whatever the
+        # previous run left behind: the data folder is shared across the suite.
+        httpx.post(f"{self.base}/api/settings", json={"polishFaces": False}, timeout=10)
+        self.open_app()
+        self.open_settings()
+        faces = self.page.locator("#setPolishFaces")
+        self.assertEqual("false", faces.get_attribute("aria-checked"), "Repair faces defaults off")
+        faces.click()
+        self.page.wait_for_selector("#setPolishFaces[aria-checked='true']")
+        saved = httpx.get(f"{self.base}/api/settings", timeout=10).json()
+        self.assertTrue(saved["polishFaces"], saved)
+        self.page.reload(wait_until="load")
+        self.open_settings()
+        self.assertEqual(
+            "true",
+            self.page.locator("#setPolishFaces").get_attribute("aria-checked"),
+            "the switch is saved through /api/settings, so a reload must keep it",
+        )
+        # Leave the suite's data folder as it found it.
+        httpx.post(f"{self.base}/api/settings", json={"polishFaces": False}, timeout=10)
 
     def test_search_finds_a_phrase_in_the_book(self) -> None:
         self.open_app()

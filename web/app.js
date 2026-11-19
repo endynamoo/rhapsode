@@ -392,6 +392,14 @@ function bindUI() {
       ? 'The stills engine will load when Cinema opens'
       : 'The stills engine will load on the first scene');
   });
+  $('#setPolishFaces').addEventListener('click', async () => {
+    const next = $('#setPolishFaces').getAttribute('aria-checked') !== 'true';
+    await saveSettings({ polishFaces: next });
+    applySettings();
+    toast(next
+      ? 'Face repair on - up to two faces per still are re-painted from a crop'
+      : 'Face repair off - faces are only sharpened by the whole-frame pass');
+  });
   $('#setAutoScenes').addEventListener('click', async () => {
     const next = $('#setAutoScenes').getAttribute('aria-checked') !== 'true';
     await saveSettings({ autoScenes: next });
@@ -808,6 +816,7 @@ async function openDoc(id, { autoplay = false, position = null } = {}) {
       setCurrentUnit(state.index);
       updatePlayerUI();
       savePosition(true);
+      warmAudioAhead(state.index);
     }
     if (autoplay) togglePlay();
     return;
@@ -885,6 +894,7 @@ async function openDoc(id, { autoplay = false, position = null } = {}) {
   applyView();
   updatePlayerUI();
   renderContents();
+  warmAudioAhead(state.index);
   setSidePanel(doc.toc && doc.toc.length ? 'contents' : 'library');
   refreshLibrary();
 
@@ -964,6 +974,14 @@ async function getClip(i) {
 
   state.pending.set(i, promise);
   return promise;
+}
+
+// Make the sentences around the reader now, so pressing play is instant. Same
+// path as prefetch(): identical requests share one promise through state.pending,
+// so warming and then playing never synthesises twice.
+function warmAudioAhead(from = state.index) {
+  if (!state.doc || !state.units.length) return;
+  prefetch(from - 1, state.gen);
 }
 
 async function prefetch(from, gen) {

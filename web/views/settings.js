@@ -36,6 +36,7 @@ export function createSettingsView(deps) {
     $('#setTranslate').setAttribute('aria-checked', String(s.translateToVoice !== false));
     $('#setPolish').setAttribute('aria-checked', String(s.polishStills !== false));
     $('#setWarmStills').setAttribute('aria-checked', String(s.warmStills !== false));
+    $('#setPolishFaces').setAttribute('aria-checked', String(s.polishFaces === true));
     $('#setAutoScenes').setAttribute('aria-checked', String(s.autoScenes !== false));
     $('#setAutoFilms').setAttribute('aria-checked', String(!!s.autoFilms));
     syncVoiceSelects();

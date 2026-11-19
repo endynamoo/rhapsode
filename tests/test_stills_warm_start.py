@@ -82,45 +82,87 @@ class AvailabilityTests(unittest.TestCase):
             self.assertFalse(backend.available())
 
 
+def warmable(*, warm_result=True, side_effect=None, alive=False):
+    """A stills-engine mock that passes the guards: real backend, RAM above floor.
+
+    The load itself happens in `FilmImages.warm()`, and `backend.worker()` is only
+    consulted to notice an engine that is already resident.
+    """
+    gen = mock.Mock()
+    painter = mock.Mock()
+    painter.alive = alive
+    if side_effect is not None:
+        gen.warm.side_effect = side_effect
+    else:
+        gen.warm.return_value = warm_result
+    backend = mock.Mock()
+    backend.name = "flux2-klein-diffusers"
+    backend.worker = mock.Mock(return_value=painter)
+    gen.backend.return_value = backend
+    return gen, painter
+
+
 class WarmEngineTests(unittest.TestCase):
     def setUp(self) -> None:
         film._warm_thread = None
 
-    def test_warming_is_skipped_when_the_setting_is_off(self) -> None:
-        with mock.patch.dict(os.environ, {"MURMUR_WARM_STILLS": "1"}), \
-                mock.patch("murmur.store.get_settings", return_value={"warmStills": False}):
-            self.assertFalse(film.warm_engine())
+    def tearDown(self) -> None:
+        film._warm_thread = None
 
-    def test_warming_is_skipped_when_the_engine_is_not_installed(self) -> None:
-        gen = mock.Mock()
-        gen.warm.return_value = False
-        with mock.patch.dict(os.environ, {"MURMUR_WARM_STILLS": "1"}), \
-                mock.patch("murmur.store.get_settings", return_value={"warmStills": True}), \
-                mock.patch.object(imaging, "image_gen", gen):
-            self.assertTrue(film.warm_engine())      # the attempt is still made
-            film._warm_thread.join(5)
-            gen.warm.assert_called_once()
+    def patches(self, gen, *, settings=None, ram=None):
+        from contextlib import ExitStack
+
+        stack = ExitStack()
+        stack.enter_context(mock.patch.dict(os.environ, {"MURMUR_WARM_STILLS": "1"}))
+        stack.enter_context(mock.patch(
+            "murmur.store.get_settings", return_value=settings or {"warmStills": True}))
+        stack.enter_context(mock.patch.object(imaging, "image_gen", gen))
+        stack.enter_context(mock.patch.object(
+            imaging, "ram_info",
+            return_value=ram or {"free_gib": 12.0, "floor_mib": 6000}))
+        return stack
+
+    def test_warming_is_skipped_when_the_setting_is_off(self) -> None:
+        gen, painter = warmable()
+        with self.patches(gen, settings={"warmStills": False}):
+            self.assertFalse(film.warm_engine())
+        gen.warm.assert_not_called()
 
     def test_the_environment_can_forbid_warming(self) -> None:
-        gen = mock.Mock()
+        gen, painter = warmable()
         with mock.patch.dict(os.environ, {"MURMUR_WARM_STILLS": "0"}), \
                 mock.patch("murmur.store.get_settings", return_value={"warmStills": True}), \
                 mock.patch.object(imaging, "image_gen", gen):
             self.assertFalse(film.warm_engine())
         gen.warm.assert_not_called()
 
-    def test_warming_starts_the_load_in_the_background(self) -> None:
+    def test_an_install_without_the_engine_is_left_alone(self) -> None:
         gen = mock.Mock()
+        gen.backend.return_value = mock.Mock(spec=["name"], name="placeholder")
+        with self.patches(gen), mock.patch.object(film, "activity") as activity:
+            self.assertFalse(film.warm_engine())
+        gen.warm.assert_not_called()
+        activity.phase.assert_not_called()
+
+    def test_a_machine_below_the_ram_floor_is_not_warmed(self) -> None:
+        # The floor refuses a cold load; warming must not turn that into a visible
+        # failure every time somebody opens Cinema.
+        gen, painter = warmable()
+        with self.patches(gen, ram={"free_gib": 3.0, "floor_mib": 6000}), \
+                mock.patch.object(film, "activity") as activity:
+            self.assertFalse(film.warm_engine())
+        gen.warm.assert_not_called()
+        activity.phase.assert_not_called()
+
+    def test_warming_starts_the_load_in_the_background(self) -> None:
         released = threading.Event()
 
         def slow_warm() -> bool:
             released.wait(5)
             return True
 
-        gen.warm.side_effect = slow_warm
-        with mock.patch.dict(os.environ, {"MURMUR_WARM_STILLS": "1"}), \
-                mock.patch("murmur.store.get_settings", return_value={"warmStills": True}), \
-                mock.patch.object(imaging, "image_gen", gen):
+        gen, painter = warmable(side_effect=slow_warm)
+        with self.patches(gen):
             self.assertTrue(film.warm_engine())          # returns at once...
             self.assertIsNotNone(film._warm_thread)      # ...with a load in flight
             self.assertTrue(film._warm_thread.is_alive())
@@ -128,13 +170,16 @@ class WarmEngineTests(unittest.TestCase):
             film._warm_thread.join(5)
         gen.warm.assert_called_once()
 
+    def test_an_already_resident_painter_is_not_loaded_again(self) -> None:
+        gen, painter = warmable(alive=True)
+        with self.patches(gen), mock.patch.object(film, "activity") as activity:
+            self.assertTrue(film.warm_engine())
+        gen.warm.assert_not_called()
+        activity.phase.assert_not_called()
+
     def test_a_failing_load_does_not_raise(self) -> None:
-        gen = mock.Mock()
-        gen.warm.side_effect = RuntimeError("not enough VRAM")
-        with mock.patch.dict(os.environ, {"MURMUR_WARM_STILLS": "1"}), \
-                mock.patch("murmur.store.get_settings", return_value={"warmStills": True}), \
-                mock.patch.object(imaging, "image_gen", gen), \
-                mock.patch.object(film, "activity") as activity:
+        gen, painter = warmable(side_effect=RuntimeError("not enough VRAM"))
+        with self.patches(gen), mock.patch.object(film, "activity") as activity:
             self.assertTrue(film.warm_engine())
             film._warm_thread.join(5)
             activity.finish.assert_called()

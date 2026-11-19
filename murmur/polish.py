@@ -45,6 +45,24 @@ CLEAN_SUFFIX = (
     "no speech bubbles."
 )
 
+# ---------------------------------------------------------------- face repair
+# The global pass cannot rebuild an eye: a face in a 1872x1056 still is about
+# 100 px, and at 0.32 strength across the whole frame the model has no pixel
+# budget there. So a face is repaired the way a hand is: crop it, upscale the
+# crop, re-paint it masked, blend it back feathered, and keep the result only if
+# the face survived the repaint.
+FACE_TILE = 1024        # a 100 px face becomes 1024 px of detail budget
+FACE_STRENGTH = 0.55
+FACE_STEPS = 2
+FACE_MARGIN = 0.40      # forehead, chin and jaw need room, or the crop looks like a passport photo
+FACE_MAX_DEFAULT = 2    # a crowd must not turn one still into a two-minute job
+FACE_PROMPT = (
+    "monochrome manga face, symmetric eyes and brows, clean black ink linework, "
+    "screentone shading, no text, no speech bubbles"
+)
+# The painted tile must still contain a face, or the model erased it.
+FACE_VERIFY_THRESHOLD = 0.5
+
 
 _last_error: str | None = None
 _last_action: str | None = None
@@ -58,6 +76,8 @@ def status() -> dict:
         "detectors": detectors.available(),
         "last_action": _last_action,
         "last_error": _last_error,
+        "faces": faces_enabled(),
+        "face_limit": face_limit(),
     }
 
 
@@ -81,6 +101,30 @@ def enabled() -> bool:
         return bool(store.get_settings().get("polishStills", True))
     except Exception:
         return True
+
+
+def faces_enabled() -> bool:
+    """Is the per-face repair pass on?
+
+    Off by default, and deliberately so: a crop repaint can redraw a character's
+    face into someone else, and a repair that damages a frame is worse than the
+    soft face it was meant to fix - the hand repair already taught that lesson.
+    `MURMUR_POLISH_FACES=1` forces it on (and `=0` forces it off) for testing.
+    """
+    force = os.environ.get("MURMUR_POLISH_FACES", "").strip()
+    if force in ("0", "1"):
+        return force == "1"
+    try:
+        return bool(store.get_settings().get("polishFaces", False))
+    except Exception:
+        return False
+
+
+def face_limit() -> int:
+    try:
+        return max(0, min(8, int(os.environ.get("MURMUR_POLISH_FACE_MAX", FACE_MAX_DEFAULT))))
+    except ValueError:
+        return FACE_MAX_DEFAULT
 
 
 def _digest(path: Path) -> str:
@@ -154,6 +198,155 @@ def _blend_in(base: Path, painted: Path, mask: "object") -> None:
         alpha = alpha.filter(ImageFilter.GaussianBlur(radius=max(3, int(min(original.size) * 0.008))))
         merged = Image.composite(result.convert("RGB"), original.convert("RGB"), alpha)
         merged.save(base, format="PNG")
+
+
+def _overlap(a, b) -> float:
+    """Intersection over union of two (x1, y1, x2, y2) boxes."""
+    ix = max(0, min(a[2], b[2]) - max(a[0], b[0]))
+    iy = max(0, min(a[3], b[3]) - max(a[1], b[1]))
+    inter = ix * iy
+    if not inter:
+        return 0.0
+    area_a = (a[2] - a[0]) * (a[3] - a[1])
+    area_b = (b[2] - b[0]) * (b[3] - b[1])
+    return inter / max(1, area_a + area_b - inter)
+
+
+def _face_boxes(faces, size, limit: int) -> list[tuple[int, int, int, int]]:
+    """Grow each detected face into a square crop, biggest first, capped.
+
+    `detectors.faces()` returns corners, `(x1, y1, x2, y2)`. The crop is grown by
+    `FACE_MARGIN` on every side, because a repair that ends at the jaw line
+    leaves the join visible; the cap exists because each face is a separate masked
+    repaint, and a crowd scene must not turn one still into a two-minute job.
+    Overlapping boxes are dropped - YuNet sometimes reports two for one face, and
+    painting the same face twice undoes the first repair.
+    """
+    width, height = size
+    grown: list[tuple[int, int, int, int]] = []
+    for face in faces or []:
+        x1, y1, x2, y2 = (float(value) for value in face[:4])
+        if x2 - x1 < 16 or y2 - y1 < 16:
+            continue
+        side = max(x2 - x1, y2 - y1) * (1 + 2 * FACE_MARGIN)
+        cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
+        left, top = max(0, int(cx - side / 2)), max(0, int(cy - side / 2))
+        right, bottom = min(width, int(cx + side / 2)), min(height, int(cy + side / 2))
+        if right - left < 24 or bottom - top < 24:
+            continue
+        grown.append((left, top, right, bottom))
+    grown.sort(key=lambda box: (box[2] - box[0]) * (box[3] - box[1]), reverse=True)
+    picked: list[tuple[int, int, int, int]] = []
+    for box in grown:
+        if any(_overlap(box, other) > 0.5 for other in picked):
+            continue
+        picked.append(box)
+        if len(picked) >= max(1, limit):
+            break
+    return picked
+
+
+def _repair_faces(path: Path, info: dict, width: int, height: int, seed: int) -> dict:
+    """Repair each face from a crop, and keep only the ones that survived.
+
+    Three things make this safe to run on a still that is already good: the mask
+    covers the face and not its margin, so hair and background are context only;
+    a repaint with no face left in it is thrown away; and a repaint that lost the
+    ink is thrown away too, per face, from the copy taken before any of them.
+    """
+    if not faces_enabled():
+        return {"action": "disabled", "reason": "face repair is off"}
+    boxes = _face_boxes(info.get("faces"), (width, height), face_limit())
+    if not boxes:
+        return {"action": "none"}
+
+    from PIL import Image, ImageDraw, ImageFilter
+
+    with Image.open(path) as opened:
+        base = opened.convert("RGB")
+    untouched = base.copy()
+    per_face: list[dict] = []
+    started = time.time()
+
+    for index, region in enumerate(boxes):
+        x1, y1, x2, y2 = region
+        size = (x2 - x1, y2 - y1)
+        before = base.crop(region)
+
+        mask = Image.new("L", size, 0)
+        inset = int(min(size) * 0.22)
+        ImageDraw.Draw(mask).ellipse([inset, inset, size[0] - inset, size[1] - inset], fill=255)
+        mask = mask.filter(ImageFilter.GaussianBlur(radius=max(2, int(min(size) * 0.05))))
+
+        stem = f".face{index}"
+        reference = path.with_suffix(f"{stem}-ref.png")
+        mask_path = path.with_suffix(f"{stem}-mask.png")
+        painted = path.with_suffix(f"{stem}.png")
+        tile = (FACE_TILE, FACE_TILE)
+        before.resize(tile, Image.LANCZOS).save(reference)
+        mask.resize(tile, Image.LANCZOS).save(mask_path)
+        painted.unlink(missing_ok=True)
+
+        job = {
+            "prompt": FACE_PROMPT,
+            "out": str(painted),
+            "width": FACE_TILE,
+            "height": FACE_TILE,
+            "seed": seed + 101 * index,
+            "steps": FACE_STEPS,
+            "strength": FACE_STRENGTH,
+            "reference": str(reference),
+            "mask": str(mask_path),
+        }
+        try:
+            started_face = time.time()
+            imaging.paint_job(job, timeout=900)
+            if not painted.exists() or painted.stat().st_size < imaging.MIN_STILL_BYTES:
+                raise RuntimeError("the face repair produced no usable image")
+
+            with Image.open(painted) as result:
+                result = result.convert("RGB")
+                survived = detectors.faces(np.asarray(result)[:, :, ::-1],
+                                           threshold=FACE_VERIFY_THRESHOLD)
+                repaired = result.resize(size, Image.LANCZOS)
+            if not survived:
+                base.paste(untouched.crop(region), region[:2])
+                per_face.append({"action": "reverted", "box": list(region),
+                                 "reason": "the repaint left no face"})
+                continue
+
+            merged = Image.composite(repaired, before, mask)
+            before_stats = _hand_stats(before, (0, 0, size[0], size[1]))
+            after_stats = _hand_stats(merged, (0, 0, size[0], size[1]))
+            ink_ok = (after_stats["ink"] >= MIN_INK_KEPT * before_stats["ink"]
+                      if before_stats["ink"] else True)
+            edge_ok = (after_stats["edge"] >= MIN_EDGE_KEPT * before_stats["edge"]
+                       if before_stats["edge"] else True)
+            if not (ink_ok and edge_ok):
+                base.paste(untouched.crop(region), region[:2])
+                per_face.append({"action": "reverted", "box": list(region),
+                                 "reason": "the repair lost the ink",
+                                 "before": round(before_stats["ink"], 3),
+                                 "after": round(after_stats["ink"], 3)})
+                continue
+
+            base.paste(merged, region[:2])
+            per_face.append({"action": "repaired", "box": list(region),
+                             "seconds": round(time.time() - started_face, 1)})
+        except Exception as exc:  # noqa: BLE001 - reported, never fatal
+            base.paste(untouched.crop(region), region[:2])
+            per_face.append({"action": "failed", "box": list(region),
+                             "error": str(exc)[-200:]})
+        finally:
+            for leftover in (painted, reference, mask_path):
+                leftover.unlink(missing_ok=True)
+
+    repaired = sum(1 for item in per_face if item["action"] == "repaired")
+    if repaired:
+        base.save(path, format="PNG")
+    action = "repaired" if repaired == len(per_face) else ("partial" if repaired else "reverted")
+    return {"action": action, "faces": len(boxes), "repaired": repaired,
+            "per_face": per_face, "seconds": round(time.time() - started, 1)}
 
 
 def _repair_hands(path: Path, info: dict, width: int, height: int, seed: int) -> dict:
@@ -254,7 +447,12 @@ def apply(path: Path, prompt: str = "", force: bool = False) -> dict:
 
     digest = _digest(path)
     record = _read_record(path)
-    if not force and record.get("version") == POLISH_VERSION and record.get("output_hash") == digest:
+    # A still polished without the face pass must not read as "cached" once the
+    # pass is switched on, or turning it on would change nothing until a repaint.
+    variant = "faces" if faces_enabled() else "base"
+    if (not force and record.get("version") == POLISH_VERSION
+            and record.get("variant", "base") == variant
+            and record.get("output_hash") == digest):
         return {"action": "cached"}
 
     info = detectors.inspect(_bgr(path))
@@ -320,11 +518,18 @@ def apply(path: Path, prompt: str = "", force: bool = False) -> dict:
         return {"action": "failed", "error": str(exc)}
 
     after = detectors.inspect(_bgr(path))
+    # Faces are detected again on the polished frame: the global pass is
+    # low-strength, but a box measured before it is a box measured on a different
+    # image, and the crop only has to be right once.
+    face_repair = _repair_faces(path, after, width, height, int(digest[:8], 16))
+    if face_repair.get("repaired"):
+        after = detectors.inspect(_bgr(path))
     repair = _repair_hands(path, info, width, height, int(digest[:8], 16))
     if repair.get("action") == "repaired":
         after = detectors.inspect(_bgr(path))
     record = {
         "version": POLISH_VERSION,
+        "variant": variant,
         "action": "refined",
         "steps": STEPS,
         "seconds": round(time.time() - started, 1),
@@ -336,6 +541,7 @@ def apply(path: Path, prompt: str = "", force: bool = False) -> dict:
         "people_after": len(after.get("people") or []),
         "hands_before": len(info.get("hands") or []),
         "hands_after": len(after.get("hands") or []),
+        "face_repair": face_repair,
         "hand_repair": repair,
         "flags": info.get("flags") or [],
     }

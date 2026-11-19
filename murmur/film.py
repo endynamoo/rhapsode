@@ -1143,6 +1143,29 @@ def warm_engine() -> bool:
     except Exception:  # noqa: BLE001 - settings are not worth failing a plan over
         return False
 
+    # Nothing to load: a placeholder install must not have its activity rewritten
+    # just because somebody opened Cinema.
+    try:
+        backend = imaging.image_gen.backend()
+        if getattr(backend, "name", "placeholder") == "placeholder" \
+                or not hasattr(backend, "worker"):
+            return False
+        worker = backend.worker()
+        if getattr(worker, "alive", False):
+            return True
+    except Exception:  # noqa: BLE001
+        return False
+
+    # The floor is a cold-load guard: below it the painter refuses to start rather
+    # than paging 15 GB through the disk, so warming would only produce a failure
+    # where nothing used to happen.
+    try:
+        ram = imaging.ram_info()
+        if ram.get("free_gib", 0) * 1024 < ram.get("floor_mib", 0):
+            return False
+    except Exception:  # noqa: BLE001 - a machine that cannot report RAM is not a reason to skip
+        pass
+
     with _warm_lock:
         if _warm_thread is not None and _warm_thread.is_alive():
             return True
@@ -1152,8 +1175,6 @@ def warm_engine() -> bool:
             try:
                 if imaging.image_gen.warm():
                     activity.phase("idle", "The stills engine is ready")
-                else:
-                    activity.phase("idle", "The stills engine is not installed")
             except Exception as exc:  # noqa: BLE001 - reported, not raised
                 activity.finish(
                     "idle",
