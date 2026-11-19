@@ -172,29 +172,28 @@ uses, and the written offer for their source are in [`licenses/`](licenses/).
 
 Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is generated from it by `scripts/changelog_render.py`, so edit the changelog, not this copy.
 
-### Unreleased
+### 0.3.4-beta - 2026-11-19
 
-**Fixed**
+**Added**
 
-- **HEIC imports work in an installed build**: the frozen app never bundled `pillow-heif`, so a `.heic` file opened from an installer would be refused while the same file worked from a source checkout.
-- **The README badge caught up, and so did three visible messages**: the badge said 0.3.2 while the app said 0.3.3, and the setup banner, the private-access notice and an untitled chapter's exported film still said Murmur - that film now exports as "Rhapsode - chapter 1".
+- **Licensing now matches what actually ships, and the build is compliant**: `THIRD_PARTY.md` called YuNet MIT (it is Apache-2.0), blamed the MIT `espeakng-loader` for eSpeak's GPL-3.0, and omitted the copyleft inside wheels (libsndfile, libheif, 41 MB of OpenCV FFmpeg we never call). Every download now also carries a `licenses/` folder: the GPL-3.0 and LGPL texts, OpenCV's notice, a `NOTICE.txt` the installer shows, and `SOURCES.md` with versions, upstream links and the written offer. `tests/test_licences.py` keeps it true.
+- **Run the CI workflows locally, Linux included**: `scripts\ci-local.ps1` mirrors `.github/workflows/` job for job - the suite in a venv built from `requirements-test.txt` alone, the browser journeys, a real server asked for `/api/health`, and the PyInstaller + Inno cycle with a silent install, the `licenses\` check and the uninstall. `-Job linux` runs `linux.yml` inside WSL through `scripts/ci-local-linux.sh`: the suite, a real server asserting the **Tesseract** OCR backend, and the browser journeys. For when Actions minutes run out. The macOS job needs a Mac and reports itself skipped, never passed.
 
 **Changed**
 
-- **The licence notice now matches what ships**: `THIRD_PARTY.md` called YuNet MIT (it is Apache-2.0), described the MIT `espeakng-loader` as GPL instead of the eSpeak NG it carries, left out the copyleft inside wheels (libsndfile LGPL-2.1, libheif LGPL-3.0, 41 MB of OpenCV FFmpeg we never call), and now says plainly that the installer bundles the GPL-3.0 phonemiser, so a distributed build carries GPL-3.0 obligations.
-- **Repository housekeeping**: the source-tarball script works from any checkout, six tracked files lost their byte-order marks, `.gitignore` names the icon it generates and covers a contributor's caches, and a workshop script plus a stale generator claim are gone.
-
-### 0.3.3-beta - 2026-11-19
-
-**Fixed**
-
-- **First-run setup no longer dies on a plain console**: the download progress and its tick marks were printed as Unicode, which a legacy (cp1252) console cannot encode - the download aborted with an encoding error while reporting itself. The text now degrades to whatever the console can print.
+- **A hidden search note removes its own progress bar**, so nothing from the meaning-model download can be left painted above the results.
 
 ### 0.3.2-beta - 2026-11-19
 
 **Added**
 
 - **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
+
+### 0.3.0-beta - 2026-11-19
+
+**Added**
+
+- **Repair faces** is a new opt-in pass under Polish stills: each detected face is cropped, upsampled to 1024 px, re-drawn at a strength that can actually rebuild an eye, blended back through a feathered mask, and kept only if the repaint still contains a face and the region kept its ink - otherwise that face is restored from the copy taken before it. Two faces per still by default, `MURMUR_POLISH_FACE_MAX` to raise it. **Off by default**, because a crop repaint can redraw a character's face into someone else. `tests/test_face_repair.py` covers the crop maths, the cap, both revert paths and the cache variant without needing a GPU.
 
 *...and 95 more entries in [CHANGELOG.md](CHANGELOG.md).*
 

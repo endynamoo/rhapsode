@@ -267,7 +267,7 @@ organisation's minutes are exhausted (or a runner is down) and a build is needed
 `unit` builds a venv from `requirements-test.txt` alone, the way a runner does; `installer`
 installs into a temp directory, checks that `licenses\` arrived, runs the shipped engine
 script, starts the app and asks for `/api/health`, then uninstalls and confirms the app is
-gone. What it cannot do is macOS - `build_app.sh` needs a Mac - so a release cut this way
+gone. `-Job linux` runs `linux.yml` - the suite, a real server asserting the **Tesseract** OCR backend, and the browser journeys - inside a WSL distro, the closest thing to `ubuntu-latest` a Windows machine has. What it cannot do is macOS - `build_app.sh` needs a Mac - so a release cut this way
 either waits for minutes to reset or ships Windows and source only, with the DMGs attached
 later. Say which, in the release notes, rather than leaving the gap implicit.
 

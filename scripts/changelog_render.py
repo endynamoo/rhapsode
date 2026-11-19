@@ -85,31 +85,8 @@ def parse(text: str) -> list[tuple[str, list[tuple[str | None, str]]]]:
     return [(title, items) for title, items in sections if items]
 
 
-def render_block(changelog_text: str | None = None) -> str:
-    """Return the marked-up, truncated changelog block for README.md."""
-    if changelog_text is None:
-        changelog_text = read_text(CHANGELOG)
-    sections = parse(changelog_text)
-    total = sum(len(items) for _, items in sections)
-
-    chosen: list[tuple[str, list[tuple[str | None, str]]]] = []
-    used = 0
-    shown = 0
-    for title, items in sections[:MAX_SECTIONS]:
-        picked: list[tuple[str | None, str]] = []
-        for item in items:
-            if shown >= MIN_BULLETS and used + len(item[1]) + 8 > BUDGET:
-                break
-            if used + len(item[1]) + 8 > BUDGET and picked:
-                break
-            picked.append(item)
-            used += len(item[1]) + 8
-            shown += 1
-        if picked:
-            chosen.append((title, picked))
-        if shown >= MIN_BULLETS and used >= BUDGET:
-            break
-
+def _assemble(chosen: list[tuple[str, list[tuple[str | None, str]]]], total: int, shown: int) -> str:
+    """Render picked entries as the marked-up block (markers included)."""
     # README.md already has a "## Changelog" heading above the markers; emitting
     # another one here rendered as two headings on the repository front page.
     lines = [BEGIN, ""]
@@ -142,11 +119,48 @@ def render_block(changelog_text: str | None = None) -> str:
         )
         lines.append("")
     lines.append(END)
-    block = "\n".join(lines).rstrip("\n") + "\n"
-    if len(block) > MAX_BLOCK:  # pragma: no cover - guards a malformed changelog
+    return "\n".join(lines).rstrip("\n") + "\n"
+
+
+def render_block(changelog_text: str | None = None) -> str:
+    """Return the marked-up, truncated changelog block for README.md."""
+    if changelog_text is None:
+        changelog_text = read_text(CHANGELOG)
+    sections = parse(changelog_text)
+    total = sum(len(items) for _, items in sections)
+
+    chosen: list[tuple[str, list[tuple[str | None, str]]]] = []
+    used = 0
+    shown = 0
+    for title, items in sections[:MAX_SECTIONS]:
+        picked: list[tuple[str | None, str]] = []
+        for item in items:
+            if shown >= MIN_BULLETS and used + len(item[1]) + 8 > BUDGET:
+                break
+            if used + len(item[1]) + 8 > BUDGET and picked:
+                break
+            picked.append(item)
+            used += len(item[1]) + 8
+            shown += 1
+        if picked:
+            chosen.append((title, picked))
+        if shown >= MIN_BULLETS and used >= BUDGET:
+            break
+
+    block = _assemble(chosen, total, shown)
+    # The ceiling is a front-page budget, not a reason to rewrite the changelog:
+    # drop the oldest visible entry and let "...and N more" point at the rest.
+    while len(block) > MAX_BLOCK and chosen:
+        title, items = chosen[-1]
+        items.pop()
+        shown -= 1
+        if not items:
+            chosen.pop()
+        block = _assemble(chosen, total, shown)
+    if len(block) > MAX_BLOCK:  # pragma: no cover - only a broken preamble can
         raise SystemExit(
-            "changelog block would be %d characters (limit %d); shorten the top "
-            "entries in CHANGELOG.md" % (len(block), MAX_BLOCK)
+            "changelog block is %d characters (limit %d) with no entries left; "
+            "check the preamble above the first ## heading" % (len(block), MAX_BLOCK)
         )
     return block
 
