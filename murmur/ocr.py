@@ -34,6 +34,15 @@ class OcrBackend:
     def lettering(self, data: bytes, min_height: float = 0.01, min_chars: int = 2) -> bool:
         return False
 
+    def word_boxes(self, data: bytes) -> dict | None:
+        """Per-word boxes in image pixels, or None when the backend cannot say.
+
+        A scanned page has no text layer, so the only way to draw a mark on the
+        page itself is to ask the recogniser where each word sat. Backends that
+        report whole lines only return None rather than a guess.
+        """
+        return None
+
 
 class VisionBackend(OcrBackend):
     """Apple Vision text recognition."""
@@ -203,10 +212,14 @@ class WindowsOcrBackend(OcrBackend):
             decoder = await BitmapDecoder.create_async(stream)
             bitmap = await decoder.get_software_bitmap_async()
             result = await engine.recognize_async(bitmap)
-            return [
-                (line.text, [(word.text, word.bounding_rect) for word in line.words])
-                for line in result.lines
-            ]
+            return (
+                [
+                    (line.text, [(word.text, word.bounding_rect) for word in line.words])
+                    for line in result.lines
+                ],
+                int(decoder.pixel_width),
+                int(decoder.pixel_height),
+            )
 
         # Uploads arrive on the server's event loop, where asyncio.run() refuses to
         # start; a private loop on its own thread works from either side.
@@ -228,17 +241,40 @@ class WindowsOcrBackend(OcrBackend):
             raise outcome["error"]
         return outcome.get("value", [])
 
-    def recognize(self, data: bytes) -> str:
+    def _read(self, data: bytes):
         if not data:
-            return ""
+            return [], 0, 0
         try:
-            lines = self._lines(data)
+            return self._lines(data)
         except OCRUnavailable:
             raise
         except Exception as exc:
             raise OCRUnavailable(f"Windows OCR could not read the image: {exc}") from exc
+
+    def recognize(self, data: bytes) -> str:
+        lines, _width, _height = self._read(data)
         text = "\n".join(line.strip() for line, _words in lines if line.strip())
         return re.sub(r"(\w)-\n(\w)", r"\1\2", text)
+
+    def word_boxes(self, data: bytes) -> dict | None:
+        lines, width, height = self._read(data)
+        if not width or not height:
+            return None
+        words = [
+            {
+                "text": str(text),
+                "x": float(rect.x),
+                "y": float(rect.y),
+                "w": float(rect.width),
+                "h": float(rect.height),
+            }
+            for _line, pairs in lines
+            for text, rect in pairs
+            if str(text).strip()
+        ]
+        if not words:
+            return None
+        return {"width": width, "height": height, "words": words}
 
     def lettering(self, data: bytes, min_height: float = 0.01, min_chars: int = 2) -> bool:
         if not data:
@@ -253,7 +289,7 @@ class WindowsOcrBackend(OcrBackend):
         if not page_width or not page_height:
             return False
         try:
-            lines = self._lines(data)
+            lines, _width, _height = self._lines(data)
         except Exception:
             return False
         for _line, words in lines:
@@ -299,6 +335,44 @@ class TesseractBackend(OcrBackend):
         raw = self._run(data, "--psm", "6")
         text = raw.decode("utf-8", "replace").strip()
         return re.sub(r"(\w)-\n(\w)", r"\1\2", text)
+
+    def word_boxes(self, data: bytes) -> dict | None:
+        if not data:
+            return None
+        try:
+            from PIL import Image
+
+            with Image.open(io.BytesIO(data)) as image:
+                page_width, page_height = image.size
+        except Exception:
+            return None
+        try:
+            raw = self._run(data, "--psm", "6", "tsv")
+        except OCRUnavailable:
+            return None
+        words: list[dict] = []
+        for row in raw.decode("utf-8", "replace").splitlines()[1:]:
+            columns = row.split("\t")
+            if len(columns) < 12 or columns[0] != "5":
+                continue
+            text = columns[11].strip()
+            if not text:
+                continue
+            try:
+                words.append(
+                    {
+                        "text": text,
+                        "x": float(columns[6]),
+                        "y": float(columns[7]),
+                        "w": float(columns[8]),
+                        "h": float(columns[9]),
+                    }
+                )
+            except ValueError:
+                continue
+        if not words or not page_width or not page_height:
+            return None
+        return {"width": page_width, "height": page_height, "words": words}
 
     def lettering(self, data: bytes, min_height: float = 0.01, min_chars: int = 2) -> bool:
         if not data:
@@ -362,6 +436,14 @@ def available() -> bool:
 def recognize_bytes(data: bytes) -> str:
     """OCR an encoded image (PNG, JPEG, TIFF, BMP, …) and return plain text."""
     return backend().recognize(data)
+
+
+def word_boxes_bytes(data: bytes) -> dict | None:
+    """Where each word sat in an image, in pixels, or None when unsupported."""
+    try:
+        return backend().word_boxes(data)
+    except OCRUnavailable:
+        return None
 
 
 def lettering(data: bytes, min_height: float = 0.01, min_chars: int = 2) -> bool:

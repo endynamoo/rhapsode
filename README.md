@@ -178,8 +178,8 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 **Fixed**
 
 - A damaged or mislabelled file is now **refused with a sentence** instead of a bare 500, and every setting keeps to its own type and range, so a playback rate arriving as text cannot break playback.
+- **A scanned page now marks the word on the page itself**: the reader asks the on-device recogniser where each word sat, then draws the mark there. Text-layer pages never call it.
 - Every sentence now starts with its first word already marked. The clip is held until it can decode, its opening word is highlighted, and only then does the voice start, so a sentence the reader reached by finishing the one before it can no longer begin with the sound a frame or two ahead of the highlight. `tests/ui/test_smoke.py` records what the page looks like at the instant the player is asked to start, and fails if a sentence has no word marked then.
-- The word highlight is bound to the **clip that is actually playing**: each sentence's timings are stored beside the audio it was made for, so a sentence still synthesising while the previous one finishes can no longer lend its word times to the next one under a slow machine. If the highlight still drifts behind the voice after this build, that is a separate measurement and the recording of it is welcome.
 
 ### 0.3.0-beta - 2026-11-19
 
@@ -193,6 +193,6 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - Linux is verified on a clean runner: `.github/workflows/linux.yml` runs the unit suite, then a real `python -m murmur` server with Tesseract as the OCR backend, asserting `/api/health` is healthy and remote access is off.
 
-*...and 79 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 80 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
