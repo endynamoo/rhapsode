@@ -60,6 +60,12 @@ phrased for a user, not for a diff reader.
 
 ### Fixed
 
+- **The ladder scripts never open a credential dialog.** `check-ladder.ps1` and
+  `promote.ps1` now take the token sentinel already holds instead of reaching for the
+  credential manager, which on a machine driven by agents popped a window nobody could
+  answer and hung the command. `check-ladder.ps1` also keeps going when it cannot fetch
+  (saying so, and comparing the refs the clone already has) and reads its CI column
+  through sentinel's read token instead of the deliberately logged-out `gh` CLI.
 - A scene that failed and was then repainted no longer keeps its old error. Cinema's
   **Retry** paints in the request thread, so the still landed on disk while the queue
   still held the earlier failure: the panel reported **"Scene 1 ready"** and
