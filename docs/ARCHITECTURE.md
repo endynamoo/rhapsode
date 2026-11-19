@@ -218,9 +218,18 @@ downloads and runs the optional MiniLM embedding model.
 profiles and the GPU plan), `ocr.py` (Vision → Windows OCR → Tesseract),
 `backends/detect.py` (platform/GPU snapshot).
 
-**UI** — `web/index.html` (structure), `web/app.js` (3.7k, all behaviour),
-`web/style.css` (1.8k), `web/themes.js` (20 palettes as data), `web/boot.js`
-(11 lines, applies the saved theme before first paint).
+**UI** — `web/index.html` (structure), `web/app.js` (3.6k, behaviour; an ES
+module since the Settings split), `web/views/settings.js` (the Settings panel:
+appearance, engine, remote access), `web/style.css` (1.8k), `web/themes.js` (20
+palettes as data), `web/boot.js` (11 lines, applies the saved theme before first
+paint).
+
+`web/app.js` is loaded as `<script type="module">`, and a view is extracted by
+moving its functions into `web/views/<name>.js`, exporting one
+`create<Name>View(deps)` that receives `$`, `$$`, `api`, `state` and the few
+helpers it needs. No bundler: the browser resolves the relative import, the
+static import means the module runs before `app.js`'s own body, and the browser
+suite (`tests/ui/`) is the safety net for the move.
 
 **Tests** — `tests/`, 163 cases, `unittest`; run from the repo root with
 `python -m unittest discover -s tests`.
@@ -702,6 +711,7 @@ quick-read notifications.
 | --- | --- |
 | add an HTTP endpoint | the matching router (`library_api.py` for documents, `system_api.py` for health/settings/speech, `film_api.py`, `search_api.py`) or `server.py` for exports and static, then `web/app.js` |
 | add a voice | `voices.py` (`VOICES`, `DEFAULT_VOICE`); the UI reads `/api/voices` |
+| change the Settings panel | `web/views/settings.js` (it receives its dependencies; add one to `createSettingsView` rather than reaching into `app.js`) |
 | change how sentences are split | `text.py:split_units` — everything downstream is measured in units |
 | change speech quality or caching | `engine.py` (`_key`, `synthesize`), `cache.py` |
 | add an OCR engine | `ocr.py`: implement `OcrBackend`, add to `backend()` |
