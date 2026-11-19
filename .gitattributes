@@ -15,4 +15,6 @@
 *.wav binary
 
 # copyleft texts: byte-exact, LF, never normalised away
-licenses/*.txt text eol=lf
+# every file in licenses/ is a legal artefact: byte-exact and LF on every OS,
+# because a Windows checkout with core.autocrlf=true would otherwise rewrite them
+licenses/* text eol=lf
