@@ -301,7 +301,7 @@ release ships that folder inside the installer and inside the `.app`.
 
 Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is generated from it by `scripts/changelog_render.py`, so edit the changelog, not this copy.
 
-### Unreleased
+### 0.3.5-beta - 2026-11-23
 
 - **Audio you can actually play, and one sentence in three languages.** The demo now includes `docs/demo/audio/one-sentence-four-voices.mp3` (one sentence read in English, Japanese, Spanish and French, the last three translated locally) and `reading-sample.mp3` (26 seconds of the demo book), both produced through the app's own `/api/tts` and published as files because GitHub renders no media from a repository. A three-panel clip shows the same sentence with the Japanese, Spanish and French bar, so the front page still shows the feature working.
 
