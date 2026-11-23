@@ -90,6 +90,15 @@ phrased for a user, not for a diff reader.
 
 ### Fixed
 
+- **Three things the live translation test caught.** A pasted `…/v1/chat/completions` was
+  turned into `…/v1/chat/completions/v1` and reported as a 404, so the address every OpenAI
+  client shows was the one address the app refused - it is reduced to its base now. A server
+  the reader connected was overridden by an old `MURMUR_TRANSLATE_URL` in the environment, so
+  **Connect** looked broken; the UI's choice wins, the variable is the fallback. And
+  `MURMUR_NO_BROWSER=1` now means headless - it suppressed the browser fallback but still
+  opened a WebView2 window, whose page started the 340 MB download before anyone could look at
+  the screen offering it.
+
 - **The first-run screen asks about the right thing.** `/api/health` reported "needs
   weights" from the model's *loaded* state, which is false on a healthy install until the
   first sentence is spoken; it now asks whether the weights are on disk, so only a real

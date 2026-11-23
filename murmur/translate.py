@@ -89,7 +89,16 @@ def check_url(url: str, timeout: float = 3.0) -> dict:
         return {"ok": False, "reason": "Give the address of a local model server."}
     if not cleaned.startswith(("http://127.0.0.1", "http://localhost")):
         return {"ok": False, "reason": "Use a server on this machine: http://127.0.0.1:<port>/v1."}
-    base = cleaned if cleaned.endswith("/v1") else f"{cleaned}/v1"
+    # Accept what a person is likely to paste: a base, a base with /v1, or the full
+    # chat-completions URL an OpenAI client config uses.
+    for _ in range(3):
+        for suffix in ("/chat/completions", "/completions", "/models", "/v1"):
+            if cleaned.endswith(suffix):
+                cleaned = cleaned[: -len(suffix)]
+                break
+        else:
+            break
+    base = f"{cleaned}/v1"
     try:
         import httpx
 
@@ -245,12 +254,15 @@ class HttpTranslator:
     def _resolve(self) -> bool:
         # Recompute rather than cache: the reader can connect or change a server while the
         # app is running, and a stale URL meant "available" for one that had gone away.
-        if self.configured:
-            self.url = self.configured
-            return True
+        # Order: what the reader connected, then the environment (a script's choice), then
+        # whatever is listening - a UI choice must not be silently overridden by an old
+        # MURMUR_TRANSLATE_URL left in a shell.
         saved = _saved_url()
         if saved:
             self.url = saved
+            return True
+        if self.configured:
+            self.url = self.configured
             return True
         self.url = ""
         found = _discover()

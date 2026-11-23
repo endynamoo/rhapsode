@@ -29,6 +29,13 @@ class StatusTest(unittest.TestCase):
         self.assertFalse(status["available"])
         self.assertIn("llama.cpp", status["reason"])
 
+    def test_the_endpoint_the_reader_connected_wins_over_the_environment(self):
+        translator = translate.HttpTranslator(url="http://127.0.0.1:9999/v1")
+        with mock.patch.object(translate, "_saved_url",
+                               return_value="http://127.0.0.1:8091/v1"):
+            self.assertTrue(translator.available())
+        self.assertEqual(translator.url, "http://127.0.0.1:8091/v1")
+
     def test_a_saved_endpoint_is_reported(self):
         with mock.patch.object(translate, "_saved_url", return_value="http://127.0.0.1:8091/v1"), \
                 mock.patch.object(translate.HttpTranslator, "available", return_value=True), \
@@ -63,6 +70,20 @@ class CheckUrlTest(unittest.TestCase):
         self.assertEqual(result["url"], "http://127.0.0.1:8091/v1")
         self.assertEqual(result["model"], "qwen2.5-3b")
         self.assertIn("/v1/models", getter.call_args[0][0])
+
+    def test_a_full_chat_completions_url_is_reduced_to_its_base(self):
+        class Response:
+            status_code = 200
+
+            @staticmethod
+            def json():
+                return {"data": [{"id": "qwen2.5-3b"}]}
+
+        with mock.patch("httpx.Client.get", return_value=Response()) as getter:
+            result = translate.check_url("http://127.0.0.1:8091/v1/chat/completions")
+        self.assertTrue(result["ok"], result)
+        self.assertEqual(result["url"], "http://127.0.0.1:8091/v1")
+        self.assertIn("http://127.0.0.1:8091/v1/models", getter.call_args[0][0])
 
     def test_a_refusal_is_reported_with_the_status(self):
         class Response:

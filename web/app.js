@@ -322,7 +322,8 @@ async function prepareTranslation(force = false) {
   } catch (_) {
     return;
   }
-  if (status.available) return;
+  // Apple's framework needs no server, so there is nothing to ask there.
+  if (status.apple) return;
   box.hidden = false;
   renderTranslationServers(status);
 }
