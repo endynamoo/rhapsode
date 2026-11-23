@@ -96,7 +96,7 @@ class Translator:
             raise TranslateUnavailable(
                 "Translation is unavailable — the murmur-translate helper is missing."
             )
-        self._process = proc.popen(
+        self._process = proc.spawn(
             [str(self.binary)],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,

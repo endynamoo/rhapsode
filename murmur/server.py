@@ -28,6 +28,9 @@ from .system_api import router as system_router
 from .voices import DEFAULT_VOICE
 
 
+from . import lifecycle
+
+
 @contextlib.asynccontextmanager
 async def _lifespan(_app: FastAPI):
     """Startup work, run once before the app serves the first request.
@@ -48,6 +51,10 @@ async def _lifespan(_app: FastAPI):
                 print(f"  {item['label']}: {item['url']}")
         print(f"  token file: {config.HOME / 'access_token'}", flush=True)
     yield
+    # uvicorn is stopping: stop the painter and drop the voice model here, so the
+    # VRAM is free the moment the app looks closed rather than whenever the
+    # interpreter gets around to it.
+    lifecycle.release("server stopped")
 
 
 app = FastAPI(title="Rhapsode", docs_url=None, redoc_url=None, lifespan=_lifespan)

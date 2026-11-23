@@ -172,7 +172,7 @@ classDiagram
 
 ### 2.1 Every file, and what it is for
 
-Grouped by job, not by import order. Sizes are rough line counts at 0.3.4-beta.
+Grouped by job, not by import order. Sizes are rough line counts at 0.3.5-beta.
 
 **Entry points**
 
@@ -853,6 +853,15 @@ in [STILLS.md](STILLS.md).
 **What it costs:** an IPC boundary (JSON over files and pipes), a startup cost on
 the first still of a session, stale-pid handling in the lock, and progress that
 has to be reported deliberately — which is what `murmur/activity.py` is for.
+
+**And it has to die with the app.** A child that holds 13 GiB of VRAM is only
+acceptable if its lifetime is the app's. `murmur/proc.py` puts every long-lived child
+in a Windows job object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, so even
+`TerminateProcess` (End task, a crash) takes the painter with it; `murmur/lifecycle.py`
+releases deliberately — stop the painter, drop the voice model, stop the indexer,
+close the database — from three places: the lifespan's shutdown, `/api/quit`, and the
+desktop entry after its window closes. Browser mode has no window, which is why the
+quit route and the Settings button exist at all.
 
 ### 14.6 Jobs are polled, not pushed
 
