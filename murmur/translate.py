@@ -11,7 +11,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import config, proc
+from . import config, proc, store
 
 
 class TranslateUnavailable(Exception):
@@ -39,6 +39,73 @@ LANGUAGE_NAMES = {
 LOCAL_PORTS = (8091, 8080, 8000, 1234, 11434)
 _DISCOVERY_TTL = 30.0
 _discovery: tuple[float, tuple[str, str] | None] | None = None
+
+
+def _saved_url() -> str:
+    """The endpoint the reader connected in Settings or the first-run screen."""
+    try:
+        return str(store.get_settings().get("translateUrl") or "").strip()
+    except Exception:  # pragma: no cover - a store that is not open yet
+        return ""
+
+
+def reset_discovery() -> None:
+    """Forget what the port scan found (a server was just started, stopped or chosen)."""
+    global _discovery
+    _discovery = None
+
+
+def probe_ports(timeout: float = 0.6) -> list[dict]:
+    """Every usual local port, and what answered. No cache: this is an explicit question."""
+    found: list[dict] = []
+    try:
+        import httpx
+
+        with httpx.Client(timeout=timeout) as client:
+            for port in LOCAL_PORTS:
+                base = f"http://127.0.0.1:{port}/v1"
+                try:
+                    response = client.get(f"{base}/models")
+                except Exception:
+                    continue
+                if response.status_code != 200:
+                    continue
+                try:
+                    models = response.json().get("data") or []
+                except Exception:
+                    models = []
+                model = str(models[0].get("id", "")) if models else ""
+                found.append({"url": base, "model": model, "port": port,
+                              "models": [str(m.get("id", "")) for m in models][:6]})
+    except Exception:  # pragma: no cover - httpx missing
+        return []
+    return found
+
+
+def check_url(url: str, timeout: float = 3.0) -> dict:
+    """Does this endpoint answer like an OpenAI-compatible server? Says why if not."""
+    cleaned = (url or "").strip().rstrip("/")
+    if not cleaned:
+        return {"ok": False, "reason": "Give the address of a local model server."}
+    if not cleaned.startswith(("http://127.0.0.1", "http://localhost")):
+        return {"ok": False, "reason": "Use a server on this machine: http://127.0.0.1:<port>/v1."}
+    base = cleaned if cleaned.endswith("/v1") else f"{cleaned}/v1"
+    try:
+        import httpx
+
+        with httpx.Client(timeout=timeout) as client:
+            response = client.get(f"{base}/models")
+    except Exception as exc:
+        return {"ok": False, "reason": f"Nothing answered at {base} ({exc.__class__.__name__})."}
+    if response.status_code != 200:
+        return {"ok": False, "reason": f"{base} answered {response.status_code}."}
+    try:
+        models = response.json().get("data") or []
+    except Exception:
+        return {"ok": False, "reason": f"{base} answered, but not with a model list."}
+    model = str(models[0].get("id", "")) if models else ""
+    return {"ok": True, "url": base, "model": model,
+            "models": [str(m.get("id", "")) for m in models][:6]}
 
 
 def _discover() -> tuple[str, str] | None:
@@ -176,8 +243,16 @@ class HttpTranslator:
         self.last_error: str | None = None
 
     def _resolve(self) -> bool:
-        if self.url:
+        # Recompute rather than cache: the reader can connect or change a server while the
+        # app is running, and a stale URL meant "available" for one that had gone away.
+        if self.configured:
+            self.url = self.configured
             return True
+        saved = _saved_url()
+        if saved:
+            self.url = saved
+            return True
+        self.url = ""
         found = _discover()
         if found is None:
             return False
@@ -285,6 +360,55 @@ class TranslatorChain:
 
     def available(self) -> bool:
         return self.swift.available() or self.http.available()
+
+    def status(self, probe: bool = False) -> dict:
+        """What translation can do here, in the terms a person needs to act on.
+
+        `probe` scans the usual ports now; otherwise the 30-second discovery cache answers,
+        which is what a page-load poll can afford.
+        """
+        backend = self.backend()
+        saved = _saved_url()
+        target = self.http.url if backend == self.http.name else saved
+        servers = probe_ports() if probe else [
+            {"url": item, "model": model}
+            for item, model in ([_discover()] if _discover() else [])
+        ]
+        # A saved endpoint is a promise; check it now rather than at the first foreign
+        # sentence, because that is the whole point of asking before it is needed.
+        if backend == self.http.name and target:
+            checked = check_url(target, timeout=1.5)
+            if not checked["ok"]:
+                backend = None
+                reason = f"{checked['reason']} Start it again, or pick another address."
+                return {
+                    "available": False,
+                    "backend": None,
+                    "apple": self.swift.available(),
+                    "configuredUrl": target,
+                    "savedUrl": saved,
+                    "servers": servers,
+                    "reason": reason,
+                    "ports": list(LOCAL_PORTS),
+                }
+        reason = ""
+        if backend is None:
+            reason = (
+                "Translation needs a local model server. Rhapsode uses one you already run: "
+                "llama.cpp, LM Studio, Ollama or vLLM, on any of "
+                + ", ".join(str(port) for port in LOCAL_PORTS)
+                + "."
+            )
+        return {
+            "available": backend is not None,
+            "backend": backend,
+            "apple": self.swift.available(),
+            "configuredUrl": target or "",
+            "savedUrl": saved,
+            "servers": servers,
+            "reason": reason,
+            "ports": list(LOCAL_PORTS),
+        }
 
     def backend(self) -> str | None:
         if self.swift.available():

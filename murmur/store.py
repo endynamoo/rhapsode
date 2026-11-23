@@ -66,6 +66,12 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "autoScroll": True,
     "remoteAccess": False,
     "translateToVoice": True,
+    # The OpenAI-compatible endpoint the reader connected, if any. Empty means "use
+    # MURMUR_TRANSLATE_URL if it is set, otherwise whatever is listening locally".
+    "translateUrl": "",
+    # The first-run screen asks about translation once. It is not a per-session nag: an
+    # upgrade or a restart never reopens it, and Settings keeps the switch.
+    "translateAsked": False,
     # The spoken word is marked as the voice reaches it. On by default; the
     # switch exists because some readers find any movement in the text
     # distracting, and Manga never highlights anyway (there is nothing to follow).

@@ -207,7 +207,7 @@ async function init() {
   checkEngine();
   // A fresh install has no voice. Prepare it now, with progress, instead of letting the
   // first press of Listen fail: that was the first thing a new user met.
-  prepareFirstRun();
+  prepareFirstRun().then(() => prepareTranslation());
 
   const raw = decodeURIComponent(location.hash.replace(/^#/, ''));
   if (raw) {
@@ -308,6 +308,76 @@ function setFirstRunProgress(percent) {
   bar.setAttribute('aria-valuenow', String(Math.round(clamped)));
 }
 
+/* ──────────────────── first run: translation ──────────────────────── */
+
+async function prepareTranslation(force = false) {
+  const box = $('#translateSetup');
+  if (!box) return;
+  if (sessionStorage.getItem('murmur.translate.skip') === '1' && !force) return;
+  if (state.settings.translateToVoice === false) return;
+  if (state.settings.translateAsked && !force) return;
+  let status;
+  try {
+    status = await api('/api/translate?probe=true');
+  } catch (_) {
+    return;
+  }
+  if (status.available) return;
+  box.hidden = false;
+  renderTranslationServers(status);
+}
+
+function renderTranslationServers(status) {
+  const list = $('#translateServers');
+  list.innerHTML = '';
+  const servers = status.servers || [];
+  if (!servers.length) {
+    $('#translateStatus').textContent =
+      'Nothing answered on the usual ports. Start a server, or paste its address below.';
+  } else {
+    $('#translateStatus').textContent = 'Found on this machine:';
+    for (const server of servers) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = server.url;
+      const model = document.createElement('small');
+      model.textContent = server.model || 'model name unknown';
+      button.appendChild(model);
+      button.addEventListener('click', () => connectTranslation(server.url));
+      list.appendChild(button);
+    }
+  }
+  if (!servers.length) list.innerHTML = '';
+}
+
+async function connectTranslation(url) {
+  const target = url || $('#translateUrl').value.trim();
+  $('#translateStatus').textContent = 'Checking…';
+  try {
+    const status = await api('/api/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: target }),
+    });
+    const connected = status.connected || {};
+    state.settings.translateAsked = true;
+    api('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ translateAsked: true }),
+    }).catch(() => {});
+    hideTranslation();
+    toast(`Translation ready — ${connected.model || connected.url || 'connected'}`);
+  } catch (err) {
+    $('#translateStatus').textContent = err.message || 'That address did not answer.';
+  }
+}
+
+function hideTranslation() {
+  const box = $('#translateSetup');
+  if (box) box.hidden = true;
+}
+
 function firstRunFailed(message) {
   clearTimeout(firstRunTimer);
   $('#firstRunDetail').textContent = message;
@@ -352,6 +422,29 @@ function bindFirstRun() {
       state.firstRunDone = true;
       hideFirstRun();
       toast('You can download the voice later in Settings');
+    });
+  }
+  const connect = $('#translateConnect');
+  if (connect) connect.addEventListener('click', () => connectTranslation());
+  const scan = $('#translateScan');
+  if (scan) scan.addEventListener('click', () => prepareTranslation(true));
+  const later = $('#translateSkip');
+  if (later) {
+    later.addEventListener('click', async () => {
+      sessionStorage.setItem('murmur.translate.skip', '1');
+      hideTranslation();
+      // Not now must not leave a promise the app cannot keep: turn the setting off, and
+      // the voice reads the original text in its own accent without a toast every sentence.
+      state.settings.translateToVoice = false;
+      state.settings.translateAsked = true;
+      try {
+        await api('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ translateToVoice: false, translateAsked: true }),
+        });
+        toast('Translation is off — turn it on in Settings when you have a server');
+      } catch (_) {}
     });
   }
 }

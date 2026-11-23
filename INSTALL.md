@@ -113,8 +113,10 @@ Classify the GPU vendor from the name: `NVIDIA`, `AMD/Radeon`, `Intel`,
   `requirements.txt` through `winsdk`, reading whatever language packs Windows
   already has), Linux uses Tesseract — install `tesseract-ocr`, the only backend
   that needs a separate binary.
-- **Translation**: macOS uses Apple's Translation framework (add packs in System
-  Settings). Windows and Linux use any local OpenAI-compatible server: set
+- **Translation**: instead of setting this up by hand, the first-run screen detects a local
+  server and offers to connect it (and Settings keeps the switch). Underneath, macOS uses
+  Apple's Translation framework (add packs in System Settings). Windows and Linux use any
+  local OpenAI-compatible server: set
   `MURMUR_TRANSLATE_URL` (e.g. `http://127.0.0.1:8091/v1/chat/completions`) and
   optionally `MURMUR_TRANSLATE_MODEL`; with neither set, ports 8091, 8080, 8000,
   1234 and 11434 are probed for `/v1/models`, so a lane that is already running is
