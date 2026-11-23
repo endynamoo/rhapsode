@@ -1,6 +1,6 @@
 """Local text-to-image for the stills pipeline: FLUX.2 [klein] 4B only.
 
-One model family, two presets â€” High paints 1920x1080 in four distilled steps,
+One model family, two presets — High paints 1920x1080 in four distilled steps,
 Fast paints 1280x720 in two. Two ways to run it: mflux on Apple Silicon (the
 MLX build), and diffusers in a separate interpreter (`image-venv`) everywhere
 else, so the reader never imports torch. The rest of the code only asks for "an
@@ -26,14 +26,14 @@ MODELS = {
         "steps": 4,
         "width": 1920,
         "height": 1080,
-        "label": "FLUX.2 [klein] 4B â€” High",
+        "label": "FLUX.2 [klein] 4B — High",
     },
     "flux2-klein-4b-fast": {
         "id": config.FLUX_WEIGHTS,
         "steps": 2,
         "width": 1280,
         "height": 720,
-        "label": "FLUX.2 [klein] 4B â€” Fast",
+        "label": "FLUX.2 [klein] 4B — Fast",
     },
 }
 
@@ -481,8 +481,8 @@ class FluxPythonBackend(ImageBackend):
         """The process-wide painter.
 
         FilmImages and the polish pass both ask for it, and a second FluxWorker
-        would try to load the weights again â€” or sit waiting for a lock it can
-        never get â€” so the instance is shared rather than per-backend.
+        would try to load the weights again — or sit waiting for a lock it can
+        never get — so the instance is shared rather than per-backend.
         """
         global _SHARED_WORKER
         with self._probe_lock:

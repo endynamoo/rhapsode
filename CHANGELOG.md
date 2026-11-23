@@ -50,6 +50,16 @@ phrased for a user, not for a diff reader.
 
 ### Fixed
 
+- **The README stopped shipping broken characters.** A text round-trip through Windows'
+  legacy encoding had double-encoded the punctuation in 44 lines of the front page - every
+  em dash, the multiplication sign, the middle dots, the `§` in a cross-reference - so a
+  reader saw three-character debris where a dash belonged. The same damage was in the
+  stills module's comments and labels and in the installer's first line; all 51 places are
+  repaired byte for byte, with no other change to those files. `tests/test_encoding.py`
+  now fails if any shipped text file is not plain UTF-8, carries a BOM, loses a character,
+  or contains a double-encoded run - and it is checked against the exact string that
+  shipped, so the check itself cannot rot.
+
 - **Quitting gives the models back.** The stills painter is a child process holding most
   of the card, and it was supposed to be reaped by the operating system through a
   kill-on-close job object. That job was never created: `murmur/proc.py` passed Windows a

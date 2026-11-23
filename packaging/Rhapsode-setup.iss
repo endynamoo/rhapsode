@@ -1,4 +1,4 @@
-; Rhapsode â€” Windows installer (Inno Setup 7)
+; Rhapsode — Windows installer (Inno Setup 7)
 ; Per-user install: no UAC prompt, lands in %LOCALAPPDATA%\Programs\Rhapsode.
 ; Build:  ISCC.exe packaging\Rhapsode-setup.iss   (from the repo root)
 
