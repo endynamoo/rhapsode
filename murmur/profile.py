@@ -68,16 +68,40 @@ def path(home: Path) -> Path:
     return home / PROFILE_FILE
 
 
+#: What a reconciliation replaced, for the UI to mention once. Reset by `load`.
+RECONCILED: dict = {}
+
+
 def load(home: Path) -> dict:
-    """The saved profile, or a recommendation for this machine."""
+    """The saved profile, or a recommendation for this machine.
+
+    A saved profile this build cannot honour is treated as a recommendation, not a
+    setting: 0.3.0 shipped a "cpu" button that turned every scene into a placeholder, the
+    button is gone, and a machine that once chose it stayed in placeholder mode forever
+    with copy that blamed its hardware. The file is rewritten when that happens, so the
+    state does not come back on the next start.
+    """
     file = path(home)
+    RECONCILED.clear()
     try:
         data = json.loads(file.read_text("utf-8"))
     except (OSError, ValueError):
         data = {}
-    name = data.get("profile") or recommend(_detect_vram())
+    recommended = recommend(_detect_vram())
+    saved = data.get("profile")
+    name = saved or recommended
+    if saved == "cpu" and recommended != "cpu":
+        # The card can paint; the stored answer cannot. Say so once and move on.
+        RECONCILED.update({"was": "cpu", "now": recommended})
+        name = recommended
+        data = {}
     profile = dict(PROFILES.get(name, PROFILES["balanced"]))
     profile["profile"] = name if name in PROFILES else "balanced"
+    if RECONCILED:
+        try:
+            save(home, recommended)
+        except OSError:
+            pass
     # Any explicit value in the file wins over the preset.
     for key in ("precision", "text_device", "reserve_mib", "quality", "polish"):
         if key in data:
