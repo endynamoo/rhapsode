@@ -20,10 +20,29 @@ phrased for a user, not for a diff reader.
   the demo corpus and the recording method live in `docs/demo/`, so a clip can be reproduced
   rather than trusted.
 
+- **A Quit control, for browser mode.** Closing a tab never stopped the server, so the
+  voice model - and, once Cinema had been opened, the stills engine holding most of the
+  card - stayed loaded with nothing on screen to say so, and there was no endpoint to
+  ask it to stop. Settings now has **Quit Rhapsode**: it asks once, then releases
+  everything and stops the server. It refuses requests from other devices, so a phone on
+  the network cannot stop the app.
 
 ### Changed
 
 - **The README says who the app is for**: somebody turning anything they can read into an audiobook, somebody who likes generated manga stills, and somebody who wants to lift the parts into a different program. It now also says what to expect from pull requests (bugs first, reviews slow) and where the family of apps is going, including what the next one does (Opsis turns a book into a film of directed, generated and polished scenes; an alpha is running, and the open beta is targeted for before the new year) - and it replaces "the parts that were actually hard" with what each technology in the build is and why this mix works: the voice returns phoneme timings, so the highlight, the warm-ahead, the still beats and the MP4 cut are all read off the same clock instead of being guessed. It also corrects two stale claims: a platform table that still promised CPU stills, and a version badge stuck one release behind.
+
+### Fixed
+
+- **Quitting gives the models back.** The stills painter is a child process holding most
+  of the card, and it was supposed to be reaped by the operating system through a
+  kill-on-close job object. That job was never created: `murmur/proc.py` passed Windows a
+  64-byte struct where the API requires 144, then read the returned 64-bit handle as a
+  32-bit integer, and both failures were swallowed. So ending the app mid-paint left an
+  orphan: measured at 5,156 MiB of dedicated GPU memory still held, plus a stale
+  `flux-painter.lock` that stopped the next session from painting at all. The job is
+  created now and checked, a child dies with the app even in the middle of a tile, and a
+  deliberate quit releases the painter, the voice model, the indexer and the database in
+  that order - from the lifespan, from the quit route and from the desktop entry.
 
 ## [0.3.4-beta] - 2026-11-19
 

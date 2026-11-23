@@ -5,7 +5,7 @@ PDF, a scanned page, a screenshot or a web page and Rhapsode speaks it in a loca
 voice, follows the words with the voice, and — if you want — paints the scenes it
 reads into manga-style stills. No account, no cloud, no per-word billing, no upload.
 
-![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/version-0.3.4--beta-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml) [![linux](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml)
+![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/version-0.3.5--beta-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml) [![linux](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml)
 
 ## Who this is for
 
@@ -289,10 +289,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 **Added**
 
 - **Five demo clips, recorded from this build.** The README now shows the reader marking the spoken word, a scanned PDF page marked on the page itself, a library search across three books, a chapter read over a still the stills engine painted, and an English sentence read in Japanese through a local translation server - the last one with sound, muxed from the audio the app actually played. The GIFs sit in the README, and every clip's full-motion MP4, the demo corpus and the recording method live in `docs/demo/`, so a clip can be reproduced rather than trusted.
-
-**Changed**
-
-- **The README says who the app is for**: somebody turning anything they can read into an audiobook, somebody who likes generated manga stills, and somebody who wants to lift the parts into a different program. It now also says what to expect from pull requests (bugs first, reviews slow) and where the family of apps is going, including what the next one does (Opsis turns a book into a film of directed, generated and polished scenes; an alpha is running, and the open beta is targeted for before the new year) - and it replaces "the parts that were actually hard" with what each technology in the build is and why this mix works: the voice returns phoneme timings, so the highlight, the warm-ahead, the still beats and the MP4 cut are all read off the same clock instead of being guessed. It also corrects two stale claims: a platform table that still promised CPU stills, and a version badge stuck one release behind.
+- **A Quit control, for browser mode.** Closing a tab never stopped the server, so the voice model - and, once Cinema had been opened, the stills engine holding most of the card - stayed loaded with nothing on screen to say so, and there was no endpoint to ask it to stop. Settings now has **Quit Rhapsode**: it asks once, then releases everything and stops the server. It refuses requests from other devices, so a phone on the network cannot stop the app.
 
 ### 0.3.4-beta - 2026-11-19
 
@@ -300,7 +297,13 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - **Licensing now matches what actually ships, and the build is compliant**: `THIRD_PARTY.md` called YuNet MIT (it is Apache-2.0), blamed the MIT `espeakng-loader` for eSpeak's GPL-3.0, and omitted the copyleft inside wheels (libsndfile, libheif, 41 MB of OpenCV FFmpeg we never call). Every download now also carries a `licenses/` folder: the GPL-3.0 and LGPL texts, OpenCV's notice, a `NOTICE.txt` the installer shows, and `SOURCES.md` with versions, upstream links and the written offer. `tests/test_licences.py` keeps it true.
 
-*...and 100 more entries in [CHANGELOG.md](CHANGELOG.md).*
+### 0.3.2-beta - 2026-11-19
+
+**Added**
+
+- **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
+
+*...and 101 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
 

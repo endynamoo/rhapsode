@@ -10,12 +10,28 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import threading
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
-from . import access, bootstrap, config, extract, fonts, imaging, netinfo, ocr, polish, search, speak, store, translate
+from . import (
+    access,
+    bootstrap,
+    config,
+    extract,
+    fonts,
+    imaging,
+    lifecycle,
+    netinfo,
+    ocr,
+    polish,
+    search,
+    speak,
+    store,
+    translate,
+)
 from .backends import detect
 from .engine import cache_stats, clip_cache_stats, engine, prune_cache
 from .voices import DEFAULT_VOICE, VOICES, voice_groups
@@ -44,6 +60,24 @@ def repair_voice_model() -> dict:
     except RuntimeError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return {"started": True, "state": state}
+
+
+@router.post("/api/quit")
+def quit_app(request: Request) -> dict:
+    """Stop Rhapsode and give the models back.
+
+    Needed by browser mode, which has no window to close: without it, closing the tab
+    left the server, the voice model and (if Cinema had been opened) the painter
+    running until the machine was restarted. Loopback only - a device on the network
+    can never stop the app.
+    """
+    if not access.is_local(request) or not access.local_host_ok(request):
+        raise HTTPException(
+            status_code=403, detail="Rhapsode can only be quit from this computer."
+        )
+    threading.Thread(target=lifecycle.quit_process, kwargs={"reason": "quit button"},
+                     name="quit", daemon=True).start()
+    return {"quitting": True}
 
 
 @router.get("/api/health")

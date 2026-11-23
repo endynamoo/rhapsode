@@ -35,7 +35,7 @@ class PromptWriter:
     def _start(self) -> None:
         if not self.available():
             raise PromptUnavailable("The prompt writer is not installed.")
-        self._process = proc.popen(
+        self._process = proc.spawn(
             [str(self.binary)],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,

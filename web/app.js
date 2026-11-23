@@ -459,6 +459,30 @@ function bindUI() {
     else if (state.playing) updateWordHighlight(audio.currentTime);
     toast(next ? 'The spoken word is highlighted' : 'Highlighting off - the text stays still');
   });
+  // Browser mode has no window to close, so quitting has to be a control. Two
+  // clicks, because the tab going dead is not something to do by accident.
+  let quitArmed = false;
+  $('#quitBtn').addEventListener('click', async () => {
+    if (!quitArmed) {
+      quitArmed = true;
+      $('#quitBtn').textContent = 'Quit Rhapsode?';
+      setTimeout(() => {
+        if (!quitArmed) return;
+        quitArmed = false;
+        $('#quitBtn').textContent = 'Quit Rhapsode';
+      }, 5000);
+      return;
+    }
+    quitArmed = false;
+    $('#quitBtn').textContent = 'Quit Rhapsode';
+    try {
+      await api('/api/quit', { method: 'POST' });
+      state.playing = false;
+      toast('Rhapsode is stopping - you can close this tab', 'info', 12000);
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  });
   $('#clearCacheBtn').addEventListener('click', async () => {
     try {
       const res = await api('/api/cache/prune', { method: 'POST' });

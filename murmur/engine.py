@@ -5,6 +5,7 @@ in the browser (pitch-preserved), so changing speed never re-synthesizes.
 """
 from __future__ import annotations
 
+import gc
 import hashlib
 import json
 import os
@@ -60,6 +61,18 @@ class TTSEngine:
                 self._model.create("Hello.", voice=DEFAULT_VOICE, speed=1.0, lang="en-us")
             except Exception:  # pragma: no cover - warmup is best effort
                 pass
+
+    def unload(self) -> None:
+        """Drop the voice model.
+
+        The process exits a moment later anyway, but a quit that is asked for - the
+        Quit button, the window closing - should give the 340 MB and the ONNX arenas
+        back before it returns, not leave them to the interpreter's exit path.
+        """
+        with self._load_lock:
+            self._model = None
+            self._g2p.clear()
+        gc.collect()
 
     # -- synthesis ---------------------------------------------------------
     def _key(self, text: str, voice: str) -> str:
