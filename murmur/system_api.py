@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 import threading
 
@@ -46,6 +47,16 @@ class TTSIn(BaseModel):
 
 
 # ---------------------------------------------------------------- health
+@router.get("/api/voice-model")
+def voice_model_status() -> dict:
+    """Cheap poll for the first-run screen: is the voice ready, and how far is the download.
+
+    `/api/health` answers a dozen subsystems and re-checks the engine; a progress bar that
+    polls once a second should not do that.
+    """
+    return {"ready": config.voice_model_ready(), "state": bootstrap.state()}
+
+
 @router.post("/api/voice-model", status_code=202)
 def repair_voice_model() -> dict:
     """Download the voice weights again, in the background.
@@ -92,6 +103,15 @@ def health() -> dict:
         # file used to be invisible until ONNX Runtime threw.
         "modelProblem": config.voice_model_problem(),
         "modelDownload": bootstrap.state(),
+        # A stranger's install has no weights. The UI uses this to prepare the voice before
+        # offering a play button; MURMUR_FIRST_RUN=0 keeps the old behaviour (tests, and
+        # anybody who would rather meet it in Settings).
+        "firstRun": {
+            # "Are the weights on disk" - engine.ready only means "loaded into memory", and
+            # is false on a healthy install until the first sentence is spoken.
+            "needed": bool(config.voice_model_problem()),
+            "auto": os.environ.get("MURMUR_FIRST_RUN", "1") != "0",
+        },
         "voices": len(VOICES),
         "ocr": ocr.available(),
         "ocrBackend": ocr.backend_name(),

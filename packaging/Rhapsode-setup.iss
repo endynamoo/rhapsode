@@ -65,6 +65,11 @@ Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 
 [Run]
+; The voice model is not shipped in the installer. The app prepares it on first start,
+; with a progress bar and a cancel - which is where that belongs, since a frozen Windows
+; build has no console to print to during install. Starting it here means a stranger's
+; first sight of Rhapsode is "getting your voice ready", not an empty library.
+Filename: "{app}\{#AppExe}"; Description: "Start Rhapsode now (it downloads its voice on first start, 340 MB)"; Flags: postinstall nowait runascurrentuser skipifsilent
 ; The engine setup runs the same script the repo uses, so an AMD or NVIDIA user can
 ; click one thing: it creates image-venv, picks the right torch wheel, fetches the q4
 ; transformer and the detectors, and writes the engine profile. It is a visible

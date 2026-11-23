@@ -1886,3 +1886,65 @@ body.focus .focus-exit { display: inline-flex; }
 .engine-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .engine-status { font-size: 12px; opacity: .65; margin-top: 4px; }
 #engineCpuNote { flex-basis: 100%; }
+
+/* ── first run: preparing the voice ──────────────────────────────────── */
+
+.first-run {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(12, 10, 16, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.first-run[hidden] { display: none; }
+
+.first-run-card {
+  width: min(460px, 100%);
+  padding: 28px 28px 22px;
+  border-radius: 18px;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--line);
+}
+
+.first-run-kicker {
+  margin: 0 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.first-run-card h2 { margin: 0 0 10px; font-size: 22px; }
+.first-run-lede { margin: 0 0 18px; line-height: 1.5; color: var(--muted); }
+
+.first-run-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.first-run-bar span {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 240ms ease;
+}
+
+.first-run-detail {
+  margin: 10px 0 18px;
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.first-run-actions { display: flex; gap: 10px; justify-content: flex-end; }

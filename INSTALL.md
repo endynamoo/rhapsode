@@ -90,7 +90,11 @@ Classify the GPU vendor from the name: `NVIDIA`, `AMD/Radeon`, `Intel`,
   - Windows/Linux: use **3.11 or 3.12** until DirectML/ROCm wheels support 3.13.
 - **uv** manages the virtual environment and installs dependencies.
 - **ffmpeg** is required for MP3 export and chapter films.
-- **TTS model**: ~340 MB, downloaded once by `python -m murmur.bootstrap`.
+- **TTS model**: ~340 MB, downloaded once. The installers do not carry it: the app
+  fetches it on first start behind a *Getting your voice ready* screen with a progress bar
+  (`MURMUR_FIRST_RUN=0` turns that off and leaves the Settings row as the way in). From a
+  source checkout, `python -m murmur.bootstrap` downloads it up front, which is also what a
+  headless or scripted install should run.
 - **Japanese and Chinese voices are an optional extra.** The seven other languages are
   in `requirements.txt`; `misaki` and `pyopenjtalk` are in `requirements-lang.txt`
   because `pyopenjtalk` is published only as source, so pip has to compile it:

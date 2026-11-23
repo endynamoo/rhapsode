@@ -96,6 +96,9 @@ class SmokeTests(unittest.TestCase):
             "MURMUR_HOME": cls.home.name,
             # The UI journey opens Cinema; a real painter must not start.
             "MURMUR_WARM_STILLS": "0",
+            # This server has no voice weights, i.e. it looks like a first run. The gate is
+            # tested on its own below; every other journey wants it out of the way.
+            "MURMUR_FIRST_RUN": "0",
             "MURMUR_PORT": str(cls.port),
             "MURMUR_SEMANTIC": "off",
         }
@@ -730,6 +733,77 @@ class SmokeTests(unittest.TestCase):
         titles = self.page.locator(".lib-title").all_inner_texts()
         self.assertTrue(any("Added Through The UI" in title for title in titles), titles)
 
+
+    def test_a_fresh_install_prepares_the_voice_instead_of_failing_at_play(self) -> None:
+        """The stranger's first screen: progress, not a play button that 503s.
+
+        The server under test has no weights, so the only thing hidden is the gate's
+        consent: /api/health is rewritten to claim a first run, and the download route is
+        answered by the test rather than by the network.
+        """
+        page = self.page
+        calls = {"post": 0, "get": 0, "health": 0}
+
+        def rewrite_health(route):
+            response = route.fetch()
+            body = response.json()
+            body["modelReady"] = False
+            body["modelProblem"] = "kokoro-v1.0.onnx is missing"
+            body["firstRun"] = {"needed": True, "auto": True}
+            calls["health"] += 1
+            route.fulfill(response=response, json=body)
+
+        def download_post(route):
+            calls["post"] += 1
+            route.fulfill(json={"started": True, "state": {"running": True, "progress": None}})
+
+        def download_status(route):
+            calls["get"] += 1
+            if calls["get"] < 2:
+                route.fulfill(json={
+                    "ready": False,
+                    "state": {"running": True, "progress": {
+                        "label": "Kokoro-82M model", "downloaded": 120_000_000,
+                        "total": 310_000_000, "percent": 38.7, "mbPerSecond": 12.4}},
+                })
+            else:
+                route.fulfill(json={"ready": True, "state": {"running": False, "done": True}})
+
+        page.route("**/api/health", rewrite_health)
+        page.route("**/api/voice-model", lambda route: (
+            download_post(route) if route.request.method == "POST" else download_status(route)))
+        page.goto(self.base, wait_until="domcontentloaded")
+
+        page.wait_for_selector("#firstRun:not([hidden])", timeout=15000)
+        page.wait_for_function(
+            "() => document.querySelector('#firstRunDetail').textContent.includes('MB')",
+            timeout=15000)
+        detail = page.text_content("#firstRunDetail") or ""
+        self.assertIn("Kokoro-82M model", detail)
+        self.assertGreater(calls["post"], 0, "the gate never asked for a download")
+
+        # And it gets out of the way once the voice is there.
+        page.wait_for_function(
+            "() => document.querySelector('#firstRun').hidden", timeout=20000)
+        self.assertGreaterEqual(calls["get"], 2, "the bar never polled for progress")
+
+    def test_the_gate_can_be_declined(self) -> None:
+        page = self.page
+        page.route("**/api/health", lambda route: route.fulfill(json={
+            **(route.fetch().json()),
+            "modelReady": False,
+            "modelProblem": "kokoro-v1.0.onnx is missing",
+            "firstRun": {"needed": True, "auto": True},
+        }))
+        page.route("**/api/voice-model", lambda route: route.fulfill(
+            json={"started": True, "state": {"running": True, "progress": None}}))
+        page.goto(self.base, wait_until="domcontentloaded")
+        page.wait_for_selector("#firstRun:not([hidden])", timeout=15000)
+        page.click("#firstRunSkip")
+        page.wait_for_function(
+            "() => document.querySelector('#firstRun').hidden", timeout=5000)
+        # The library is still usable: the app is not held hostage by the download.
+        self.assertTrue(page.is_visible("#library"))
 
 if __name__ == "__main__":
     unittest.main()

@@ -303,11 +303,8 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 ### 0.3.5-beta - 2026-11-23
 
+- **A first start now prepares the voice instead of failing at the first play.** A new install had no voice model and said nothing about it: the app opened empty, and the first press of Listen answered with an error whose fix was hidden in Settings. The window now opens on a *Getting your voice ready* screen with a real progress bar (bytes and speed), starts the 340 MB download itself, and disappears when the voice is there - and a failed play opens that screen rather than a toast. `MURMUR_FIRST_RUN=0` keeps the old behaviour for tests and for anyone who would rather meet it in Settings. The installer also starts the app when setup finishes, because the app is where a progress bar can exist.
 - **Audio you can actually play, and one sentence in three languages.** The demo now includes `docs/demo/audio/one-sentence-four-voices.mp3` (one sentence read in English, Japanese, Spanish and French, the last three translated locally) and `reading-sample.mp3` (26 seconds of the demo book), both produced through the app's own `/api/tts` and published as files because GitHub renders no media from a repository. A three-panel clip shows the same sentence with the Japanese, Spanish and French bar, so the front page still shows the feature working.
-
-**Added**
-
-- **A fresh-install check that runs the artefact instead of the checkout.** `scripts\\fresh-user.ps1` gives the installer a brand-new profile - its own `LOCALAPPDATA`, `APPDATA`, `USERPROFILE` and `TEMP`, no models, no stills engine - then installs, starts, asks it what a first-time user would, quits, uninstalls, and proves nothing was written outside that profile and that the real uninstall entry was restored. 22 checks in about two minutes; `-FullFirstRun` includes the 340 MB voice-model download. It exists because "works on my machine" is not evidence: this development box has the weights, the image environment and a populated data directory that no stranger has.
 
 ### 0.3.4-beta - 2026-11-19
 
@@ -321,7 +318,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
 
-*...and 111 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 113 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
 
