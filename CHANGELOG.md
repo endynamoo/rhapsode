@@ -60,6 +60,17 @@ phrased for a user, not for a diff reader.
 
 ### Fixed
 
+- **An old CPU engine profile no longer leaves the stills engine switched off for good.**
+  0.3.0 offered a CPU profile that turned every scene into a placeholder; the button is gone,
+  but the saved `engine.json` stayed, and Settings blamed the hardware instead of saying the
+  machine was set to CPU. The profile is now reconciled on start - `cpu` on a machine whose
+  card can paint becomes the recommended profile, the file is rewritten so it does not come
+  back, and the engine panel says once what happened. A machine that really has no GPU keeps
+  `cpu`.
+- **`build_app.sh` creates `build_assets/` before the Swift helpers write their logs into
+  it.** On a fresh clone both redirects failed, so the warning explaining *why* a helper did
+  not build had nothing to print - the reason was the one thing worth keeping.
+
 - **The Japanese and Chinese voices are an optional extra, and say so.** `pyopenjtalk`
   ships only as source, so a source install had to compile it: a contributor who picked a
   Japanese voice was told by pip to install Microsoft C++ Build Tools, which nothing here

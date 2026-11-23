@@ -18,7 +18,10 @@ if [ "${MURMUR_SKIP_FILM:-0}" != "1" ] && [ -f requirements-film.txt ]; then
 fi
 
 # ── native helpers ─────────────────────────────────────────────────────
-mkdir -p bin
+# build_assets is where the helpers' compiler output goes; it used to be created later,
+# so on a fresh clone each redirect failed with "No such file or directory" and the
+# warning that explains *why* a helper did not build had nothing to print.
+mkdir -p bin build_assets
 if command -v swiftc >/dev/null 2>&1; then
   if swiftc -O -parse-as-library -framework Translation -framework NaturalLanguage \
       native/translate.swift -o bin/murmur-translate 2>"build_assets/translate-build.log"; then

@@ -100,6 +100,9 @@ def health() -> dict:
         "languages": {code: langs.support(code) for code in langs.SPECIAL},
         "profile": {
             "name": config.PROFILE.get("profile"),
+            # Set once, on the start after a saved profile this build could not honour:
+            # the UI can say "still images were off because of an old CPU profile".
+            "reconciled": dict(__import__("murmur.profile", fromlist=["RECONCILED"]).RECONCILED),
             "summary": __import__("murmur.profile", fromlist=["describe"]).describe(config.PROFILE),
         },
         "polish": polish.status(),
@@ -126,10 +129,12 @@ class EngineProfileIn(BaseModel):
 def _engine_state() -> dict:
     from . import profile as engine_profile
 
+
     active = config.PROFILE
     return {
         "profile": active.get("profile"),
         "summary": engine_profile.describe(active),
+        "reconciled": dict(engine_profile.RECONCILED),
         "settings": {
             key: active.get(key)
             for key in ("precision", "text_device", "reserve_mib", "quality", "polish")

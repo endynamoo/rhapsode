@@ -192,6 +192,13 @@ export function createSettingsView(deps) {
       return;
     }
     $('#engineSummary').textContent = state.summary || state.profile || '';
+    // One sentence, on the start after an old CPU profile was replaced: otherwise the
+    // reader is simply told stills work again, with no explanation of why they stopped.
+    const fixed = state.reconciled || {};
+    if (fixed.was === 'cpu' && fixed.now) {
+      $('#engineSummary').textContent =
+        `Still images were turned off by an old CPU setting; now ${fixed.now}.`;
+    }
     $$('#setEngineProfile button').forEach((button) => {
       button.classList.toggle('is-active', button.dataset.engineProfile === state.profile);
       button.setAttribute('aria-checked', String(button.dataset.engineProfile === state.profile));
