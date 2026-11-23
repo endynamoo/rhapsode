@@ -23,6 +23,11 @@ phrased for a user, not for a diff reader.
 
 ### Changed
 
+- **The README opens with the clips.** "In motion" - the five recordings of this build -
+  now comes first, before "What it does" and "Who this is for", because a reader deciding
+  whether to care is better served by ten seconds of the thing working than by a
+  paragraph about it. Nothing was rewritten; the three sections changed places.
+
 - **The README says who the app is for**: somebody turning anything they can read into an audiobook, somebody who likes generated manga stills, and somebody who wants to lift the parts into a different program. It now also says what to expect from pull requests (bugs first, reviews slow) and where the family of apps is going, including what the next one does (Opsis turns a book into a film of directed, generated and polished scenes; an alpha is running, and the open beta is targeted for before the new year) - and it replaces "the parts that were actually hard" with what each technology in the build is and why this mix works: the voice returns phoneme timings, so the highlight, the warm-ahead, the still beats and the MP4 cut are all read off the same clock instead of being guessed. It also corrects two stale claims: a platform table that still promised CPU stills, and a version badge stuck one release behind.
 
 ## [0.3.4-beta] - 2026-11-19

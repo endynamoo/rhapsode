@@ -7,28 +7,43 @@ reads into manga-style stills. No account, no cloud, no per-word billing, no upl
 
 ![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/version-0.3.4--beta-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml) [![linux](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml)
 
-## Who this is for
+## In motion
 
-**Somebody who wants their reading turned into audio, now.** You have a PDF for a
-deadline, a 600-page book you keep not starting, an article you saved, a screenshot
-of a page, an EPUB in a language you are still learning. Rhapsode reads it aloud in
-seconds, remembers where you were, and keeps working with the network unplugged.
-Nothing is exported to a service and nothing is charged by the word.
+Five things that are easier to watch than to read about. Every clip is a recording of this
+build playing text written for the demo - no mock-ups, nothing staged by hand. The files it
+plays, and the method that records them, are in [docs/demo](docs/demo/README.md).
 
-**Somebody who likes the look of generated manga.** Give the narration to the
-Cinema pane and each beat of the text gets one still, drawn locally: ink, panel
-framing, the drift and dissolve of a slow page turn, and a chapter you can render
-into a 1080p MP4 cut to the voice. The pictures are still images on purpose — no
-video model, no animation, no flicker to sit through.
+**The word being spoken is the word marked.** Kokoro returns phoneme timings, so the mark
+tracks the voice at any speed instead of guessing from the clock, and every sentence paints
+its first word before the sound starts.
 
-**Somebody who wants to turn this into a different program.** Rhapsode is plain
-Python and plain web assets: one FastAPI process on loopback, the UI served from the
-same origin, no Node runtime, no bundler, no Electron, no framework to learn first.
-The engine, the library, the OCR, the aligner, the painter and the API are separate
-modules with the seams written down in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-Lift the narration out and build a podcast tool. Lift the library and build a
-research reader. Lift the painter and build something that is not a book at all. The
-licence permits it, and the map is already drawn.
+<img src="docs/demo/reading.gif" width="880" alt="Book view playing: the spoken word is marked as the voice reads">
+
+**A scanned page, marked on the page itself.** This PDF has no text layer at all: the page
+is OCR'd, the words are located on the image, and the box follows the voice across it - not
+a caption underneath pretending to be one.
+
+<img src="docs/demo/scanned-page.gif" width="880" alt="A scanned PDF page with the spoken word boxed on the image">
+
+**Search every book at once, by words or by meaning.** Nine passages in 15 ms, grouped by
+book, each snippet showing what matched, and Enter opens that sentence.
+
+<img src="docs/demo/search.gif" width="880" alt="Library search across books with highlighted matches">
+
+**A chapter drawn while it is read.** Each beat of the text becomes one still, painted
+locally, played against the narration - and the same stills assemble into a chapter film.
+
+<img src="docs/demo/manga.gif" width="880" alt="Manga view: a generated still behind the narration">
+
+**English text, Japanese voice, both on this machine.** With a Japanese voice chosen, the
+sentence is translated first and then read in Japanese - the translation bar shows what is
+being said, and the audio follows it. The translation comes from a local OpenAI-compatible
+server, the voice from Kokoro; nothing leaves the machine.
+
+<img src="docs/demo/translation.gif" width="880" alt="A Japanese translation bar under an English sentence being read by a Japanese voice">
+
+The GIF is silent - a README cannot play a video file, so this is the picture of the feature
+working, not the sound of it. The voice is Kokoro's Japanese, chosen from the voice menu.
 
 ## What it does
 
@@ -67,43 +82,28 @@ Everything stays on the machine: the voice model, the audio cache, the stills an
 the library are local files. Nothing is uploaded, and remote access is off unless
 you deliberately turn it on and hand out the tokenised link.
 
-## In motion
+## Who this is for
 
-Five things that are easier to watch than to read about. Every clip is a recording of this
-build playing text written for the demo - no mock-ups, nothing staged by hand. The files it
-plays, and the method that records them, are in [docs/demo](docs/demo/README.md).
+**Somebody who wants their reading turned into audio, now.** You have a PDF for a
+deadline, a 600-page book you keep not starting, an article you saved, a screenshot
+of a page, an EPUB in a language you are still learning. Rhapsode reads it aloud in
+seconds, remembers where you were, and keeps working with the network unplugged.
+Nothing is exported to a service and nothing is charged by the word.
 
-**The word being spoken is the word marked.** Kokoro returns phoneme timings, so the mark
-tracks the voice at any speed instead of guessing from the clock, and every sentence paints
-its first word before the sound starts.
+**Somebody who likes the look of generated manga.** Give the narration to the
+Cinema pane and each beat of the text gets one still, drawn locally: ink, panel
+framing, the drift and dissolve of a slow page turn, and a chapter you can render
+into a 1080p MP4 cut to the voice. The pictures are still images on purpose — no
+video model, no animation, no flicker to sit through.
 
-<img src="docs/demo/reading.gif" width="880" alt="Book view playing: the spoken word is marked as the voice reads">
-
-**A scanned page, marked on the page itself.** This PDF has no text layer at all: the page
-is OCR'd, the words are located on the image, and the box follows the voice across it - not
-a caption underneath pretending to be one.
-
-<img src="docs/demo/scanned-page.gif" width="880" alt="A scanned PDF page with the spoken word boxed on the image">
-
-**Search every book at once, by words or by meaning.** Nine passages in 15 ms, grouped by
-book, each snippet showing what matched, and Enter opens that sentence.
-
-<img src="docs/demo/search.gif" width="880" alt="Library search across books with highlighted matches">
-
-**A chapter drawn while it is read.** Each beat of the text becomes one still, painted
-locally, played against the narration - and the same stills assemble into a chapter film.
-
-<img src="docs/demo/manga.gif" width="880" alt="Manga view: a generated still behind the narration">
-
-**English text, Japanese voice, both on this machine.** With a Japanese voice chosen, the
-sentence is translated first and then read in Japanese - the translation bar shows what is
-being said, and the audio follows it. The translation comes from a local OpenAI-compatible
-server, the voice from Kokoro; nothing leaves the machine.
-
-<img src="docs/demo/translation.gif" width="880" alt="A Japanese translation bar under an English sentence being read by a Japanese voice">
-
-The GIF is silent - a README cannot play a video file, so this is the picture of the feature
-working, not the sound of it. The voice is Kokoro's Japanese, chosen from the voice menu.
+**Somebody who wants to turn this into a different program.** Rhapsode is plain
+Python and plain web assets: one FastAPI process on loopback, the UI served from the
+same origin, no Node runtime, no bundler, no Electron, no framework to learn first.
+The engine, the library, the OCR, the aligner, the painter and the API are separate
+modules with the seams written down in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Lift the narration out and build a podcast tool. Lift the library and build a
+research reader. Lift the painter and build something that is not a book at all. The
+licence permits it, and the map is already drawn.
 
 ## The stack, and why this mix
 
@@ -292,13 +292,19 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 **Changed**
 
-- **The README says who the app is for**: somebody turning anything they can read into an audiobook, somebody who likes generated manga stills, and somebody who wants to lift the parts into a different program. It now also says what to expect from pull requests (bugs first, reviews slow) and where the family of apps is going, including what the next one does (Opsis turns a book into a film of directed, generated and polished scenes; an alpha is running, and the open beta is targeted for before the new year) - and it replaces "the parts that were actually hard" with what each technology in the build is and why this mix works: the voice returns phoneme timings, so the highlight, the warm-ahead, the still beats and the MP4 cut are all read off the same clock instead of being guessed. It also corrects two stale claims: a platform table that still promised CPU stills, and a version badge stuck one release behind.
+- **The README opens with the clips.** "In motion" - the five recordings of this build - now comes first, before "What it does" and "Who this is for", because a reader deciding whether to care is better served by ten seconds of the thing working than by a paragraph about it. Nothing was rewritten; the three sections changed places.
 
 ### 0.3.4-beta - 2026-11-19
 
 **Added**
 
 - **Licensing now matches what actually ships, and the build is compliant**: `THIRD_PARTY.md` called YuNet MIT (it is Apache-2.0), blamed the MIT `espeakng-loader` for eSpeak's GPL-3.0, and omitted the copyleft inside wheels (libsndfile, libheif, 41 MB of OpenCV FFmpeg we never call). Every download now also carries a `licenses/` folder: the GPL-3.0 and LGPL texts, OpenCV's notice, a `NOTICE.txt` the installer shows, and `SOURCES.md` with versions, upstream links and the written offer. `tests/test_licences.py` keeps it true.
+
+### 0.3.2-beta - 2026-11-19
+
+**Added**
+
+- **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
 
 *...and 100 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
