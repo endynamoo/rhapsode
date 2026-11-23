@@ -47,6 +47,41 @@ class TTSIn(BaseModel):
 
 
 # ---------------------------------------------------------------- health
+class TranslateIn(BaseModel):
+    url: str | None = None
+
+
+@router.get("/api/translate")
+def translate_status(probe: bool = False) -> dict:
+    """What translation can do here: which endpoint, whether it answers, what it offers.
+
+    `?probe=1` scans the usual local ports instead of trusting the discovery cache.
+    """
+    return translate.translator.status(probe=probe)
+
+
+@router.post("/api/translate")
+def connect_translation(payload: TranslateIn) -> dict:
+    """Save the endpoint the reader picked, after checking that it actually answers.
+
+    Storing an address that does not work is how a reader ends up with a promise the app
+    cannot keep, so the check happens here rather than at the first foreign sentence.
+    """
+    url = (payload.url or "").strip()
+    if not url:
+        store.set_settings({"translateUrl": ""})
+        translate.reset_discovery()
+        return translate.translator.status(probe=True)
+    checked = translate.check_url(url)
+    if not checked["ok"]:
+        raise HTTPException(status_code=400, detail=checked["reason"])
+    store.set_settings({"translateUrl": checked["url"]})
+    translate.reset_discovery()
+    status = translate.translator.status(probe=True)
+    status["connected"] = {"url": checked["url"], "model": checked["model"]}
+    return status
+
+
 @router.get("/api/voice-model")
 def voice_model_status() -> dict:
     """Cheap poll for the first-run screen: is the voice ready, and how far is the download.

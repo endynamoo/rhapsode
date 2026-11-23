@@ -12,6 +12,14 @@ phrased for a user, not for a diff reader.
 
 ## [0.3.5-beta] - 2026-11-23
 
+- **Translation is detected and connected before it is needed, not discovered at the first
+  foreign sentence.** The first-run screen gained a second step: Rhapsode scans the usual
+  local ports for an OpenAI-compatible server (llama.cpp, LM Studio, Ollama, vLLM), lists what
+  it finds, takes an address if nothing is running, checks that address actually answers, and
+  remembers it. **Not now** turns the *Translate to voice language* setting off instead of
+  leaving a promise the app cannot keep. A saved endpoint is re-checked each time the screen
+  opens, so moving or stopping the server is reported rather than silently failing. The scan
+  is asked once per install, not once per restart.
 - **A first start now prepares the voice instead of failing at the first play.** A new
   install had no voice model and said nothing about it: the app opened empty, and the first
   press of Listen answered with an error whose fix was hidden in Settings. The window now

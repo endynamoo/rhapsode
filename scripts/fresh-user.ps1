@@ -199,6 +199,12 @@ try {
             Check 'the app will fetch it without being asked' ($gate -and [bool]$gate.auto)
             $page = (Invoke-WebRequest -Uri "http://127.0.0.1:$Port/" -UseBasicParsing -TimeoutSec 20).Content
             Check 'the first-run screen is in the page' ($page -match 'id="firstRun"')
+            # Translation is not shipped, so the gate must offer to connect a local model
+            # server rather than promising it and failing at the first foreign sentence.
+            $tr = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/api/translate" -TimeoutSec 20
+            Check 'translation reports what it can do' ($null -ne $tr.available) `
+                "available=$($tr.available) ports=$($tr.ports -join ',')"
+            Check 'the translation step is in the page' ($page -match 'id="translateSetup"')
             Check 'the data directory is the default one' (Test-Path (Join-Path $sandbox.local 'Rhapsode')) `
                 (Join-Path $sandbox.local 'Rhapsode')
         }

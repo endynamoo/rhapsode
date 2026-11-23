@@ -805,5 +805,55 @@ class SmokeTests(unittest.TestCase):
         # The library is still usable: the app is not held hostage by the download.
         self.assertTrue(page.is_visible("#library"))
 
+    def test_the_gate_offers_a_translation_server_and_connects_it(self) -> None:
+        """Detect and connect, in a real browser: no server is found, an address is typed,
+        the endpoint says yes, and the card closes."""
+        page = self.page
+        page.route("**/api/translate?probe=true", lambda route: route.fulfill(json={
+            "available": False, "backend": None, "apple": False, "configuredUrl": "",
+            "savedUrl": "", "servers": [],
+            "reason": "Translation needs a local model server.", "ports": [8091, 8080]}))
+
+        def connect(route):
+            route.fulfill(json={
+                "available": True, "backend": "http",
+                "configuredUrl": "http://127.0.0.1:8091/v1", "savedUrl": "",
+                "servers": [], "reason": "", "ports": [8091],
+                "connected": {"url": "http://127.0.0.1:8091/v1", "model": "qwen2.5-3b"},
+            })
+
+        page.route("**/api/translate", lambda route: connect(route))
+        page.route("**/api/settings", lambda route: route.fulfill(json={"ok": True}))
+        page.goto(self.base, wait_until="domcontentloaded")
+
+        page.wait_for_selector("#translateSetup:not([hidden])", timeout=15000)
+        self.assertIn("Nothing answered", page.text_content("#translateStatus") or "")
+        page.fill("#translateUrl", "http://127.0.0.1:8091/v1")
+        page.click("#translateConnect")
+        page.wait_for_function(
+            "() => document.querySelector('#translateSetup').hidden", timeout=10000)
+
+    def test_declining_translation_turns_the_setting_off(self) -> None:
+        page = self.page
+        page.route("**/api/translate?probe=true", lambda route: route.fulfill(json={
+            "available": False, "backend": None, "apple": False, "configuredUrl": "",
+            "savedUrl": "", "servers": [], "reason": "needs a server", "ports": [8091]}))
+        sent: list[dict] = []
+
+        def settings(route):
+            if route.request.method == "PUT":
+                sent.append(route.request.post_data_json or {})
+            route.fulfill(json={"ok": True})
+
+        page.route("**/api/settings", settings)
+        page.goto(self.base, wait_until="domcontentloaded")
+        page.wait_for_selector("#translateSetup:not([hidden])", timeout=15000)
+        page.click("#translateSkip")
+        page.wait_for_function(
+            "() => document.querySelector('#translateSetup').hidden", timeout=5000)
+        self.assertTrue(sent, "Not now did not save anything")
+        self.assertFalse(sent[-1].get("translateToVoice", True), "the setting stayed on")
+        self.assertTrue(sent[-1].get("translateAsked"), "the question was not marked asked")
+
 if __name__ == "__main__":
     unittest.main()

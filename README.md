@@ -303,8 +303,8 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 ### 0.3.5-beta - 2026-11-23
 
+- **Translation is detected and connected before it is needed, not discovered at the first foreign sentence.** The first-run screen gained a second step: Rhapsode scans the usual local ports for an OpenAI-compatible server (llama.cpp, LM Studio, Ollama, vLLM), lists what it finds, takes an address if nothing is running, checks that address actually answers, and remembers it. **Not now** turns the *Translate to voice language* setting off instead of leaving a promise the app cannot keep. A saved endpoint is re-checked each time the screen opens, so moving or stopping the server is reported rather than silently failing. The scan is asked once per install, not once per restart.
 - **A first start now prepares the voice instead of failing at the first play.** A new install had no voice model and said nothing about it: the app opened empty, and the first press of Listen answered with an error whose fix was hidden in Settings. The window now opens on a *Getting your voice ready* screen with a real progress bar (bytes and speed), starts the 340 MB download itself, and disappears when the voice is there - and a failed play opens that screen rather than a toast. `MURMUR_FIRST_RUN=0` keeps the old behaviour for tests and for anyone who would rather meet it in Settings. The installer also starts the app when setup finishes, because the app is where a progress bar can exist.
-- **Audio you can actually play, and one sentence in three languages.** The demo now includes `docs/demo/audio/one-sentence-four-voices.mp3` (one sentence read in English, Japanese, Spanish and French, the last three translated locally) and `reading-sample.mp3` (26 seconds of the demo book), both produced through the app's own `/api/tts` and published as files because GitHub renders no media from a repository. A three-panel clip shows the same sentence with the Japanese, Spanish and French bar, so the front page still shows the feature working.
 
 ### 0.3.4-beta - 2026-11-19
 
@@ -318,7 +318,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
 
-*...and 113 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 115 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
 
