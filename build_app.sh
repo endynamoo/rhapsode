@@ -73,6 +73,10 @@ fi
 
 # ── bundle ──────────────────────────────────────────────────────────────
 .venv/bin/pyinstaller --noconfirm --clean packaging/Rhapsode.spec
+
+# OpenCV's videoio FFmpeg library is 39 MB that nothing calls (FaceDetectorYN, resize and a
+# log-level call are the only cv2 uses) and it is LGPL. Drop it from the bundle.
+find dist/Rhapsode.app -name 'opencv_videoio_ffmpeg*' -delete 2>/dev/null || true
 chmod +x dist/Rhapsode.app/Contents/Frameworks/bin/murmur-translate 2>/dev/null || true
 chmod +x dist/Rhapsode.app/Contents/Frameworks/bin/murmur-prompts 2>/dev/null || true
 

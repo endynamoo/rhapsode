@@ -47,6 +47,12 @@ phrased for a user, not for a diff reader.
 
 ### Changed
 
+- **The installer is 12 MB smaller and carries one fewer copyleft binary.** OpenCV ships a
+  39 MB FFmpeg videoio DLL that nothing here calls - the app uses `FaceDetectorYN`, `resize`
+  and a log-level call, and with the DLL renamed aside all three still work - so both build
+  paths now drop it. The Windows installer goes from 166.5 MB to 154.5 MB, and the LGPL
+  binary it used to ship with no purpose is gone. Replacing OpenCV itself is still #84.
+
 - **The README opens with the clips.** "In motion" - the five recordings of this build -
 - **Linux and macOS free the models the same way Windows does.** There is no job object
   on POSIX, so every long-lived child is now started in its own session and told its
