@@ -41,6 +41,7 @@ Our chairs, being his patents, embraced and caressed us rather than submitted to
 
 const state = {
   settings: { ...DEFAULT_SETTINGS },
+  firstRunDone: false,
   docs: [],
   doc: null,
   units: [],
@@ -204,6 +205,9 @@ async function init() {
 
   await Promise.all([loadVoices(), refreshLibrary()]);
   checkEngine();
+  // A fresh install has no voice. Prepare it now, with progress, instead of letting the
+  // first press of Listen fail: that was the first thing a new user met.
+  prepareFirstRun();
 
   const raw = decodeURIComponent(location.hash.replace(/^#/, ''));
   if (raw) {
@@ -215,6 +219,107 @@ async function init() {
   }
 
   connectEvents();
+}
+
+/* ─────────────────────── first run: the voice ─────────────────────── */
+
+let firstRunTimer = 0;
+
+async function prepareFirstRun(force = false) {
+  if (!force && state.firstRunDone) return;
+  try {
+    const health = await api('/api/health');
+    const gate = health.firstRun || {};
+    if (health.modelReady) {
+      state.firstRunDone = true;
+      hideFirstRun();
+      return;
+    }
+    if (!gate.auto && !force) return;
+  } catch (_) {
+    return;
+  }
+  const box = $('#firstRun');
+  if (!box) return;
+  if (sessionStorage.getItem('murmur.firstRun.skip') === '1' && !force) return;
+
+  box.hidden = false;
+  $('#firstRunRetry').hidden = true;
+  $('#firstRunSkip').hidden = false;
+  $('#firstRunDetail').textContent = 'Starting the download…';
+  setFirstRunProgress(0);
+
+  try {
+    await api('/api/voice-model', { method: 'POST' });
+  } catch (err) {
+    // 409 means one is already running; anything else is worth showing.
+    if (!/already downloading/i.test(err.message || '')) {
+      firstRunFailed(err.message || 'The download could not start.');
+      return;
+    }
+  }
+  pollFirstRun();
+}
+
+function pollFirstRun() {
+  clearTimeout(firstRunTimer);
+  firstRunTimer = setTimeout(async () => {
+    let status;
+    try {
+      status = await api('/api/voice-model');
+    } catch (_) {
+      firstRunTimer = setTimeout(pollFirstRun, 2000);
+      return;
+    }
+    const download = status.state || {};
+    if (status.ready) {
+      setFirstRunProgress(100);
+      $('#firstRunDetail').textContent = 'Ready.';
+      state.firstRunDone = true;
+      await loadVoices();
+      toast('Your voice is ready');
+      setTimeout(hideFirstRun, 600);
+      return;
+    }
+    if (download.error) {
+      firstRunFailed(download.error);
+      return;
+    }
+    const progress = download.progress || {};
+    setFirstRunProgress(progress.percent || 0);
+    if (progress.total) {
+      const mb = (progress.downloaded / 1e6).toFixed(0);
+      const total = (progress.total / 1e6).toFixed(0);
+      const rate = progress.mbPerSecond ? ` · ${progress.mbPerSecond} MB/s` : '';
+      $('#firstRunDetail').textContent = `${progress.label || 'Downloading'} — ${mb} of ${total} MB${rate}`;
+    } else {
+      $('#firstRunDetail').textContent = 'Connecting…';
+    }
+    pollFirstRun();
+  }, 900);
+}
+
+function setFirstRunProgress(percent) {
+  const bar = $('#firstRunBar');
+  const fill = $('#firstRunFill');
+  if (!bar || !fill) return;
+  const clamped = Math.max(0, Math.min(100, Number(percent) || 0));
+  fill.style.width = `${clamped}%`;
+  bar.setAttribute('aria-valuenow', String(Math.round(clamped)));
+}
+
+function firstRunFailed(message) {
+  clearTimeout(firstRunTimer);
+  $('#firstRunDetail').textContent = message;
+  $('#firstRunRetry').hidden = false;
+  $('#firstRunSkip').hidden = false;
+  setFirstRunProgress(0);
+}
+
+function hideFirstRun() {
+  clearTimeout(firstRunTimer);
+  const box = $('#firstRun');
+  if (box) box.hidden = true;
 }
 
 function connectEvents() {
@@ -232,7 +337,27 @@ function connectEvents() {
   } catch (_) {}
 }
 
+function bindFirstRun() {
+  const retry = $('#firstRunRetry');
+  if (retry) {
+    retry.addEventListener('click', () => {
+      retry.hidden = true;
+      prepareFirstRun(true);
+    });
+  }
+  const skip = $('#firstRunSkip');
+  if (skip) {
+    skip.addEventListener('click', () => {
+      sessionStorage.setItem('murmur.firstRun.skip', '1');
+      state.firstRunDone = true;
+      hideFirstRun();
+      toast('You can download the voice later in Settings');
+    });
+  }
+}
+
 function bindUI() {
+  bindFirstRun();
   $('#addBtn').addEventListener('click', openAdd);
   $('#emptyAdd').addEventListener('click', openAdd);
   $('#sampleBtn').addEventListener('click', addSample);
@@ -1054,6 +1179,8 @@ async function getClip(i) {
     return clip;
   })().catch((err) => {
     state.pending.delete(i);
+    // No voice yet is not a playback failure: offer the download where the reader is.
+    if (/voice model/i.test(err.message || '')) prepareFirstRun(true);
     throw err;
   });
 

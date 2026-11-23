@@ -56,15 +56,28 @@ def _download(url: str, dest: Path, label: str, minimum: int) -> None:
         last = now
         pct = (downloaded / total * 100) if total > 0 else 0
         speed = downloaded / max(now - start, 0.001) / 1e6
+        _STATE["progress"] = {
+            "label": label,
+            "downloaded": downloaded,
+            "total": total,
+            "percent": round(pct, 1),
+            "mbPerSecond": round(speed, 1),
+        }
         bar = "█" * int(pct / 4) + "░" * (25 - int(pct / 4))
         _write(f"\r    [{bar}] {pct:5.1f}%  {speed:5.1f} MB/s ")
 
     urllib.request.urlretrieve(url, tmp, reporthook=hook)
     tmp.replace(dest)
+    _STATE["progress"] = {"label": label, "downloaded": dest.stat().st_size,
+                          "total": dest.stat().st_size, "percent": 100.0,
+                          "mbPerSecond": 0.0}
     _emit(f"\r    ✓ {label} ({dest.stat().st_size / 1e6:.0f} MB)          ")
 
 
-_STATE = {"running": False, "done": False, "error": None, "size": 0}
+# `progress` is what a first-run screen draws: the file being fetched, how many bytes are
+# in, and the percentage. Everything else in this dict is state, not progress.
+_STATE = {"running": False, "done": False, "error": None, "size": 0,
+          "progress": None}
 _STATE_LOCK = threading.Lock()
 
 
@@ -101,14 +114,14 @@ def start_download() -> dict:
         if config.voice_model_ready():
             _STATE.update(running=False, done=True, error=None)
             return state()
-        _STATE.update(running=True, done=False, error=None)
+        _STATE.update(running=True, done=False, error=None, progress=None)
 
     def _run() -> None:
         try:
             download_weights()
-            _STATE.update(running=False, done=True, error=None)
+            _STATE.update(running=False, done=True, error=None, progress=None)
         except Exception as exc:  # pragma: no cover - network failures
-            _STATE.update(running=False, done=False, error=str(exc))
+            _STATE.update(running=False, done=False, error=str(exc), progress=None)
 
     threading.Thread(target=_run, name="kokoro-download", daemon=True).start()
     return state()

@@ -418,6 +418,28 @@
 <button class="gesture" id="gestureBtn" hidden><span>▶</span> Click to listen</button>
 <div class="drop-overlay" id="dropOverlay"><div>Drop to read</div></div>
 
+<div class="first-run" id="firstRun" hidden>
+  <div class="first-run-card" role="dialog" aria-modal="true" aria-labelledby="firstRunTitle">
+    <p class="first-run-kicker">First start</p>
+    <h2 id="firstRunTitle">Getting your voice ready</h2>
+    <p class="first-run-lede" id="firstRunLede">
+      Rhapsode needs its voice model before it can read to you. It is 340&nbsp;MB, downloaded
+      once, and then this machine speaks offline for good.
+    </p>
+    <div class="first-run-bar" id="firstRunBar" role="progressbar"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <span id="firstRunFill"></span>
+    </div>
+    <p class="first-run-detail" id="firstRunDetail">Starting the download&hellip;</p>
+    <div class="first-run-actions">
+      <button type="button" class="btn" id="firstRunRetry" hidden>Try again</button>
+      <button type="button" class="btn btn-quiet" id="firstRunSkip">
+        Continue without a voice
+      </button>
+    </div>
+  </div>
+</div>
+
 <script type="module" src="/assets/app.js"></script>
 </body>
 </html>

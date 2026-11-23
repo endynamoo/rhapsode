@@ -12,6 +12,14 @@ phrased for a user, not for a diff reader.
 
 ## [0.3.5-beta] - 2026-11-23
 
+- **A first start now prepares the voice instead of failing at the first play.** A new
+  install had no voice model and said nothing about it: the app opened empty, and the first
+  press of Listen answered with an error whose fix was hidden in Settings. The window now
+  opens on a *Getting your voice ready* screen with a real progress bar (bytes and speed),
+  starts the 340 MB download itself, and disappears when the voice is there - and a failed
+  play opens that screen rather than a toast. `MURMUR_FIRST_RUN=0` keeps the old behaviour
+  for tests and for anyone who would rather meet it in Settings. The installer also starts
+  the app when setup finishes, because the app is where a progress bar can exist.
 - **Audio you can actually play, and one sentence in three languages.** The demo now includes
   `docs/demo/audio/one-sentence-four-voices.mp3` (one sentence read in English, Japanese, Spanish
   and French, the last three translated locally) and `reading-sample.mp3` (26 seconds of the demo
@@ -68,6 +76,10 @@ phrased for a user, not for a diff reader.
 
 ### Fixed
 
+- **The first-run screen asks about the right thing.** `/api/health` reported "needs
+  weights" from the model's *loaded* state, which is false on a healthy install until the
+  first sentence is spoken; it now asks whether the weights are on disk, so only a real
+  first run sees the screen.
 - **An old CPU engine profile no longer leaves the stills engine switched off for good.**
   0.3.0 offered a CPU profile that turned every scene into a placeholder; the button is gone,
   but the saved `engine.json` stayed, and Settings blamed the hardware instead of saying the

@@ -5,6 +5,9 @@
 #   .\scripts\fresh-user.ps1 -SkipBuild      # do not run build_installer.ps1 first
 #   .\scripts\fresh-user.ps1 -FullFirstRun   # let the ~340 MB voice-model download happen
 #   .\scripts\fresh-user.ps1 -KeepSandbox    # keep the temp tree, pass or fail
+#   .\scripts\fresh-user.ps1 -Serve          # install, start, and LEAVE IT RUNNING so you
+#                                              # can use the fresh install; tear it down with
+#                                              # scripts\fresh-user-stop.ps1
 #
 # Why this exists: an install that works on a development machine is not evidence.
 # This box has the model weights, the image venv, ffmpeg, WebView2 and a populated
@@ -26,6 +29,7 @@ param(
     [switch]$SkipBuild,
     [switch]$FullFirstRun,
     [switch]$KeepSandbox,
+    [switch]$Serve,
     [int]$Port = 8899,
     [int]$FirstRunMinutes = 12
 )
@@ -108,8 +112,13 @@ $beforeRoaming = Get-Tree $realRoaming
 # this test cannot leave the machine describing a sandbox install that no longer
 # exists.
 $uninstallKeyPath = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{8D3A1C1E-6F2B-4C6D-9E4A-1F0B0A000001}_is1'
-$keyBackup = Join-Path $root 'uninstall-key.reg'
+# Outside the sandbox on purpose: teardown removes the sandbox, and the machine's own entry
+# has to survive that. One fixed path, overwritten by each run.
+$backupDir = Join-Path $env:TEMP 'opencode\rh-uninstall-backup'
+New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+$keyBackup = Join-Path $backupDir 'uninstall-key.reg'
 $hadKey = Test-Path ("HKCU:\" + $uninstallKeyPath)
+Remove-Item $keyBackup -Force -ErrorAction SilentlyContinue
 if ($hadKey) { & reg export ("HKCU\" + $uninstallKeyPath) $keyBackup /y | Out-Null }
 
 $saved = @{
@@ -129,6 +138,7 @@ Remove-Item Env:\PYTHONPATH -ErrorAction SilentlyContinue
 
 $appProcess = $null
 $exe = $null
+$serving = $false
 try {
     # ------------------------------------------------------------ install
     Phase 'install (silent, per-user, no desktop icon, no stills engine)' {
@@ -179,6 +189,13 @@ try {
             Check 'an OCR backend is available' ([bool]$health.ocr) "backend=$($health.ocrBackend)"
             $network = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/api/network" -TimeoutSec 20
             Check 'remote access is off by default' (-not $network.remoteAccess -and -not $network.enabled)
+            # A fresh install must prepare its voice rather than let the first play fail.
+            $gate = $health.firstRun
+            Check 'health says this install needs its voice' ($gate -and [bool]$gate.needed) `
+                "firstRun=$($gate | ConvertTo-Json -Compress)"
+            Check 'the app will fetch it without being asked' ($gate -and [bool]$gate.auto)
+            $page = (Invoke-WebRequest -Uri "http://127.0.0.1:$Port/" -UseBasicParsing -TimeoutSec 20).Content
+            Check 'the first-run screen is in the page' ($page -match 'id="firstRun"')
             Check 'the data directory is the default one' (Test-Path (Join-Path $sandbox.local 'Rhapsode')) `
                 (Join-Path $sandbox.local 'Rhapsode')
         }
@@ -230,7 +247,10 @@ try {
             }
         }
 
+        if ($Serve) { $script:serving = $true }
+
         # -------------------------------------------------------- a document
+        if (-not $Serve) {
         Phase 'a document from nothing' {
             $payload = @{
                 title = 'Fresh Start'
@@ -275,6 +295,7 @@ try {
             Check 'the program directory is gone' (-not (Test-Path $exe))
             Check 'the library survived the uninstall' (Test-Path (Join-Path $sandbox.local 'Rhapsode'))
         }
+        }
     }
 }
 finally {
@@ -282,15 +303,17 @@ finally {
         if ($null -eq $saved[$key]) { Remove-Item "Env:\$key" -ErrorAction SilentlyContinue }
         else { Set-Item "Env:\$key" $saved[$key] }
     }
-    if ($appProcess -and -not $appProcess.HasExited) { try { $appProcess.Kill() } catch { } }
-    Get-Process -Name 'fluxgen' -ErrorAction SilentlyContinue | ForEach-Object { try { $_.Kill() } catch { } }
+    if (-not $serving) {
+        if ($appProcess -and -not $appProcess.HasExited) { try { $appProcess.Kill() } catch { } }
+        Get-Process -Name 'fluxgen' -ErrorAction SilentlyContinue | ForEach-Object { try { $_.Kill() } catch { } }
 
-    # Put the machine's uninstall entry back exactly as it was. `reg` writes to stderr
-    # for a missing key, which is fatal under $ErrorActionPreference = 'Stop', so it goes
-    # through cmd where the redirection is the shell's, not PowerShell's.
-    & cmd /c "reg delete `"HKCU\$uninstallKeyPath`" /f >nul 2>&1"
-    if ($hadKey -and (Test-Path $keyBackup)) {
-        & cmd /c "reg import `"$keyBackup`" >nul 2>&1"
+        # Put the machine's uninstall entry back exactly as it was. `reg` writes to stderr
+        # for a missing key, which is fatal under $ErrorActionPreference = 'Stop', so it goes
+        # through cmd where the redirection is the shell's, not PowerShell's.
+        & cmd /c "reg delete `"HKCU\$uninstallKeyPath`" /f >nul 2>&1"
+        if ($hadKey -and (Test-Path $keyBackup)) {
+            & cmd /c "reg import `"$keyBackup`" >nul 2>&1"
+        }
     }
 }
 
@@ -302,8 +325,10 @@ Phase 'did anything escape the sandbox?' {
     $roamingText = ($newRoaming | Select-Object -First 3) -join '; '
     Check 'nothing written to the real Rhapsode data directory' ($newReal.Count -eq 0) $realText
     Check 'nothing written to the real Roaming directory' ($newRoaming.Count -eq 0) $roamingText
-    $restored = $hadKey -eq (Test-Path ("HKCU:\" + $uninstallKeyPath))
-    Check 'the uninstall entry is back the way it was' $restored
+    if (-not $serving) {
+        $restored = $hadKey -eq (Test-Path ("HKCU:\" + $uninstallKeyPath))
+        Check 'the uninstall entry is back the way it was' $restored
+    }
 }
 
 # ---------------------------------------------------------------- report
@@ -317,6 +342,7 @@ $report = [pscustomobject]@{
     checks    = $results
     failed    = $failed.Count
 }
+$report | Add-Member -NotePropertyName serving -NotePropertyValue ([bool]$serving) -Force
 $json = Join-Path $root 'fresh-report.json'
 $report | ConvertTo-Json -Depth 5 | Set-Content -Path $json -Encoding UTF8
 
@@ -327,6 +353,20 @@ if ($failed.Count -gt 0) {
     $failed | ForEach-Object { Say ("  - {0} {1}" -f $_.check, $_.detail) }
 }
 Say "report: $json"
+if ($serving) {
+    Say ""
+    Say "== the fresh install is running - test it as a new user"
+    Say "   URL:    http://127.0.0.1:$Port"
+    Say "   data:   $(Join-Path $sandbox.local 'Rhapsode')  (empty: no library, no settings)"
+    Say "   models: none yet - the page opens on 'Getting your voice ready' and downloads 340 MB"
+    Say "           (the installer's post-install launch does this too, unless the install was silent)"
+    Say "   files:  $root"
+    Say ""
+    Say "   undo:   .\scripts\fresh-user-stop.ps1 -Root `"$root`""
+    Say "   (your machine's uninstall entry is saved at $keyBackup and is restored by that script)"
+    if ($failed.Count -gt 0) { Say "   ($($failed.Count) check(s) failed above)" }
+    exit 0
+}
 if (-not $KeepSandbox -and $failed.Count -eq 0) {
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
 } else {
