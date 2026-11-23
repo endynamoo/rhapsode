@@ -37,6 +37,7 @@ phrased for a user, not for a diff reader.
 
 ### Changed
 
+- **The README opens with the clips.** "In motion" - the five recordings of this build -
 - **Linux and macOS free the models the same way Windows does.** There is no job object
   on POSIX, so every long-lived child is now started in its own session and told its
   parent's pid, and the stills painter watches that pid: when the app disappears -

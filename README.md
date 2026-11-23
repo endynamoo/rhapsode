@@ -7,66 +7,6 @@ reads into manga-style stills. No account, no cloud, no per-word billing, no upl
 
 ![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/version-0.3.5--beta-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml) [![linux](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml)
 
-## Who this is for
-
-**Somebody who wants their reading turned into audio, now.** You have a PDF for a
-deadline, a 600-page book you keep not starting, an article you saved, a screenshot
-of a page, an EPUB in a language you are still learning. Rhapsode reads it aloud in
-seconds, remembers where you were, and keeps working with the network unplugged.
-Nothing is exported to a service and nothing is charged by the word.
-
-**Somebody who likes the look of generated manga.** Give the narration to the
-Cinema pane and each beat of the text gets one still, drawn locally: ink, panel
-framing, the drift and dissolve of a slow page turn, and a chapter you can render
-into a 1080p MP4 cut to the voice. The pictures are still images on purpose â€” no
-video model, no animation, no flicker to sit through.
-
-**Somebody who wants to turn this into a different program.** Rhapsode is plain
-Python and plain web assets: one FastAPI process on loopback, the UI served from the
-same origin, no Node runtime, no bundler, no Electron, no framework to learn first.
-The engine, the library, the OCR, the aligner, the painter and the API are separate
-modules with the seams written down in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-Lift the narration out and build a podcast tool. Lift the library and build a
-research reader. Lift the painter and build something that is not a book at all. The
-licence permits it, and the map is already drawn.
-
-## What it does
-
-- **Reads anything** â€” pasted text, PDF, EPUB, DOCX, RTF, TXT, Markdown, an image,
-  or a URL it extracts the article from. A damaged or mislabelled file is refused
-  with a sentence saying what is wrong, not a stack trace.
-- **Book view with a real word highlight** â€” EPUBs render their own chapters, PDFs
-  page by page, scanned pages through OCR, and the highlight is driven by Kokoro's
-  phoneme timings rather than a guess, so the words and the voice stay together on a
-  long chapter, at 0.75Ã— or at 3Ã—. Each sentence's first word is painted before the
-  voice starts, so the mark is never trailing the sound.
-- **OCR built in** â€” scanned pages and screenshots, on-device: Apple Vision on
-  macOS, Windows.Media.Ocr on Windows, Tesseract on Linux. On a scanned PDF the
-  spoken word is marked on the page itself, not only in the text under it.
-- **On-device translation** â€” read a foreign book in your own language, or in the
-  foreign voice with the translation shown under the player. Apple's Translation
-  framework on macOS 26 and later; a local OpenAI-compatible server everywhere
-  else, configured or discovered on the usual ports.
-- **Manga stills** â€” the narration is planned into beats and each beat gets one
-  locally generated still (FLUX.2 [klein]). A polish pass re-draws each still once
-  from itself so the ink settles, with an optional face repair that is off by
-  default because it can redraw a character into someone else. Chapter view plays
-  the stills against the voice; a chapter can be assembled into a 1080p MP4.
-- **Quick Read** â€” one hotkey reads whatever is selected in any app; with no
-  selection it OCRs the clipboard image.
-- **Library search** â€” find a passage across every book you have imported, by words
-  or by meaning, with the snippet marked and a jump straight to that sentence
-  (`Ctrl+F`). Keyword search needs nothing extra; the 23 MB meaning model is
-  optional, off by default, and downloads only when you ask.
-- **It is quick because it is warm** â€” opening a book queues the audio for the first
-  sentences in the background, so the first press of Play is a cached clip rather
-  than a wait. 54 voices Â· 9 languages Â· 0.75â€“3Ã— Â· 20 themes Â· your place remembered
-  per document.
-
-Everything stays on the machine: the voice model, the audio cache, the stills and
-the library are local files. Nothing is uploaded, and remote access is off unless
-you deliberately turn it on and hand out the tokenised link.
-
 ## In motion
 
 Five things that are easier to watch than to read about. Every clip is a recording of this
@@ -121,6 +61,66 @@ whatever you already use:
 
 GitHub renders no audio or video from a repository, so a README cannot play them; docs/demo
 explains the two ways to get a playing player into one.
+
+## What it does
+
+- **Reads anything** â€” pasted text, PDF, EPUB, DOCX, RTF, TXT, Markdown, an image,
+  or a URL it extracts the article from. A damaged or mislabelled file is refused
+  with a sentence saying what is wrong, not a stack trace.
+- **Book view with a real word highlight** â€” EPUBs render their own chapters, PDFs
+  page by page, scanned pages through OCR, and the highlight is driven by Kokoro's
+  phoneme timings rather than a guess, so the words and the voice stay together on a
+  long chapter, at 0.75Ã— or at 3Ã—. Each sentence's first word is painted before the
+  voice starts, so the mark is never trailing the sound.
+- **OCR built in** â€” scanned pages and screenshots, on-device: Apple Vision on
+  macOS, Windows.Media.Ocr on Windows, Tesseract on Linux. On a scanned PDF the
+  spoken word is marked on the page itself, not only in the text under it.
+- **On-device translation** â€” read a foreign book in your own language, or in the
+  foreign voice with the translation shown under the player. Apple's Translation
+  framework on macOS 26 and later; a local OpenAI-compatible server everywhere
+  else, configured or discovered on the usual ports.
+- **Manga stills** â€” the narration is planned into beats and each beat gets one
+  locally generated still (FLUX.2 [klein]). A polish pass re-draws each still once
+  from itself so the ink settles, with an optional face repair that is off by
+  default because it can redraw a character into someone else. Chapter view plays
+  the stills against the voice; a chapter can be assembled into a 1080p MP4.
+- **Quick Read** â€” one hotkey reads whatever is selected in any app; with no
+  selection it OCRs the clipboard image.
+- **Library search** â€” find a passage across every book you have imported, by words
+  or by meaning, with the snippet marked and a jump straight to that sentence
+  (`Ctrl+F`). Keyword search needs nothing extra; the 23 MB meaning model is
+  optional, off by default, and downloads only when you ask.
+- **It is quick because it is warm** â€” opening a book queues the audio for the first
+  sentences in the background, so the first press of Play is a cached clip rather
+  than a wait. 54 voices Â· 9 languages Â· 0.75â€“3Ã— Â· 20 themes Â· your place remembered
+  per document.
+
+Everything stays on the machine: the voice model, the audio cache, the stills and
+the library are local files. Nothing is uploaded, and remote access is off unless
+you deliberately turn it on and hand out the tokenised link.
+
+## Who this is for
+
+**Somebody who wants their reading turned into audio, now.** You have a PDF for a
+deadline, a 600-page book you keep not starting, an article you saved, a screenshot
+of a page, an EPUB in a language you are still learning. Rhapsode reads it aloud in
+seconds, remembers where you were, and keeps working with the network unplugged.
+Nothing is exported to a service and nothing is charged by the word.
+
+**Somebody who likes the look of generated manga.** Give the narration to the
+Cinema pane and each beat of the text gets one still, drawn locally: ink, panel
+framing, the drift and dissolve of a slow page turn, and a chapter you can render
+into a 1080p MP4 cut to the voice. The pictures are still images on purpose â€” no
+video model, no animation, no flicker to sit through.
+
+**Somebody who wants to turn this into a different program.** Rhapsode is plain
+Python and plain web assets: one FastAPI process on loopback, the UI served from the
+same origin, no Node runtime, no bundler, no Electron, no framework to learn first.
+The engine, the library, the OCR, the aligner, the painter and the API are separate
+modules with the seams written down in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Lift the narration out and build a podcast tool. Lift the library and build a
+research reader. Lift the painter and build something that is not a book at all. The
+licence permits it, and the map is already drawn.
 
 ## The stack, and why this mix
 
@@ -321,7 +321,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
 
-*...and 103 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 104 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
 
