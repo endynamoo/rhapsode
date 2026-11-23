@@ -669,12 +669,23 @@ function fillVoiceSelect(select, groups) {
   select.innerHTML = '';
   for (const group of groups) {
     const og = document.createElement('optgroup');
-    og.label = `${group.flag}  ${group.label}`;
+    // A voice list is a promise. When this install cannot speak a language - a source
+    // checkout that skipped requirements-lang.txt - say so here, not at the first
+    // sentence, and make the options unselectable rather than mysterious.
+    const usable = group.available !== false;
+    og.label = `${group.flag}  ${group.label}${usable ? '' : '  (not installed)'}`;
+    if (!usable) {
+      og.title = group.reason || 'This voice needs an extra component.';
+      og.disabled = true;
+    }
     for (const v of group.voices) {
       const option = document.createElement('option');
       option.value = v.id;
       option.textContent = `${v.name}${v.recommended ? '  ★' : ''}`;
-      option.title = `${v.gender === 'F' ? 'Female' : 'Male'} · grade ${v.grade}`;
+      option.title = usable
+        ? `${v.gender === 'F' ? 'Female' : 'Male'} · grade ${v.grade}`
+        : (group.reason || 'This voice needs an extra component.');
+      option.disabled = !usable;
       og.appendChild(option);
     }
     select.appendChild(og);

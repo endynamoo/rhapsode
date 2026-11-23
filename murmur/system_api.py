@@ -23,6 +23,7 @@ from . import (
     extract,
     fonts,
     imaging,
+    langs,
     lifecycle,
     netinfo,
     ocr,
@@ -95,6 +96,8 @@ def health() -> dict:
         "ocr": ocr.available(),
         "ocrBackend": ocr.backend_name(),
         "translate": translate.translator.available(),
+        # Which voices can actually be spoken here, and why not when they cannot.
+        "languages": {code: langs.support(code) for code in langs.SPECIAL},
         "profile": {
             "name": config.PROFILE.get("profile"),
             "summary": __import__("murmur.profile", fromlist=["describe"]).describe(config.PROFILE),

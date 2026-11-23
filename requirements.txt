@@ -3,8 +3,11 @@
 kokoro-onnx>=0.6.1
 soundfile>=0.14.0
 numpy>=2.0
-misaki[ja,zh]>=0.9
-pyopenjtalk>=0.4.1
+# Japanese and Chinese voices need misaki and (for Japanese) pyopenjtalk. pyopenjtalk
+# is published only as source, so installing it needs a C++ toolchain - which is why it
+# is NOT here: a plain `pip install -r requirements.txt` must never require a compiler.
+# The published installers include it; a source install adds it deliberately:
+#     uv pip install -r requirements-lang.txt
 # Search embeddings run on the same runtime Kokoro uses; named here because
 # `murmur.semantic` imports it, rather than relying on it arriving via kokoro.
 onnxruntime>=1.17
