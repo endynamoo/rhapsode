@@ -11,7 +11,7 @@ fi
 if [ ! -d .venv ]; then
   uv venv -p 3.13 .venv
 fi
-uv pip install --python .venv/bin/python -q -r requirements.txt -r requirements-build.txt
+uv pip install --python .venv/bin/python -q -r requirements.txt -r requirements-lang.txt -r requirements-build.txt
 if [ "${MURMUR_SKIP_FILM:-0}" != "1" ] && [ -f requirements-film.txt ]; then
   uv pip install --python .venv/bin/python -q -r requirements-film.txt \
     || echo "warning: Cinema dependencies failed to install; the app will build without stills generation." >&2

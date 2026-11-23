@@ -91,6 +91,19 @@ Classify the GPU vendor from the name: `NVIDIA`, `AMD/Radeon`, `Intel`,
 - **uv** manages the virtual environment and installs dependencies.
 - **ffmpeg** is required for MP3 export and chapter films.
 - **TTS model**: ~340 MB, downloaded once by `python -m murmur.bootstrap`.
+- **Japanese and Chinese voices are an optional extra.** The seven other languages are
+  in `requirements.txt`; `misaki` and `pyopenjtalk` are in `requirements-lang.txt`
+  because `pyopenjtalk` is published only as source, so pip has to compile it:
+  `uv pip install -r requirements-lang.txt`. That needs a C++ toolchain — Microsoft C++
+  Build Tools on Windows ("Desktop development with C++"), `xcode-select --install` on
+  macOS, `build-essential` and `cmake` on Linux. The Windows and macOS installers already
+  include it, so only a source install has to decide. Without the extra the app runs
+  normally and the voice picker shows Japanese and Chinese as *(not installed)* with the
+  reason on hover.
+- **One 23 MB download on the first Japanese sentence.** `pyopenjtalk` fetches its Open
+  JTalk dictionary from GitHub the first time a Japanese voice speaks, unless
+  `python -m murmur.bootstrap` has already fetched it (it does, when the extra is
+  installed). Offline, fetch it beforehand or the first Japanese sentence fails.
 - **OCR**: on-device on every platform, nothing to download. macOS uses Apple
   Vision (PyObjC), Windows uses `Windows.Media.Ocr` (installed with
   `requirements.txt` through `winsdk`, reading whatever language packs Windows
@@ -206,6 +219,8 @@ cd "C:\path\to\murmur"
 uv python install 3.12
 uv venv --python 3.12 .venv
 uv pip install --python .venv\Scripts\python.exe -r requirements.txt
+# optional: Japanese and Chinese voices (needs C++ Build Tools - see Common facts)
+# uv pip install --python .venv\Scripts\python.exe -r requirements-lang.txt
 ```
 
 Optional film dependencies (large, ~2.5 GB):
@@ -310,6 +325,8 @@ cd "/path/to/murmur"
 uv python install 3.12
 uv venv --python 3.12 .venv
 uv pip install --python .venv/bin/python -r requirements.txt
+# optional: Japanese and Chinese voices (needs build-essential and cmake)
+# uv pip install --python .venv/bin/python -r requirements-lang.txt
 ```
 
 Optional films:

@@ -15,7 +15,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import cache, config, text as textmod
+from . import cache, config, langs, text as textmod
 from .backends import tts as tts_backends
 from .voices import DEFAULT_VOICE, VOICES, lang_for_voice
 
@@ -115,6 +115,11 @@ class TTSEngine:
         if base not in {"ja", "zh"}:
             return None
 
+        state = langs.support(base)
+        if not state["available"]:
+            # A ValueError is a 400 with this text: the reader is told what is missing
+            # and where to get it, instead of a compiler traceback from pyopenjtalk.
+            raise ValueError(state["reason"])
         with self._g2p_lock:
             g2p = self._g2p.get(base)
             if g2p is None:

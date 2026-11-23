@@ -140,17 +140,24 @@ def base_language(voice: str) -> str:
 
 def voice_groups() -> list[dict]:
     groups = []
+    from . import langs
+
     for lang in LANG_ORDER:
         items = [v for v in VOICES.values() if v["lang"] == lang]
         if not items:
             continue
         items.sort(key=lambda v: (not v["recommended"], v["gender"], v["id"]))
+        state = langs.support(lang)
         groups.append(
             {
                 "lang": lang,
                 "label": LANG_LABEL[lang],
                 "flag": FLAG[lang],
                 "voices": items,
+                # A voice list is a promise: the picker greys these out rather than
+                # letting somebody choose a voice that cannot speak.
+                "available": state["available"],
+                "reason": state["reason"],
             }
         )
     return groups

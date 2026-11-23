@@ -60,6 +60,18 @@ phrased for a user, not for a diff reader.
 
 ### Fixed
 
+- **The Japanese and Chinese voices are an optional extra, and say so.** `pyopenjtalk`
+  ships only as source, so a source install had to compile it: a contributor who picked a
+  Japanese voice was told by pip to install Microsoft C++ Build Tools, which nothing here
+  documented. `requirements.txt` no longer pulls it; `requirements-lang.txt` adds `misaki`
+  and `pyopenjtalk` for those two languages, and the installers already ship them. Without
+  the extra the app runs normally and every surface that offers the voice says why:
+  `/api/health` reports each language's availability, the voice picker shows
+  *(not installed)* and disables those options with the reason on hover, and speaking
+  anyway returns that sentence instead of a compiler traceback. `python -m murmur.bootstrap`
+  also fetches the 23 MB Open JTalk dictionary, so a downloaded install speaks Japanese
+  offline instead of reaching for GitHub at the first sentence.
+
 - **The missing-model message is something an installer user can follow now.** A packaged
   build told them to run `python -m murmur.bootstrap`, which does not exist in a frozen
   install; it points at Settings -> Voice model -> **Download it again** instead, while a

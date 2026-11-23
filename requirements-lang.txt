@@ -1,0 +1,14 @@
+# Japanese and Chinese voices (optional).
+#
+#     uv pip install -r requirements-lang.txt
+#
+# This is not part of requirements.txt because pyopenjtalk ships only as source: pip
+# compiles it, so the machine needs a C++ toolchain before this can install -
+#   Windows  Microsoft C++ Build Tools (the "Desktop development with C++" workload)
+#   macOS    xcode-select --install
+#   Linux    build-essential and cmake
+# The Windows and macOS installers bundle the result, so only a source install needs
+# this. Without it the app runs normally: the Japanese voices report themselves
+# unavailable and the picker says why.
+misaki[ja,zh]>=0.9
+pyopenjtalk>=0.4.1

@@ -114,6 +114,41 @@ def start_download() -> dict:
     return state()
 
 
+def fetch_language_data(log: Callable[[str], None] | None = None) -> bool:
+    """Fetch what the extra languages need beyond their wheels.
+
+    `pyopenjtalk` downloads its Open JTalk dictionary (23 MB) the first time a Japanese
+    sentence is spoken, which is a surprise at exactly the wrong moment and impossible
+    offline. Doing it here means "the model is downloaded" also means "the voices work".
+
+    Returns True when there was nothing to do or it succeeded; never raises - a missing
+    dictionary is not a reason to fail a download.
+    """
+    try:
+        import importlib.util
+
+        if importlib.util.find_spec("pyopenjtalk") is None:
+            return True
+    except Exception:  # noqa: BLE001
+        return True
+    try:
+        import pyopenjtalk
+
+        data = pyopenjtalk.OPEN_JTALK_DICT_DIR
+        if data and pathlib.Path(str(data)).exists() and any(pathlib.Path(str(data)).iterdir()):
+            if log:
+                log("Japanese dictionary: already present")
+            return True
+        if log:
+            log("Japanese dictionary: downloading 23 MB (one time)")
+        pyopenjtalk.download(quiet=True)
+        return True
+    except Exception as exc:  # noqa: BLE001 - reported, never fatal
+        if log:
+            log(f"Japanese dictionary: could not fetch it ({exc})")
+        return False
+
+
 def main() -> None:
     config.ensure_dirs()
     _emit("Rhapsode setup")

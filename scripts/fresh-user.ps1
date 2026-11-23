@@ -203,6 +203,29 @@ try {
                         -Body '{"text":"This is a fresh install.","voice":"af_heart"}'
                     Check 'the first sentence synthesises' (([bool]$clip.url) -and ($clip.duration -gt 0)) `
                         "$($clip.duration)s"
+                    # A contributor picked a Japanese voice on a source install and was
+                    # told to install Microsoft build tools. The installer promises the
+                    # voice, so a fresh install has to actually speak it. The text is
+                    # JSON \u escapes because PowerShell 5.1 reads this file as ANSI unless
+                    # it carries a BOM, and this repository forbids BOMs.
+                    $ja = $null
+                    try {
+                        $ja = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/api/tts" -Method Post `
+                            -ContentType 'application/json' -TimeoutSec 180 `
+                            -Body '{"text":"\u3053\u3093\u306b\u3061\u306f\u3002","voice":"jf_alpha"}'
+                    } catch { }
+                    Check 'the Japanese voice speaks (no extra install)' `
+                        (($null -ne $ja) -and ([bool]$ja.url) -and ($ja.duration -gt 0)) `
+                        "$($ja.duration)s"
+                    $zh = $null
+                    try {
+                        $zh = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/api/tts" -Method Post `
+                            -ContentType 'application/json' -TimeoutSec 180 `
+                            -Body '{"text":"\u4f60\u597d\u3002","voice":"zf_xiaobei"}'
+                    } catch { }
+                    Check 'the Chinese voice speaks (no extra install)' `
+                        (($null -ne $zh) -and ([bool]$zh.url)) "$($zh.duration)s"
+
                 }
             }
         }

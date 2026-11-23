@@ -1,5 +1,10 @@
 # Rhapsode cross-platform and GPU plan
 
+> **Japanese and Chinese voices** need `requirements-lang.txt` on a source install
+> (`misaki` plus `pyopenjtalk`, which compiles from source). The Windows and macOS
+> installers bundle it. Without it the app runs normally and the picker marks those two
+> languages *(not installed)*, with the reason on hover.
+
 Goal: ship Rhapsode on macOS, Windows, and Linux, using whatever accelerator is
 available (Apple Silicon, NVIDIA, AMD, Intel) and falling back to CPU without
 breaking the reading experience. Reading (TTS, highlight, PDF/EPUB) must always
