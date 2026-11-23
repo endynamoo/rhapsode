@@ -62,6 +62,13 @@ lifetime, enforced twice:
   `POST /api/quit` (loopback only; this is the Settings → **Quit Rhapsode** button,
   since browser mode has no window to close) and from the desktop entry once the
   window is gone.
+- **On Linux and macOS the child watches its parent.** There is no job object there, and
+  no `PR_SET_PDEATHSIG` that behaves the same on both, so `murmur/proc.py` starts every
+  long-lived child in its own session and passes it `MURMUR_PARENT_PID`; the painter then
+  checks `getppid()` twice a second and exits the moment the app is gone - including the
+  case where the app was killed with SIGKILL in the middle of a tile. A painter started
+  by hand has no such variable, so closing the terminal does not silently kill a
+  measurement run.
 
 Measured on an RX 9070 XT with the stills engine loaded (Kokoro and a resident painter,
 `lite` profile): after quitting, no `fluxgen` process remains and dedicated GPU memory

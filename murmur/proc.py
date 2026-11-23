@@ -176,7 +176,19 @@ def in_job(pid: int) -> bool:
 
 
 def spawn(command, **kwargs):
-    """Popen that also registers the child with the job object."""
+    """Popen that also ties the child's lifetime to this process.
+
+    Windows: the job object reaps it, even on TerminateProcess.
+    POSIX: no equivalent survives SIGKILL, so two things happen instead - the child
+    gets its own session (a group someone can kill deliberately, and it no longer dies
+    of a Ctrl+C sent to the terminal), and it is told who its parent is so it can
+    watch for the parent disappearing. See `fluxgen.watch_parent`.
+    """
+    if os.name != "nt":
+        kwargs.setdefault("start_new_session", True)
+        environment = dict(kwargs.get("env") or os.environ)
+        environment.setdefault("MURMUR_PARENT_PID", str(os.getpid()))
+        kwargs["env"] = environment
     process = popen(command, **kwargs)
     adopt(process.pid)
     return process

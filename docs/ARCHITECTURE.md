@@ -855,9 +855,13 @@ the first still of a session, stale-pid handling in the lock, and progress that
 has to be reported deliberately — which is what `murmur/activity.py` is for.
 
 **And it has to die with the app.** A child that holds 13 GiB of VRAM is only
-acceptable if its lifetime is the app's. `murmur/proc.py` puts every long-lived child
-in a Windows job object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, so even
-`TerminateProcess` (End task, a crash) takes the painter with it; `murmur/lifecycle.py`
+acceptable if its lifetime is the app's. On Windows `murmur/proc.py` puts every
+long-lived child in a job object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, so even
+`TerminateProcess` (End task, a crash) takes the painter with it; on Linux and macOS the
+same function starts the child in its own session and passes `MURMUR_PARENT_PID`, and the
+painter watches `getppid()` and exits when the app disappears - the portable equivalent,
+chosen over `prctl(PR_SET_PDEATHSIG)` because that does not exist on macOS and is racy
+across a fork. `murmur/lifecycle.py`
 releases deliberately — stop the painter, drop the voice model, stop the indexer,
 close the database — from three places: the lifespan's shutdown, `/api/quit`, and the
 desktop entry after its window closes. Browser mode has no window, which is why the
