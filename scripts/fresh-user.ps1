@@ -174,6 +174,9 @@ try {
     if ($exe) {
         # -------------------------------------------------------- first start
         Phase "first start (a stranger's first launch)" {
+            # The packaged app opens the default browser itself when WebView2 is unavailable;
+            # a test run must not do that, so the person decides when to look.
+            $env:MURMUR_NO_BROWSER = '1'
             $script:appProcess = Start-Process -FilePath $exe -PassThru -ArgumentList @('--port', "$Port")
             $health = Get-Health $Port
             Check 'the server answers /api/health' ($null -ne $health)
