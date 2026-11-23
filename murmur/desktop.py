@@ -141,15 +141,20 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ok http://127.0.0.1:{port} (bind {host})")
         return 0
 
+    if os.environ.get("MURMUR_NO_BROWSER") == "1":
+        # Headless: serve the API and open nothing. Used by the fresh-install harness, so a
+        # person can be the first to load the page and therefore the first to see the
+        # first-run screen - a window that loads it starts the 340 MB download themselves.
+        print(f"headless: serving on http://127.0.0.1:{port}")
+        threading.Event().wait()
+        return 0
+
     try:
         import webview
     except Exception:  # fall back to browser mode (INSTALL.md B3)
-        # A scripted start (the fresh-install harness, a service wrapper) should not throw a
-        # tab onto whatever screen is attached; MURMUR_NO_BROWSER=1 says so.
-        if os.environ.get("MURMUR_NO_BROWSER") != "1":
-            import webbrowser
+        import webbrowser
 
-            webbrowser.open(f"http://127.0.0.1:{port}")
+        webbrowser.open(f"http://127.0.0.1:{port}")
         print(f"desktop window unavailable; serving browser mode on {port}")
         threading.Event().wait()  # keep the daemon server thread alive
         return 0
