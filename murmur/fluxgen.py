@@ -21,10 +21,55 @@ import argparse
 import json
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 
 MODEL_ID = os.environ.get("MURMUR_FLUX_MODEL", "black-forest-labs/FLUX.2-klein-4B")
+
+#: Seconds between looks at the parent. The cost of being wrong is a short-lived orphan,
+#: the cost of looking often is nothing.
+PARENT_POLL_SECONDS = 0.5
+
+
+def parent_is_gone(expected: int) -> bool:
+    """Has the process that spawned us stopped being our parent?
+
+    getppid() changes when the parent dies (the child is re-parented), which is the
+    signal available on both Linux and macOS without ctypes or a kernel-specific call.
+    """
+    try:
+        return os.getppid() != expected
+    except OSError:
+        return True
+
+
+def watch_parent() -> bool:
+    """Die with the app that spawned this painter. POSIX only; Windows has the job object.
+
+    The app sets `MURMUR_PARENT_PID` when it spawns us. A painter started by hand has no
+    such variable and keeps the behaviour it always had - quitting the terminal does not
+    silently kill a measurement run.
+    """
+    raw = os.environ.get("MURMUR_PARENT_PID")
+    if not raw or sys.platform == "win32":
+        return False
+    try:
+        expected = int(raw)
+    except ValueError:
+        return False
+    if parent_is_gone(expected):
+        # The app went away between fork and this line: nothing is waiting for us.
+        os._exit(0)
+
+    def watch() -> None:
+        while True:
+            time.sleep(PARENT_POLL_SECONDS)
+            if parent_is_gone(expected):
+                os._exit(0)
+
+    threading.Thread(target=watch, name="parent-watch", daemon=True).start()
+    return True
 
 
 def _device(torch) -> str:
@@ -534,6 +579,9 @@ def _serve_loop(torch, device: str) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Before anything expensive: if the app that started this painter is already gone,
+    # or goes away mid-tile, the card has to come back.
+    watch_parent()
     parser = argparse.ArgumentParser(prog="murmur.fluxgen")
     parser.add_argument("--serve", action="store_true", help="stay resident, read jobs on stdin")
     parser.add_argument("--prompt")

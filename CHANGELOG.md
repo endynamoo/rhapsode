@@ -37,6 +37,14 @@ phrased for a user, not for a diff reader.
 
 ### Changed
 
+- **Linux and macOS free the models the same way Windows does.** There is no job object
+  on POSIX, so every long-lived child is now started in its own session and told its
+  parent's pid, and the stills painter watches that pid: when the app disappears -
+  including when it is killed in the middle of painting a tile - the painter exits
+  instead of holding the card. Verified on Linux: a parent killed with SIGKILL, a child
+  started by the app's own `proc.spawn`, gone within a second. A painter started by hand
+  is unaffected.
+
 - **The README says who the app is for**: somebody turning anything they can read into an audiobook, somebody who likes generated manga stills, and somebody who wants to lift the parts into a different program. It now also says what to expect from pull requests (bugs first, reviews slow) and where the family of apps is going, including what the next one does (Opsis turns a book into a film of directed, generated and polished scenes; an alpha is running, and the open beta is targeted for before the new year) - and it replaces "the parts that were actually hard" with what each technology in the build is and why this mix works: the voice returns phoneme timings, so the highlight, the warm-ahead, the still beats and the MP4 cut are all read off the same clock instead of being guessed. It also corrects two stale claims: a platform table that still promised CPU stills, and a version badge stuck one release behind.
 
 ### Fixed
