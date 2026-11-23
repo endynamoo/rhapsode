@@ -12,6 +12,7 @@ headless browser driving the real app - not storyboarded, not composited.
 | Search | Nine passages across three books, matched words shown | `search.gif` | `search.mp4` |
 | Manga | A chapter read over a painted still | `manga.gif` | `manga.mp4` |
 | Translation | English text read in Japanese | `translation.gif` | `translation.mp4` (with sound) |
+| Three languages | The same sentence in Japanese, Spanish, French | `three-languages.gif` | `audio/one-sentence-four-voices.mp3` |
 
 The GIFs are what the front page shows inline; the MP4s are the same recordings without GIF
 dithering, at the full frame rate. Both are quiet unless the row says otherwise.
@@ -72,6 +73,38 @@ The translation itself is whatever local model the machine offers. The clip was 
 `MURMUR_TRANSLATE_URL` pointed at a local server on port 8091; the alternative is Apple's
 Translation framework on macOS. Nothing about the picture is retouched - the wording, including
 any word a model leaves in English, is exactly what was spoken.
+
+## The audio
+
+Two MP3s, both produced by the app itself: `POST /api/tts` on a running server, the same call
+the player makes, downloaded from the server's own `/api/audio/<key>.wav` cache. Nothing was
+re-recorded or processed afterwards beyond matching loudness between takes (ffmpeg `loudnorm`,
+-16 LUFS) and joining them with 0.9 s of silence.
+
+| File | What is in it |
+|---|---|
+| `audio/one-sentence-four-voices.mp3` | One sentence, four voices: English (`af_heart`), Japanese (`jf_alpha`), Spanish (`ef_dora`), French (`ff_siwis`). The last three are translations produced by the local OpenAI-compatible server, then read in the target language |
+| `audio/reading-sample.mp3` | The demo book's opening paragraph, 26 s, read by one English voice |
+
+The sentence is the same one `corpus/translation-sample.txt` holds, so the text on screen and
+the audio match:
+
+> She had kept the lights for eleven years, and the sea had taken three boats in that time.
+
+## Why there is no player here
+
+GitHub renders no media from a repository: an `.mp3` or `.mp4` is a link, and clicking it opens
+the file page rather than a player, and a `<video>`/`<audio>` tag is stripped from markdown. That
+is why the README shows GIFs and offers the audio as downloads.
+
+Two routes do play, if this ever matters:
+
+1. **GitHub's own uploader.** Drag the file into a comment box on any issue or pull request; the
+   URL it returns (`https://github.com/user-attachments/assets/...`) renders as a player, in that
+   comment and in a README. This needs a browser session - the REST API cannot create one.
+2. **GitHub Pages** with a small HTML page holding `<audio controls>`. It needs a paid plan for
+   a private repository and administration rights to enable; on this repository the API answers
+   `403` for the token used here, so it has not been done.
 
 ## Why there is no video on the front page
 
