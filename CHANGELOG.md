@@ -20,6 +20,16 @@ phrased for a user, not for a diff reader.
 
 ### Added
 
+- **A fresh-install check that runs the artefact instead of the checkout.**
+  `scripts\\fresh-user.ps1` gives the installer a brand-new profile - its own
+  `LOCALAPPDATA`, `APPDATA`, `USERPROFILE` and `TEMP`, no models, no stills engine - then
+  installs, starts, asks it what a first-time user would, quits, uninstalls, and proves
+  nothing was written outside that profile and that the real uninstall entry was restored.
+  22 checks in about two minutes; `-FullFirstRun` includes the 340 MB voice-model
+  download. It exists because "works on my machine" is not evidence: this development box
+  has the weights, the image environment and a populated data directory that no stranger
+  has.
+
 - **Five demo clips, recorded from this build.** The README now shows the reader marking the
   spoken word, a scanned PDF page marked on the page itself, a library search across three
   books, a chapter read over a still the stills engine painted, and an English sentence read
@@ -49,6 +59,11 @@ phrased for a user, not for a diff reader.
 - **The README says who the app is for**: somebody turning anything they can read into an audiobook, somebody who likes generated manga stills, and somebody who wants to lift the parts into a different program. It now also says what to expect from pull requests (bugs first, reviews slow) and where the family of apps is going, including what the next one does (Opsis turns a book into a film of directed, generated and polished scenes; an alpha is running, and the open beta is targeted for before the new year) - and it replaces "the parts that were actually hard" with what each technology in the build is and why this mix works: the voice returns phoneme timings, so the highlight, the warm-ahead, the still beats and the MP4 cut are all read off the same clock instead of being guessed. It also corrects two stale claims: a platform table that still promised CPU stills, and a version badge stuck one release behind.
 
 ### Fixed
+
+- **The missing-model message is something an installer user can follow now.** A packaged
+  build told them to run `python -m murmur.bootstrap`, which does not exist in a frozen
+  install; it points at Settings -> Voice model -> **Download it again** instead, while a
+  source checkout keeps the command. Found by the new harness on its first run.
 
 - **The README stopped shipping broken characters.** A text round-trip through Windows'
   legacy encoding had double-encoded the punctuation in 44 lines of the front page - every
