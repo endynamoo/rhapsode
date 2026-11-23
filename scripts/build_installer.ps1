@@ -87,6 +87,16 @@ if ($LASTEXITCODE -ne 0) {
     $buildLog = "$env:TEMP\pyi_build.log"
     $code = Invoke-Native $pyinstaller @('--noconfirm', '--clean', 'packaging\Rhapsode-win.spec') $buildLog
     if ($code) { Fail "pyinstaller failed ($code), see $buildLog" }
+    # OpenCV ships a 39 MB FFmpeg videoio DLL that nothing here calls: the app uses
+    # FaceDetectorYN, resize and a log-level call, all measured to work without it. It is
+    # also LGPL, so shipping it bought a licence obligation and no feature.
+    $videoio = Get-ChildItem 'dist\Rhapsode\_internal\cv2' -Filter 'opencv_videoio_ffmpeg*.dll' -ErrorAction SilentlyContinue
+    foreach ($file in $videoio) {
+        $mb = [math]::Round($file.Length / 1MB, 1)
+        Remove-Item $file.FullName -Force
+        Say "dropped $($file.Name) ($mb MB, unused)"
+    }
+
     Say 'web assets'
     $copyLog = "$env:TEMP\robocopy.log"
     $code = Invoke-Native robocopy @('web', 'dist\Rhapsode\_internal\web', '/MIR', '/NFL', '/NDL', '/NJH', '/NJS', '/NP') $copyLog
