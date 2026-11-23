@@ -146,6 +146,7 @@ class FluxWorker:
         self.python = python
         self.script = script
         self._proc = None
+        self._err = None
         self._lock = threading.Lock()
         self._counter = 0
         self.ready_info: dict = {}
@@ -172,27 +173,37 @@ class FluxWorker:
         try:
             err = open(config.HOME / "painter.log", "a", encoding="utf-8", buffering=1)
         except OSError:
-            err = subprocess.DEVNULL
+            err = None
         # -I runs the painter isolated: no script-directory on sys.path and no
         # user site-packages. Without it `import profile` resolves to
         # murmur/profile.py instead of the stdlib (sys.path[0] is the script's
         # folder), and torch's own import of cProfile then dies with
         # "module 'profile' has no attribute 'run'" - a source install could
         # never paint a still, while a frozen build never saw it.
-        process = proc.popen(
-            _painter_command(self.python, self.script, "--serve"),
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=err,
-            text=True,
-            bufsize=1,
-            cwd=str(config.APP_ROOT),
-            env=self._env(),
-        )
+        # spawn, not popen: the resident painter is the only child that holds the
+        # card for a whole session, so a hard quit (End task, a crash) must reap it
+        # with the parent. atexit covers only a clean interpreter exit.
+        try:
+            process = proc.spawn(
+                _painter_command(self.python, self.script, "--serve"),
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=err if err is not None else subprocess.DEVNULL,
+                text=True,
+                bufsize=1,
+                cwd=str(config.APP_ROOT),
+                env=self._env(),
+            )
+        except Exception:
+            if err is not None:
+                err.close()
+            raise
+        self._err = err
         ready = self._read_line(process.stdout, self.READY_TIMEOUT)
         self.ready_info = ready or {}
         if not ready or not ready.get("ready"):
             process.kill()
+            self._close_log()
             detail = (ready or {}).get("error", "no answer from the painter")
             raise ImageError(f"the painter did not start: {detail}")
         self._proc = process
@@ -240,9 +251,18 @@ class FluxWorker:
             if not answer.get("ok"):
                 raise ImageError(str(answer.get("error") or "painting failed")[-900:])
 
+    def _close_log(self) -> None:
+        handle, self._err = self._err, None
+        if handle is not None and handle is not subprocess.DEVNULL:
+            try:
+                handle.close()
+            except OSError:
+                pass
+
     def stop(self) -> None:
         process, self._proc = self._proc, None
         if process is None:
+            self._close_log()
             return
         try:
             if process.stdin is not None:
@@ -256,6 +276,8 @@ class FluxWorker:
             process.kill()
         except Exception:  # noqa: BLE001 - already gone
             pass
+        finally:
+            self._close_log()
 
 
 _PACKAGES = ("torch", "diffusers")
@@ -469,6 +491,19 @@ class FluxPythonBackend(ImageBackend):
             return _SHARED_WORKER
 
 
+def shutdown() -> None:
+    """Stop the resident painter, so the card is free before the process goes away.
+
+    Called from the lifespan's shutdown and from `/api/quit`. Idempotent: a second
+    call finds nothing to stop.
+    """
+    global _SHARED_WORKER
+    with FluxPythonBackend._probe_lock:  # noqa: SLF001 - module-level intent
+        worker, _SHARED_WORKER = _SHARED_WORKER, None
+    if worker is not None:
+        worker.stop()
+
+
 def restart_painter() -> dict:
     """Drop the resident painter so the next job loads the current profile.
 
@@ -476,11 +511,7 @@ def restart_painter() -> dict:
     profile only takes effect on a fresh process; this is what the Restart Engine
     button calls.
     """
-    global _SHARED_WORKER
-    with FluxPythonBackend._probe_lock:  # noqa: SLF001 - module-level intent
-        worker, _SHARED_WORKER = _SHARED_WORKER, None
-    if worker is not None:
-        worker.stop()
+    shutdown()
     return painter_info()
 
 def ram_info() -> dict:

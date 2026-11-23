@@ -13,7 +13,7 @@ import threading
 import time
 import urllib.request
 
-from . import config, netinfo, runtime
+from . import config, lifecycle, netinfo, runtime
 
 
 def _healthy(port: int, timeout: float = 0.6) -> bool:
@@ -160,6 +160,10 @@ def main(argv: list[str] | None = None) -> int:
         text_select=True,
     )
     webview.start()
+    # The window is gone: stop the painter and drop the voice model. atexit would
+    # eventually do the same, but "eventually" is what left the card pinned when the
+    # interpreter waited on a thread.
+    lifecycle.release("window closed")
     return 0
 
 

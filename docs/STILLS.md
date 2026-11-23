@@ -47,6 +47,33 @@ video model runs anywhere in the app.
   as a soft `mov_text` track so the cut still plays. H.264 + AAC, hardware encoded
   where possible.
 
+
+## What happens when the app quits
+
+The painter is a child process holding most of the card, so its lifetime is the app's
+lifetime, enforced twice:
+
+- **The OS enforces it.** The child is spawned through `murmur/proc.py`, which assigns
+  it to a job object with kill-on-close. Quitting any way at all — the window, Ctrl+C,
+  End task, a crash — closes that handle and Windows kills the painter.
+- **The app releases it.** `murmur/lifecycle.py` stops the painter (a `quit` on its
+  stdin, then a kill after five seconds), drops the Kokoro voice model, stops the search
+  indexer and closes the database. It runs from the lifespan's shutdown, from
+  `POST /api/quit` (loopback only; this is the Settings → **Quit Rhapsode** button,
+  since browser mode has no window to close) and from the desktop entry once the
+  window is gone.
+- **On Linux and macOS the child watches its parent.** There is no job object there, and
+  no `PR_SET_PDEATHSIG` that behaves the same on both, so `murmur/proc.py` starts every
+  long-lived child in its own session and passes it `MURMUR_PARENT_PID`; the painter then
+  checks `getppid()` twice a second and exits the moment the app is gone - including the
+  case where the app was killed with SIGKILL in the middle of a tile. A painter started
+  by hand has no such variable, so closing the terminal does not silently kill a
+  measurement run.
+
+Measured on an RX 9070 XT with the stills engine loaded (Kokoro and a resident painter,
+`lite` profile): after quitting, no `fluxgen` process remains and dedicated GPU memory
+returns to its pre-launch level within a second.
+
 ## The activity contract
 
 Cinema used to say "Painting scene…" for the whole pipeline, though a cold model

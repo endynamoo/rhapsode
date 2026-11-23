@@ -260,6 +260,22 @@ class SmokeTests(unittest.TestCase):
         self.assertTrue(value, "the Reading font row rendered blank while the list loaded")
         self.assertGreaterEqual(options, 1, "the Reading font row had no options at all")
 
+    def test_quitting_takes_two_clicks_and_leaves_the_server_alone(self) -> None:
+        # Browser mode has no window to close, so quitting is a button - and a button
+        # that stops the server must not fire because somebody tapped it once. The
+        # first click only arms it; the test stops there, so the suite keeps its
+        # server for the next test.
+        self.open_app()
+        self.open_settings()
+        button = self.page.locator("#quitBtn")
+        button.wait_for(timeout=15_000)
+        self.assertEqual(button.inner_text().strip(), "Quit Rhapsode")
+        button.click()
+        self.page.wait_for_timeout(150)
+        self.assertEqual(button.inner_text().strip(), "Quit Rhapsode?")
+        health = self.page.evaluate("fetch('/api/health').then(r => r.json()).then(j => j.ok)")
+        self.assertTrue(health, "the first click already stopped the server")
+
     def test_the_settings_panel_is_wired(self) -> None:
         # The settings view used to be 450 lines in the middle of app.js; it is a
         # module now, so this checks the seam rather than the styling: the panel

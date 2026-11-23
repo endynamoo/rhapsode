@@ -286,13 +286,11 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 ### Unreleased
 
+- **Audio you can actually play, and one sentence in three languages.** The demo now includes `docs/demo/audio/one-sentence-four-voices.mp3` (one sentence read in English, Japanese, Spanish and French, the last three translated locally) and `reading-sample.mp3` (26 seconds of the demo book), both produced through the app's own `/api/tts` and published as files because GitHub renders no media from a repository. A three-panel clip shows the same sentence with the Japanese, Spanish and French bar, so the front page still shows the feature working.
+
 **Added**
 
 - **Five demo clips, recorded from this build.** The README now shows the reader marking the spoken word, a scanned PDF page marked on the page itself, a library search across three books, a chapter read over a still the stills engine painted, and an English sentence read in Japanese through a local translation server - the last one with sound, muxed from the audio the app actually played. The GIFs sit in the README, and every clip's full-motion MP4, the demo corpus and the recording method live in `docs/demo/`, so a clip can be reproduced rather than trusted.
-
-**Changed**
-
-- **The README opens with the clips.** "In motion" - the five recordings of this build - now comes first, before "What it does" and "Who this is for", because a reader deciding whether to care is better served by ten seconds of the thing working than by a paragraph about it. Nothing was rewritten; the three sections changed places.
 
 ### 0.3.4-beta - 2026-11-19
 
@@ -306,7 +304,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
 
-*...and 100 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 104 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
 
