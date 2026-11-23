@@ -208,6 +208,22 @@ Notes:
   artifact nobody will ship. Gate it on `github.event_name == 'push'` to a `v*`
   tag.
 
+## 5a. A stranger's first ten minutes
+
+Before any artefact is published, run the install the way a new user meets it:
+
+```powershell
+.\scripts\fresh-user.ps1 -Setup dist\Rhapsode-<version>-Setup.exe -FullFirstRun
+```
+
+It gives the installer a brand-new `LOCALAPPDATA`/`APPDATA`/`USERPROFILE`/`TEMP`, installs
+per-user with no stills engine and no desktop icon, starts the app, checks that the missing
+voice model is explained in words a stranger can follow, downloads it through the same
+endpoint the Settings button uses, synthesises a sentence, adds a document, quits (the app
+must exit and leave no painter), uninstalls, and then proves nothing was written to the real
+profile and that the real uninstall entry was put back. A release candidate that fails this
+is not a candidate. `-KeepSandbox` leaves the tree for inspection.
+
 ## 5b. Attach the licence notice to the release
 
 The bundles contain GPL-3.0 components (eSpeak NG through `phonemizer`), so the

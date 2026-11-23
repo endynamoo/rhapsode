@@ -307,7 +307,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 **Added**
 
-- **Five demo clips, recorded from this build.** The README now shows the reader marking the spoken word, a scanned PDF page marked on the page itself, a library search across three books, a chapter read over a still the stills engine painted, and an English sentence read in Japanese through a local translation server - the last one with sound, muxed from the audio the app actually played. The GIFs sit in the README, and every clip's full-motion MP4, the demo corpus and the recording method live in `docs/demo/`, so a clip can be reproduced rather than trusted.
+- **A fresh-install check that runs the artefact instead of the checkout.** `scripts\\fresh-user.ps1` gives the installer a brand-new profile - its own `LOCALAPPDATA`, `APPDATA`, `USERPROFILE` and `TEMP`, no models, no stills engine - then installs, starts, asks it what a first-time user would, quits, uninstalls, and proves nothing was written outside that profile and that the real uninstall entry was restored. 22 checks in about two minutes; `-FullFirstRun` includes the 340 MB voice-model download. It exists because "works on my machine" is not evidence: this development box has the weights, the image environment and a populated data directory that no stranger has.
 
 ### 0.3.4-beta - 2026-11-19
 
@@ -321,7 +321,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
 
-*...and 105 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 107 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
 

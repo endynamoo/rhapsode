@@ -23,6 +23,18 @@ from .voices import DEFAULT_VOICE, VOICES, lang_for_voice
 _CLIP_META = cache.LRUCache(maxsize=1024, name="clips")
 
 
+def missing_model_advice() -> str:
+    """How to get the weights back, in terms the reader can act on.
+
+    A packaged install has no interpreter to run, so pointing at `python -m
+    murmur.bootstrap` there is advice a stranger cannot follow - found by the
+    fresh-install harness on its first run.
+    """
+    if config.FROZEN:
+        return ("Open Settings and press Download it again in the Voice model row.")
+    return "Run `python -m murmur.bootstrap` to download it again."
+
+
 class TTSEngine:
     def __init__(self) -> None:
         self._model = None
@@ -51,7 +63,7 @@ class TTSEngine:
             if problem:
                 raise FileNotFoundError(
                     f"The voice model is incomplete: {problem}. "
-                    "Run `python -m murmur.bootstrap` to download it again."
+                    + missing_model_advice()
                 )
             self._model = Kokoro(str(config.MODEL_PATH), str(config.VOICES_PATH))
             self._model_version = config.MODEL_PATH.stat().st_mtime

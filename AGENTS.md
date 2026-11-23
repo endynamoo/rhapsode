@@ -462,6 +462,11 @@ Sections 0-9 are about installing and running. This section is about changing th
   requirements, not just the test ones; on Windows, `set PLAYWRIGHT_CHANNEL=msedge` reuses
   the installed Edge instead of downloading Chromium. Those tests skip themselves when
   playwright is missing.
+- **Fresh install.** `scripts\fresh-user.ps1` runs the artefact, not the checkout: a new
+  profile, the real Setup.exe, no models, no stills engine. Run it before a release
+  (`-FullFirstRun` to include the ~340 MB download) and whenever a report says "works here".
+  It restores the machine's uninstall entry afterwards; if it says the sandbox was kept,
+  read `fresh-report.json` instead of guessing.
 - **Report shape.** What changed (files), what you ran, what the output was, and what you
   did **not** verify. Never describe unverified work as working.
 - **Data.** Never delete or rewrite the library directory, `*.db`, or downloaded weights to
