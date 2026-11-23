@@ -144,8 +144,12 @@ def main(argv: list[str] | None = None) -> int:
     try:
         import webview
     except Exception:  # fall back to browser mode (INSTALL.md B3)
-        import webbrowser
-        webbrowser.open(f"http://127.0.0.1:{port}")
+        # A scripted start (the fresh-install harness, a service wrapper) should not throw a
+        # tab onto whatever screen is attached; MURMUR_NO_BROWSER=1 says so.
+        if os.environ.get("MURMUR_NO_BROWSER") != "1":
+            import webbrowser
+
+            webbrowser.open(f"http://127.0.0.1:{port}")
         print(f"desktop window unavailable; serving browser mode on {port}")
         threading.Event().wait()  # keep the daemon server thread alive
         return 0

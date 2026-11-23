@@ -57,6 +57,12 @@ phrased for a user, not for a diff reader.
 
 ### Changed
 
+- **A scripted start can keep the app out of the default browser.** When WebView2 is missing,
+  the packaged app opens the page in the browser - the right first-run behaviour, and the
+  wrong thing for an automated start, which put a tab on whatever screen was attached in the
+  middle of a test. `MURMUR_NO_BROWSER=1` suppresses it; the fresh-install harness sets it so
+  the person decides when to look.
+
 - **The installer is 12 MB smaller and carries one fewer copyleft binary.** OpenCV ships a
   39 MB FFmpeg videoio DLL that nothing here calls - the app uses `FaceDetectorYN`, `resize`
   and a log-level call, and with the DLL renamed aside all three still work - so both build
