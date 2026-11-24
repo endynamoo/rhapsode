@@ -92,6 +92,33 @@ class HttpTranslatorTests(unittest.TestCase):
             with self.assertRaises(translate.TranslateError):
                 translator.translate("Hello.", "es")
 
+    def test_a_saved_base_url_is_posted_as_a_completion(self) -> None:
+        # check_url() stores http://host/v1 - the endpoint a person connects in Settings
+        # and the first-run screen. POSTing that string itself is a 404 from every
+        # OpenAI-compatible server, so a connected server answered nothing at all.
+        translator = translate.HttpTranslator(url="")
+        client = mock.MagicMock()
+        client.post.return_value = completion("El zorro marron salta.")
+        with mock.patch.object(translate, "_saved_url", return_value="http://127.0.0.1:8091/v1"):
+            with mock.patch("httpx.Client") as factory:
+                factory.return_value.__enter__.return_value = client
+                translator.translate("The brown fox jumps.", "es")
+        self.assertEqual(
+            "http://127.0.0.1:8091/v1/chat/completions", client.post.call_args.args[0]
+        )
+
+    def test_base_trailing_slash_and_full_urls_agree(self) -> None:
+        for url in (
+            "http://127.0.0.1:8091/v1",
+            "http://127.0.0.1:8091/v1/",
+            "http://127.0.0.1:8091/v1/chat/completions",
+        ):
+            with self.subTest(url=url):
+                translator = translate.HttpTranslator(url=url)
+                self.assertEqual(
+                    "http://127.0.0.1:8091/v1/chat/completions", translator._endpoint(), url
+                )
+
 
 class ChainTests(unittest.TestCase):
     def test_apple_wins_when_it_exists(self) -> None:
