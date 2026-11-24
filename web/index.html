@@ -392,6 +392,15 @@
         <div><label>Translate to voice language</label><p>Foreign voices read translated sentences</p></div>
         <button class="switch" id="setTranslate" role="switch" aria-checked="true"><i></i></button>
       </div>
+      <div class="setting" id="translateModelRow">
+        <div><label>On-device translator</label><p id="translateModelState">Checking.</p></div>
+        <button class="btn-ghost" id="translateModelGet">Download</button>
+      </div>
+      <div class="setting" id="translateRouteRow">
+        <div><label>Send these to my server</label>
+          <p>Languages the on-device translator cannot do. Point Settings at a server above, then tick them here.</p></div>
+        <label class="route-pick"><input type="checkbox" id="routeHi" data-lang="hi"> Hindi</label>
+      </div>
       <div class="setting">
         <div><label>Highlight the spoken word</label><p>Mark each word as the voice reaches it, in Book and in translated text. Manga has no words to follow, so it never highlights</p></div>
         <button class="switch" id="setHighlightWords" role="switch" aria-checked="true"><i></i></button>
@@ -445,20 +454,40 @@
     <p class="first-run-kicker">Translation</p>
     <h2 id="translateTitle">Read a foreign book in your own language</h2>
     <p class="first-run-lede">
-      When you choose a voice that speaks another language, Rhapsode translates each sentence
-      first. That needs a model on this machine — one you already run: llama.cpp, LM Studio,
-      Ollama or vLLM.
+      Rhapsode can translate each sentence before it is read, on this machine. Nothing
+      leaves the computer and there is nothing else to install.
     </p>
-    <p class="first-run-detail" id="translateStatus">Looking for a local server…</p>
-    <div class="first-run-servers" id="translateServers"></div>
-    <label class="first-run-field">
-      <span>or the address of one</span>
-      <input type="url" id="translateUrl" placeholder="http://127.0.0.1:8091/v1"
-             autocomplete="off" spellcheck="false">
+    <label class="first-run-check">
+      <input type="checkbox" id="translateLocalInstall">
+      <span>Download the on-device translator <strong id="translateLocalSize">4.5&nbsp;GB</strong>, one time</span>
     </label>
+    <p class="first-run-detail" id="translateLocalNote">
+      Correct for Spanish, French, Japanese and Chinese, about two seconds a sentence.
+      Hindi needs a server you run.
+    </p>
+    <label class="first-run-check small">
+      <input type="checkbox" id="translateLocalSmall">
+      <span>Smaller download (1.1&nbsp;GB, weaker in French and Japanese)</span>
+    </label>
+    <div class="first-run-progress" id="translateLocalProgress" hidden>
+      <div class="first-run-bar"><span id="translateLocalBar"></span></div>
+      <p class="first-run-detail" id="translateLocalStatus">Starting.</p>
+    </div>
+    <details class="first-run-server">
+      <summary>I already run a model server</summary>
+      <p class="first-run-detail" id="translateStatus">Looking for a local server…</p>
+      <div class="first-run-servers" id="translateServers"></div>
+      <label class="first-run-field">
+        <span>or the address of one</span>
+        <input type="url" id="translateUrl" placeholder="http://127.0.0.1:8091/v1"
+               autocomplete="off" spellcheck="false">
+      </label>
+      <div class="first-run-actions">
+        <button type="button" class="btn" id="translateConnect">Connect</button>
+        <button type="button" class="btn btn-quiet" id="translateScan">Look again</button>
+      </div>
+    </details>
     <div class="first-run-actions">
-      <button type="button" class="btn" id="translateConnect">Connect</button>
-      <button type="button" class="btn btn-quiet" id="translateScan">Look again</button>
       <button type="button" class="btn btn-quiet" id="translateSkip">Not now</button>
     </div>
   </div>

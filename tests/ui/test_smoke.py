@@ -850,10 +850,58 @@ class SmokeTests(unittest.TestCase):
 
         page.wait_for_selector("#translateSetup:not([hidden])", timeout=15000)
         self.assertIn("Nothing answered", page.text_content("#translateStatus") or "")
+        # The server path lives behind "I already run a model server" now that the
+        # on-device download is the primary offer.
+        page.click("#translateSetup summary")
         page.fill("#translateUrl", "http://127.0.0.1:8091/v1")
         page.click("#translateConnect")
         page.wait_for_function(
             "() => document.querySelector('#translateSetup').hidden", timeout=10000)
+
+    def test_checking_the_box_fetches_the_on_device_translator(self) -> None:
+        """The first-run offer: a checkbox, no extra button, and it starts the download."""
+        page = self.page
+        posts: list[dict] = []
+        state = {"installed": False, "running": True}
+
+        def local() -> dict:
+            return {
+                "enabled": True, "variant": "7b", "installed": state["installed"],
+                "runtime": True, "server": {"running": False, "url": ""},
+                "download": {"running": state["running"], "done": state["installed"],
+                             "error": None,
+                             "progress": {"percent": 100, "label": "the model"}},
+                "variants": {"7b": {"label": "7B", "bytes": 4_500_000_000, "note": ""}},
+                "reason": "",
+            }
+
+        def model(route):
+            if route.request.method == "POST":
+                posts.append(route.request.post_data_json or {})
+                state["installed"] = True
+                state["running"] = False
+            route.fulfill(json=local())
+
+        def status(route):
+            route.fulfill(json={
+                "available": state["installed"],
+                "backend": "local" if state["installed"] else None,
+                "apple": False, "configuredUrl": "", "savedUrl": "", "servers": [],
+                "local": local(), "serverOnly": [], "reason": "", "ports": [8091],
+            })
+
+        page.route("**/api/translate/model", model)
+        page.route("**/api/translate", status)
+        page.route("**/api/translate?probe=true", status)
+        page.route("**/api/settings", lambda route: route.fulfill(json={"ok": True}))
+        page.goto(self.base, wait_until="domcontentloaded")
+        page.wait_for_selector("#translateSetup:not([hidden])", timeout=15000)
+        self.assertIn("4.5", page.text_content("#translateLocalSize") or "")
+        page.check("#translateLocalInstall")
+        page.wait_for_function(
+            "() => document.querySelector('#translateSetup').hidden", timeout=15000)
+        self.assertTrue(posts, "checking the box must start the download")
+        self.assertEqual("7b", posts[0].get("variant"))
 
     def test_declining_translation_turns_the_setting_off(self) -> None:
         page = self.page

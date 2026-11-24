@@ -22,6 +22,9 @@ const DEFAULT_SETTINGS = {
   autoScroll: true,
   remoteAccess: false,
   translateToVoice: true,
+  translateUrl: '',
+  translateVariant: '7b',
+  translateServerOnly: [],
   filmQuality: 'high',
   autoScenes: true,
   autoFilms: false,
@@ -384,6 +387,128 @@ function hideTranslation() {
   if (box) box.hidden = true;
 }
 
+// The bundled translator, and the languages it cannot do. Hindi was measured: 0.5B, 1.5B
+// and 3B all produced garbage or a repetition loop, and 3B is not even licensable here.
+const LOCAL_UNSUPPORTED = ['hi'];
+
+async function localTranslationStatus() {
+  try {
+    return (await api('/api/translate')).local || {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function gigabytes(bytes) {
+  return `${Math.round((bytes || 0) / 1e9 * 10) / 10} GB`;
+}
+
+function paintLocalTranslation(local) {
+  const state = $('#translateModelState');
+  const get = $('#translateModelGet');
+  const variant = (local && local.variants && local.variants[local.variant]) || null;
+  if (state) {
+    if (!local || local.enabled === false) {
+      state.textContent = 'Off in this build.';
+    } else if (local.installed) {
+      state.textContent = `Installed (${variant ? variant.label : 'local'}) - works offline.`;
+    } else if (local.download && local.download.running) {
+      const pct = (local.download.progress && local.download.progress.percent) || 0;
+      state.textContent = `Downloading - ${pct}%`;
+    } else if (local.download && local.download.error) {
+      state.textContent = `Download failed: ${local.download.error}`;
+    } else if (variant) {
+      state.textContent = `Not downloaded (${gigabytes(variant.bytes)}). ${variant.note}`;
+    } else {
+      state.textContent = 'Not downloaded.';
+    }
+  }
+  if (get) get.hidden = !!(local && local.installed);
+}
+
+/* Checking the box is the whole gesture: it fetches the runtime and the weights, shows
+   the same progress the voice download uses, and then translation simply works. */
+async function startLocalDownload(variantName) {
+  const progress = $('#translateLocalProgress');
+  if (progress) progress.hidden = false;
+  try {
+    await api('/api/translate/model', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ download: true, variant: variantName || null }),
+    });
+  } catch (err) {
+    toast(err.message, 'error');
+    if (progress) progress.hidden = true;
+    return;
+  }
+  const timer = setInterval(async () => {
+    const local = await localTranslationStatus();
+    paintLocalTranslation(local);
+    const download = local.download || {};
+    const pct = (download.progress && download.progress.percent) ?? (download.done ? 100 : 0);
+    const bar = $('#translateLocalBar');
+    if (bar) bar.style.width = `${pct}%`;
+    const line = $('#translateLocalStatus');
+    if (line) {
+      line.textContent = download.running
+        ? `${(download.progress && download.progress.label) || 'Downloading'} - ${pct}%`
+        : (download.error || 'Installed.');
+    }
+    if (download.done) {
+      clearInterval(timer);
+      toast('Translation is ready. It works offline from here.');
+      hideTranslation();
+    } else if (download.error) {
+      clearInterval(timer);
+      const box = $('#translateLocalInstall');
+      if (box) {
+        box.checked = false;
+        box.disabled = false;
+      }
+      toast(`Translation download failed: ${download.error}`, 'error');
+    }
+  }, 900);
+}
+
+function wireLocalTranslation() {
+  const install = $('#translateLocalInstall');
+  const small = $('#translateLocalSmall');
+  if (small) {
+    small.addEventListener('change', () => {
+      const label = $('#translateLocalSize');
+      if (label) label.textContent = small.checked ? '1.1 GB' : '4.5 GB';
+    });
+  }
+  if (install) {
+    install.addEventListener('change', () => {
+      if (!install.checked) return;
+      install.disabled = true;
+      startLocalDownload(small && small.checked ? '1.5b' : '7b');
+    });
+  }
+  const get = $('#translateModelGet');
+  if (get) {
+    get.addEventListener('click', () => {
+      get.disabled = true;
+      startLocalDownload(null);
+    });
+  }
+  LOCAL_UNSUPPORTED.forEach((lang) => {
+    const box = lang === 'hi' ? $('#routeHi') : null;
+    if (!box) return;
+    box.checked = (state.settings.translateServerOnly || []).includes(lang);
+    box.addEventListener('change', async () => {
+      const chosen = new Set(state.settings.translateServerOnly || []);
+      if (box.checked) chosen.add(lang);
+      else chosen.delete(lang);
+      state.settings.translateServerOnly = [...chosen];
+      await saveSettings({ translateServerOnly: [...chosen] });
+    });
+  });
+  localTranslationStatus().then(paintLocalTranslation);
+}
+
 function firstRunFailed(message) {
   clearTimeout(firstRunTimer);
   $('#firstRunDetail').textContent = message;
@@ -467,6 +592,7 @@ function applyShortcutHints() {
 function bindUI() {
   bindFirstRun();
   applyShortcutHints();
+  wireLocalTranslation();
   $('#addBtn').addEventListener('click', openAdd);
   $('#emptyAdd').addEventListener('click', openAdd);
   $('#sampleBtn').addEventListener('click', addSample);
