@@ -27,6 +27,7 @@ from . import (
     imaging,
     langs,
     lifecycle,
+    localmt,
     netinfo,
     ocr,
     polish,
@@ -50,6 +51,37 @@ class TTSIn(BaseModel):
 # ---------------------------------------------------------------- health
 class TranslateIn(BaseModel):
     url: str | None = None
+
+
+class TranslateModelIn(BaseModel):
+    variant: str | None = None
+    download: bool = False
+    stop: bool = False
+
+
+@router.post("/api/translate/model", status_code=202)
+def translation_model(payload: TranslateModelIn | None = None) -> dict:
+    """Fetch the on-device translator (llama.cpp + a GGUF model), or report its state.
+
+    A reader should not have to install a model server to hear a foreign book. This is the
+    one call that fetches what that needs - the runtime, the weights and the model's
+    licence - and it is only made when someone asked (the first-run checkbox, or Settings).
+    """
+    data = payload or TranslateModelIn()
+    if data.stop:
+        localmt.stop()
+        return localmt.status()
+    if data.variant:
+        try:
+            store.set_settings({"translateVariant": data.variant})
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if data.download:
+        try:
+            localmt.start_download(data.variant)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return localmt.status()
 
 
 @router.get("/api/translate")

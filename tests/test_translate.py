@@ -4,7 +4,7 @@ from __future__ import annotations
 import unittest
 from unittest import mock
 
-from murmur import config, translate
+from murmur import config, store, translate
 
 
 class FakeResponse:
@@ -198,6 +198,89 @@ class MissingAdviceTests(unittest.TestCase):
         self.assertEqual("advice", prepared["error"])
         self.assertEqual("El farero caminaba por la orilla.", prepared["text"])
         self.assertEqual("es", prepared["source"])
+
+
+class PayloadCapTests(unittest.TestCase):
+    def test_every_request_carries_a_token_cap(self) -> None:
+        # Without a cap an unstable decode repeats one clause until the context ends -
+        # measured on the local models, where a Japanese sentence spent the whole
+        # 200-token budget repeating itself. A read must not hang on that.
+        translator = translate.HttpTranslator(url="http://localhost/v1/chat/completions")
+        client = mock.MagicMock()
+        client.post.return_value = completion("hola")
+        with mock.patch("httpx.Client") as factory:
+            factory.return_value.__enter__.return_value = client
+            translator.translate("Hello.", "es")
+        payload = client.post.call_args.kwargs["json"]
+        self.assertGreaterEqual(payload["max_tokens"], 256)
+        self.assertLessEqual(payload["max_tokens"], 2048)
+
+    def test_the_repetition_penalty_only_goes_to_this_apps_own_server(self) -> None:
+        # llama.cpp understands the field; an OpenAI endpoint may reject an unknown one.
+        for local, expected in ((True, True), (False, False)):
+            with self.subTest(local=local):
+                translator = translate.HttpTranslator(url="http://127.0.0.1:9/v1",
+                                                      local=local, bound=True)
+                client = mock.MagicMock()
+                client.post.return_value = completion("hola")
+                with mock.patch("httpx.Client") as factory:
+                    factory.return_value.__enter__.return_value = client
+                    translator.translate("Hello.", "es")
+                payload = client.post.call_args.kwargs["json"]
+                self.assertEqual(expected, "repeat_penalty" in payload)
+
+
+class RoutingTests(unittest.TestCase):
+    def _chain(self, *, local: bool = True, http: bool = True):
+        chain = translate.TranslatorChain()
+        chain.swift = mock.MagicMock(name="swift")
+        chain.swift.available.return_value = False
+        chain.http = mock.MagicMock(name="http")
+        chain.http.name = "http"
+        chain.http.url = ""
+        chain.http.available.return_value = http
+        chain.http.translate.return_value = {"text": "hola", "source": "en", "translated": True}
+        chain.local = mock.MagicMock(name="local")
+        chain.local.name = "local"
+        chain.local.available.return_value = local
+        chain.local.translate.return_value = {"text": "hola", "source": "en", "translated": True}
+        return chain
+
+    def test_a_language_routed_to_the_readers_server_uses_it(self) -> None:
+        with mock.patch.object(store, "get_settings", return_value={"translateServerOnly": ["hi"]}):
+            chain = self._chain()
+            chain.translate("namaste", "hi")
+        chain.http.translate.assert_called_once()
+        chain.local.translate.assert_not_called()
+
+    def test_everything_else_prefers_the_bundled_model(self) -> None:
+        with mock.patch.object(store, "get_settings", return_value={"translateServerOnly": ["hi"]}):
+            chain = self._chain()
+            chain.translate("hello", "fr")
+        chain.local.translate.assert_called_once()
+        chain.http.translate.assert_not_called()
+
+    def test_a_routed_language_falls_back_to_the_bundled_model(self) -> None:
+        with mock.patch.object(store, "get_settings", return_value={"translateServerOnly": ["hi"]}):
+            chain = self._chain(http=False)
+            chain.translate("namaste", "hi")
+        chain.local.translate.assert_called_once()
+
+    def test_a_local_failure_falls_back_to_the_readers_server(self) -> None:
+        chain = self._chain()
+        chain.local.translate.side_effect = translate.TranslateError("model died")
+        result = chain.translate("hello", "fr")
+        self.assertEqual("hola", result["text"])
+        chain.http.translate.assert_called_once()
+
+    def test_the_status_reports_the_local_model_and_the_routes(self) -> None:
+        chain = self._chain(local=False)
+        with mock.patch.object(store, "get_settings",
+                               return_value={"translateServerOnly": ["hi"]}):
+            status = chain.status()
+        self.assertIn("local", status)
+        self.assertEqual(["hi"], status["serverOnly"])
+        self.assertIn("installed", status["local"])
 
 
 if __name__ == "__main__":

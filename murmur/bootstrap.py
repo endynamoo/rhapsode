@@ -5,11 +5,10 @@ import pathlib
 import sys
 import threading
 import time
-import urllib.request
 from pathlib import Path
 from typing import Callable
 
-from . import config
+from . import config, download
 
 
 def _emit(text: str) -> None:
@@ -44,19 +43,16 @@ def _download(url: str, dest: Path, label: str, minimum: int) -> None:
     if dest.exists():
         # A stub left by an interrupted download would otherwise be kept forever.
         _emit(f"  ! {problem} - downloading it again")
-    tmp = dest.with_suffix(dest.suffix + ".part")
     _emit(f"  ↓ {label}")
-    start = time.time()
     last = 0.0
 
-    def progress(downloaded: int, total: int) -> None:
+    def progress(downloaded: int, total: int, speed: float) -> None:
         nonlocal last
         now = time.time()
         if now - last < 0.4 and (total <= 0 or downloaded < total):
             return
         last = now
         pct = (downloaded / total * 100) if total > 0 else 0
-        speed = downloaded / max(now - start, 0.001) / 1e6
         _STATE["progress"] = {
             "label": label,
             "downloaded": downloaded,
@@ -67,20 +63,10 @@ def _download(url: str, dest: Path, label: str, minimum: int) -> None:
         bar = "█" * int(pct / 4) + "░" * (25 - int(pct / 4))
         _write(f"\r    [{bar}] {pct:5.1f}%  {speed:5.1f} MB/s ")
 
-    # urlretrieve has no timeout: a stalled connection held the first-run screen on
-    # "downloading" forever, with no error and no way to retry. Read it in chunks with
-    # one, and keep the same progress the window draws.
-    with urllib.request.urlopen(url, timeout=60) as response, open(tmp, "wb") as handle:
-        total = int(response.headers.get("content-length") or 0)
-        downloaded = 0
-        while True:
-            chunk = response.read(256 * 1024)
-            if not chunk:
-                break
-            handle.write(chunk)
-            downloaded += len(chunk)
-            progress(downloaded, total)
-    tmp.replace(dest)
+    # Shared with the on-device translator: write a .part, rename it into place, and
+    # give the socket a timeout - urlretrieve had none, so a stalled connection held
+    # the first-run screen open forever with no error and no way to retry.
+    download.fetch(url, dest, progress=progress)
     _STATE["progress"] = {"label": label, "downloaded": dest.stat().st_size,
                           "total": dest.stat().st_size, "percent": 100.0,
                           "mbPerSecond": 0.0}

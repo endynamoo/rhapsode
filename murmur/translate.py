@@ -11,7 +11,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import config, proc, store
+from . import config, localmt, proc, store
 
 
 class TranslateUnavailable(Exception):
@@ -245,13 +245,22 @@ class HttpTranslator:
 
     name = "http"
 
-    def __init__(self, url: str | None = None, model: str | None = None) -> None:
+    def __init__(self, url: str | None = None, model: str | None = None,
+                 *, local: bool = False, bound: bool = False) -> None:
         self.configured = (url if url is not None else config.TRANSLATE_URL).rstrip("/")
         self.url = self.configured
         self.model = model or config.TRANSLATE_MODEL
         self.last_error: str | None = None
+        # `local` marks the server this app starts itself: it accepts llama.cpp's
+        # repetition penalty, and it is the backend that needs the sentence cap.
+        self.local = local
+        # `bound` is a URL fixed by the caller (the local supervisor), so discovery and
+        # a saved endpoint must not replace it.
+        self.bound = bound
 
     def _resolve(self) -> bool:
+        if self.bound:
+            return bool(self.url)
         # Recompute rather than cache: the reader can connect or change a server while the
         # app is running, and a stale URL meant "available" for one that had gone away.
         # Order: what the reader connected, then the environment (a script's choice), then
@@ -283,15 +292,25 @@ class HttpTranslator:
         )
         if source and source not in {"auto", target}:
             instructions += f" The text is in {LANGUAGE_NAMES.get(source, source)}."
-        return {
+        payload = {
             "model": self.model,
             "temperature": 0,
             "stream": False,
+            # A cap is not optional. At temperature 0 an unstable decode repeats the same
+            # phrase until the context ends - measured on the local models, where Japanese
+            # ran the full 200-token budget on one clause. Without a limit that is a read
+            # that never finishes. Room for a translated paragraph, not for a ramble.
+            "max_tokens": max(256, min(2048, len(text) * 3)),
             "messages": [
                 {"role": "system", "content": instructions},
                 {"role": "user", "content": text},
             ],
         }
+        if self.local:
+            # llama.cpp accepts this; a plain OpenAI endpoint may reject an unknown field,
+            # so the penalty only goes to a server this app started.
+            payload["repeat_penalty"] = 1.2
+        return payload
 
     def _endpoint(self) -> str:
         """The URL a completion is POSTed to, from whatever shape the URL has.
@@ -372,19 +391,94 @@ def missing_advice() -> str:
     )
 
 
+class LocalTranslator:
+    """The translator this app installs and starts itself: llama.cpp plus a GGUF model.
+
+    `available()` is cheap - it checks files - and starting the server is expensive (it
+    loads gigabytes of weights), so it happens on the first sentence rather than at
+    import. A failure here must not take translation down: the chain falls back to a
+    server the reader runs, and says why in `last_error`.
+    """
+
+    name = "local"
+
+    def __init__(self) -> None:
+        self.last_error: str | None = None
+        self._http: HttpTranslator | None = None
+
+    def available(self) -> bool:
+        return localmt.enabled() and localmt.installed()
+
+    def _client(self) -> HttpTranslator:
+        url = localmt.ensure_server()
+        if self._http is None or self._http.url != url:
+            self._http = HttpTranslator(url=url, local=True, bound=True)
+        return self._http
+
+    def translate(self, text: str, target: str, source: str = "auto") -> dict:
+        try:
+            return self._client().translate(text, target, source)
+        except Exception as exc:  # noqa: BLE001 - the chain reports, it does not crash
+            self.last_error = str(exc)
+            raise
+
+
 class TranslatorChain:
-    """Apple Translation when it exists, a local model otherwise."""
+    """Apple Translation, the translator this app installs, or a server the reader runs.
+
+    The order is per language. A language the on-device model cannot do (Hindi, measured;
+    see `localmt`) is routed to the reader's own server when they have connected one, via
+    Settings -> Translation; everything else prefers the bundled model, because that is
+    the one that needs no setup.
+    """
 
     def __init__(self) -> None:
         self.swift = Translator()
         self.http = HttpTranslator()
+        self.local = LocalTranslator()
 
     @property
     def last_error(self) -> str | None:
-        return self.swift.last_error or self.http.last_error
+        return self.swift.last_error or self.http.last_error or self.local.last_error
+
+    def _server_only(self) -> set[str]:
+        """Languages the reader routed to their own server."""
+        try:
+            chosen = store.get_settings().get("translateServerOnly") or []
+        except Exception:  # pragma: no cover - a store that is not open yet
+            return set()
+        return {str(item).strip().lower() for item in chosen if str(item).strip()}
+
+    def _pick(self, target: str):
+        if self.swift.available():
+            return self.swift
+        base = target.split("-")[0].lower()
+        if base in self._server_only():
+            if self.http.available():
+                return self.http
+            if self.local.available():
+                return self.local
+            return None
+        if self.local.available():
+            return self.local
+        if self.http.available():
+            return self.http
+        return None
 
     def available(self) -> bool:
-        return self.swift.available() or self.http.available()
+        return bool(self.swift.available() or self.http.available() or self.local.available())
+
+    def backend(self, target: str | None = None) -> str | None:
+        if target is None:
+            if self.swift.available():
+                return self.swift.name
+            if self.http.available():
+                return self.http.name
+            if self.local.available():
+                return self.local.name
+            return None
+        chosen = self._pick(target)
+        return chosen.name if chosen is not None else None
 
     def status(self, probe: bool = False) -> dict:
         """What translation can do here, in the terms a person needs to act on.
@@ -393,6 +487,7 @@ class TranslatorChain:
         which is what a page-load poll can afford.
         """
         backend = self.backend()
+        local = localmt.status()
         saved = _saved_url()
         target = self.http.url if backend == self.http.name else saved
         servers = probe_ports() if probe else [
@@ -413,17 +508,35 @@ class TranslatorChain:
                     "configuredUrl": target,
                     "savedUrl": saved,
                     "servers": servers,
+                    "local": local,
+                    "serverOnly": sorted(self._server_only()),
                     "reason": reason,
                     "ports": list(LOCAL_PORTS),
                 }
         reason = ""
         if backend is None:
-            reason = (
-                "Translation needs a local model server. Rhapsode uses one you already run: "
-                "llama.cpp, LM Studio, Ollama or vLLM, on any of "
-                + ", ".join(str(port) for port in LOCAL_PORTS)
-                + "."
-            )
+            if local["installed"]:
+                reason = (
+                    "The on-device translator is installed but did not start. "
+                    "Open Settings -> Translation to start it again, or connect a server "
+                    "you run."
+                )
+            elif local["enabled"]:
+                reason = (
+                    "Translation is not set up yet. Download the on-device translator in "
+                    "Settings -> Translation (one time, then nothing leaves this machine), "
+                    "or connect a model server you already run: llama.cpp, LM Studio, "
+                    "Ollama or vLLM on "
+                    + ", ".join(str(port) for port in LOCAL_PORTS)
+                    + "."
+                )
+            else:
+                reason = (
+                    "Translation needs a local model server. Rhapsode uses one you already "
+                    "run: llama.cpp, LM Studio, Ollama or vLLM, on any of "
+                    + ", ".join(str(port) for port in LOCAL_PORTS)
+                    + "."
+                )
         return {
             "available": backend is not None,
             "backend": backend,
@@ -431,27 +544,29 @@ class TranslatorChain:
             "configuredUrl": target or "",
             "savedUrl": saved,
             "servers": servers,
+            "local": local,
+            "serverOnly": sorted(self._server_only()),
             "reason": reason,
             "ports": list(LOCAL_PORTS),
         }
 
-    def backend(self) -> str | None:
-        if self.swift.available():
-            return self.swift.name
-        if self.http.available():
-            return self.http.name
-        return None
-
     def translate(self, text: str, target: str, source: str = "auto") -> dict:
-        if self.swift.available():
-            return self.swift.translate(text, target, source)
-        if self.http.available():
-            return self.http.translate(text, target, source)
-        raise TranslateUnavailable(
-            "Translation needs a local model on this machine: set "
-            "MURMUR_TRANSLATE_URL to an OpenAI-compatible server, or start one on "
-            "the usual ports."
-        )
+        chosen = self._pick(target)
+        if chosen is None:
+            raise TranslateUnavailable(
+                "Translation needs a model on this machine: download the on-device "
+                "translator in Settings -> Translation, or point MURMUR_TRANSLATE_URL at "
+                "an OpenAI-compatible server."
+            )
+        try:
+            return chosen.translate(text, target, source)
+        except TranslateUnavailable:
+            raise
+        except Exception as exc:  # noqa: BLE001 - try the next backend before failing
+            if chosen is self.local and self.http.available():
+                self.local.last_error = str(exc)
+                return self.http.translate(text, target, source)
+            raise
 
 
 translator = TranslatorChain()
