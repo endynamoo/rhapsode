@@ -11,6 +11,7 @@ import asyncio
 import json
 import os
 import re
+import sys
 import threading
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -344,8 +345,17 @@ def audio(name: str, request: Request):
     match = re.match(r"bytes=(\d*)-(\d*)", range_header)
     if not match:
         raise HTTPException(status_code=416, headers={"Content-Range": f"bytes */{size}"})
-    start = int(match.group(1)) if match.group(1) else 0
-    end = int(match.group(2)) if match.group(2) else size - 1
+    if match.group(1):
+        start = int(match.group(1))
+        end = int(match.group(2)) if match.group(2) else size - 1
+    else:
+        # `bytes=-500` asks for the LAST 500 bytes. An empty start used to become 0, so
+        # the client got the first 501 bytes - a different part of the file, silently.
+        suffix = int(match.group(2) or 0)
+        if suffix <= 0:
+            raise HTTPException(status_code=416, headers={"Content-Range": f"bytes */{size}"})
+        start = max(0, size - suffix)
+        end = size - 1
     end = min(end, size - 1)
     if start > end or start >= size:
         raise HTTPException(status_code=416, headers={"Content-Range": f"bytes */{size}"})
@@ -431,14 +441,23 @@ async def quick_read(request: Request) -> dict:
     return {"id": doc["id"], "delivered": broadcast({"type": "quick", "id": doc["id"]})}
 
 
+def _ocr_advice() -> str:
+    """What to install here. Tesseract is the Linux answer, not the Windows one."""
+    if sys.platform.startswith("win"):
+        return (
+            "OCR is unavailable: Windows needs the OCR language pack and the winsdk "
+            "binding. Add a language in Settings > Time & language, then restart Rhapsode."
+        )
+    if sys.platform == "darwin":
+        return "OCR is unavailable: install pyobjc-framework-Vision (uv pip install pyobjc-framework-Vision)."
+    return "OCR is unavailable: install Tesseract (apt install tesseract-ocr)."
+
+
 @router.post("/api/ocr-clipboard")
 async def ocr_clipboard() -> dict:
     """OCR the image on the clipboard and queue it for reading."""
     if not ocr.available():
-        raise HTTPException(
-            status_code=503,
-            detail="OCR is unavailable — on macOS install pyobjc-framework-Vision; on Linux/Windows install Tesseract.",
-        )
+        raise HTTPException(status_code=503, detail=_ocr_advice())
     data = ocr.clipboard_image()
     if not data:
         raise HTTPException(status_code=400, detail="There is no image on the clipboard.")

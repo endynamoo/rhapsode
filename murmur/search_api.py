@@ -60,6 +60,10 @@ def rebuild_index(payload: IndexIn | None = None) -> dict:
         if not store.get_doc(data.doc):
             raise HTTPException(status_code=404, detail="Document not found")
         search.note_document(data.doc)
+        # note_document only queues - by design, so an import cannot spawn a thread that
+        # outlives its request. Here the caller asked for indexing, so the worker has to
+        # be running or the queued book is never read; the endpoint answered "started".
+        search.start_background()
         return {"started": True, "status": search.status()}
     search.start_background(force=data.force)
     return {"started": True, "status": search.status()}
