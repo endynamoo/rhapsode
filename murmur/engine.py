@@ -139,6 +139,21 @@ class TTSEngine:
         phonemes = str(phonemes).strip()
         return phonemes or None
 
+    @staticmethod
+    def _temp_paths(wav_path: Path, meta_path: Path) -> tuple[Path, Path]:
+        """Sibling temp names that still END in `.wav` / `.json`.
+
+        Unique per call, because playback and an export can ask for the same sentence at the
+        same time. The extension has to survive: soundfile picks the container from it, and a
+        name ending in `.tmp` fails with "No format specified" - which is what every
+        synthesis answered when the first version of this used `.wav.<stamp>.tmp`.
+        """
+        stamp = f"{os.getpid()}-{uuid.uuid4().hex[:8]}"
+        return (
+            wav_path.with_name(f"{wav_path.stem}.{stamp}.tmp.wav"),
+            meta_path.with_name(f"{meta_path.stem}.{stamp}.tmp.json"),
+        )
+
     def synthesize(self, text: str, voice: str = DEFAULT_VOICE) -> dict:
         """Return {path, duration, sample_rate, words, key}, synthesizing if needed."""
         text = text.strip()
@@ -219,10 +234,8 @@ class TTSEngine:
         # Unique per call. Playback and an export can ask for the same sentence at the
         # same time; with a temp name derived only from the cache key, the second writer
         # replaced a file the first had already moved, or published a half-written WAV.
-        stamp = f"{os.getpid()}-{uuid.uuid4().hex[:8]}"
-        tmp_wav = wav_path.with_name(f"{wav_path.name}.{stamp}.tmp")
+        tmp_wav, tmp_meta = self._temp_paths(wav_path, meta_path)
         sf.write(tmp_wav, np.asarray(audio, dtype=np.float32), sample_rate, subtype="PCM_16")
-        tmp_meta = meta_path.with_name(f"{meta_path.name}.{stamp}.tmp")
         tmp_meta.write_text(json.dumps(meta, ensure_ascii=False), "utf-8")
         try:
             os.replace(tmp_wav, wav_path)
