@@ -401,6 +401,10 @@
           <p>Languages the on-device translator cannot do. Point Settings at a server above, then tick them here.</p></div>
         <label class="route-pick"><input type="checkbox" id="routeHi" data-lang="hi"> Hindi</label>
       </div>
+      <div class="setting" id="engineSetupRow">
+        <div><label>Stills engine</label><p id="engineSetupState">Checking.</p></div>
+        <button class="btn-ghost" id="engineSetupGet">Set up</button>
+      </div>
       <div class="setting">
         <div><label>Highlight the spoken word</label><p>Mark each word as the voice reaches it, in Book and in translated text. Manga has no words to follow, so it never highlights</p></div>
         <button class="switch" id="setHighlightWords" role="switch" aria-checked="true"><i></i></button>
@@ -489,6 +493,31 @@
     </details>
     <div class="first-run-actions">
       <button type="button" class="btn btn-quiet" id="translateSkip">Not now</button>
+    </div>
+  </div>
+</div>
+
+<div class="first-run" id="engineSetup" hidden>
+  <div class="first-run-card" role="dialog" aria-modal="true" aria-labelledby="engineTitle">
+    <p class="first-run-kicker">Manga</p>
+    <h2 id="engineTitle">Paint manga stills on this machine</h2>
+    <p class="first-run-lede">
+      Rhapsode can turn each scene into an illustration while it reads, using this graphics
+      card. That needs a separate interpreter and the image weights, fetched once.
+    </p>
+    <label class="first-run-check">
+      <input type="checkbox" id="engineLocalInstall">
+      <span>Set up the stills engine <strong>about 5&nbsp;GB</strong>, one time</span>
+    </label>
+    <p class="first-run-detail" id="engineSetupNote">
+      Without it, Manga still reads and shows a placeholder card - nothing else changes.
+    </p>
+    <div class="first-run-progress" id="engineSetupProgress" hidden>
+      <div class="first-run-bar"><span id="engineSetupBar"></span></div>
+      <pre class="first-run-log" id="engineSetupLog"></pre>
+    </div>
+    <div class="first-run-actions">
+      <button type="button" class="btn btn-quiet" id="engineSetupSkip">Not now</button>
     </div>
   </div>
 </div>

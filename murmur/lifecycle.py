@@ -19,7 +19,7 @@ import sys
 import threading
 import time
 
-from . import config, engine, imaging, localmt, search, store
+from . import config, engine, enginesetup, imaging, localmt, search, store
 
 _RELEASED = threading.Event()
 
@@ -40,6 +40,7 @@ def release(reason: str = "quit") -> dict:
             steps[name] = f"{type(exc).__name__}: {exc}"
 
     step("painter", imaging.shutdown)
+    step("engine-setup", enginesetup.stop)
     step("translation", localmt.stop)
     step("voice", engine.engine.unload)
     step("search", lambda: search.stop(timeout=2.0))

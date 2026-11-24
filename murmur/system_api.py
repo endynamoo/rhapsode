@@ -22,6 +22,7 @@ from . import (
     access,
     bootstrap,
     config,
+    enginesetup,
     extract,
     fonts,
     imaging,
@@ -239,6 +240,7 @@ def _engine_state() -> dict:
             for name, preset in engine_profile.PROFILES.items()
         ],
         "painter": imaging.painter_info(),
+        "setup": enginesetup.status(),
     }
 
 
@@ -246,6 +248,25 @@ def _engine_state() -> dict:
 def read_engine() -> dict:
     """Which profile is active, what it means, and what the painter is doing."""
     return _engine_state()
+
+
+@router.post("/api/engine/setup", status_code=202)
+def setup_engine() -> dict:
+    """Install the stills engine now, from inside the app.
+
+    Runs the same script the installer's optional task runs: torch for this card's vendor,
+    diffusers, the q4 transformer, the detectors, then the profile. Only started when
+    someone asked (the first-run card or Settings), and never on a machine with no GPU
+    profile - a placeholder is the correct answer there, not a 5 GB download.
+    """
+    active = config.PROFILE or {}
+    if active.get("profile") in {None, "", "cpu"}:
+        raise HTTPException(
+            status_code=400,
+            detail="This machine has no usable GPU for stills; the placeholder painter is "
+                   "what Cinema uses here (CPU painting is planned for 0.4).",
+        )
+    return enginesetup.start()
 
 
 @router.post("/api/engine/profile")

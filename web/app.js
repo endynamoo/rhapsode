@@ -215,7 +215,12 @@ async function init() {
   checkEngine();
   // A fresh install has no voice. Prepare it now, with progress, instead of letting the
   // first press of Listen fail: that was the first thing a new user met.
-  prepareFirstRun().then(() => prepareTranslation());
+  prepareFirstRun()
+    .then(() => prepareTranslation())
+    .then(() => {
+      const box = $('#translateSetup');
+      if (!box || box.hidden) prepareEngine(true);
+    });
 
   const raw = decodeURIComponent(location.hash.replace(/^#/, ''));
   if (raw) {
@@ -385,6 +390,106 @@ async function connectTranslation(url) {
 function hideTranslation() {
   const box = $('#translateSetup');
   if (box) box.hidden = true;
+  // The engine offer follows the translation one: both are "do this once" decisions, and
+  // two modal cards at the same time is not a first run, it is a form.
+  prepareEngine(true);
+}
+
+// ---------------------------------------------------------------- stills engine setup
+
+async function engineSetupStatus() {
+  try {
+    return (await api('/api/engine')).setup || {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function paintEngineSetup(setup) {
+  const state = $('#engineSetupState');
+  const get = $('#engineSetupGet');
+  const lines = (setup && setup.run && setup.run.lines) || [];
+  const last = lines.length ? lines[lines.length - 1] : '';
+  if (state) {
+    if (!setup || setup.available === false) {
+      state.textContent = (setup && setup.reason) || 'Not available on this platform.';
+    } else if (setup.installed) {
+      state.textContent = 'Installed - Cinema paints on this machine.';
+    } else if (setup.run && setup.run.running) {
+      state.textContent = `Setting up - ${last || 'working'}`;
+    } else if (setup.run && setup.run.error) {
+      state.textContent = setup.run.error;
+    } else if (setup.needed) {
+      state.textContent = 'Not set up. Manga shows placeholder cards until it is.';
+    } else {
+      state.textContent = 'No usable GPU for stills here.';
+    }
+  }
+  if (get) get.hidden = !(setup && setup.available && setup.needed && !setup.installed);
+}
+
+function hideEngineSetup() {
+  const box = $('#engineSetup');
+  if (box) box.hidden = true;
+}
+
+async function startEngineSetup() {
+  const progress = $('#engineSetupProgress');
+  const log = $('#engineSetupLog');
+  if (progress) progress.hidden = false;
+  try {
+    await api('/api/engine/setup', { method: 'POST' });
+  } catch (err) {
+    toast(err.message, 'error');
+    if (progress) progress.hidden = true;
+    return;
+  }
+  const timer = setInterval(async () => {
+    const setup = await engineSetupStatus();
+    paintEngineSetup(setup);
+    if (log) {
+      log.textContent = ((setup.run && setup.run.lines) || []).slice(-6).join('\n');
+    }
+    if (setup.run && setup.run.done) {
+      clearInterval(timer);
+      toast('Stills engine is ready. Cinema will paint from now on.');
+      hideEngineSetup();
+      refreshEngine();
+    } else if (setup.run && setup.run.error && !setup.run.running) {
+      clearInterval(timer);
+      toast(`Stills setup stopped: ${setup.run.error}`, 'error');
+    }
+  }, 1500);
+}
+
+async function prepareEngine(showCard) {
+  const setup = await engineSetupStatus();
+  paintEngineSetup(setup);
+  if (showCard && setup.needed) {
+    const card = $('#engineSetup');
+    if (card) card.hidden = false;
+  }
+}
+
+function wireEngineSetup() {
+  const install = $('#engineLocalInstall');
+  if (install) {
+    install.addEventListener('change', () => {
+      if (!install.checked) return;
+      install.disabled = true;
+      startEngineSetup();
+    });
+  }
+  const skip = $('#engineSetupSkip');
+  if (skip) skip.addEventListener('click', hideEngineSetup);
+  const get = $('#engineSetupGet');
+  if (get) {
+    get.addEventListener('click', () => {
+      get.disabled = true;
+      startEngineSetup();
+    });
+  }
+  engineSetupStatus().then(paintEngineSetup);
 }
 
 // The bundled translator, and the languages it cannot do. Hindi was measured: 0.5B, 1.5B
@@ -593,6 +698,7 @@ function bindUI() {
   bindFirstRun();
   applyShortcutHints();
   wireLocalTranslation();
+  wireEngineSetup();
   $('#addBtn').addEventListener('click', openAdd);
   $('#emptyAdd').addEventListener('click', openAdd);
   $('#sampleBtn').addEventListener('click', addSample);
