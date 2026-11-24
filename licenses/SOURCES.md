@@ -54,8 +54,9 @@ Corresponding Source.
 
 ## What this does not cover
 
-- **Model weights** (Kokoro, FLUX.2 [klein], the detector ONNX files) are
-  Apache-2.0 and are downloaded at runtime, not bundled. See
+- **Model weights** (Kokoro, FLUX.2 [klein], the detector ONNX files, the Qwen2.5
+  translation weights) are Apache-2.0 and are downloaded at runtime, not bundled. The
+  translation runtime (`llama-server`, MIT) is fetched the same way. See
   [`../THIRD_PARTY.md`](../THIRD_PARTY.md).
 - **Per-MPL-2.0 packages** (`certifi`, `tqdm`) keep their own licences; they are
   unmodified and their notices travel with the wheel.

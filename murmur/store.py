@@ -66,9 +66,15 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "autoScroll": True,
     "remoteAccess": False,
     "translateToVoice": True,
-    # The OpenAI-compatible endpoint the reader connected, if any. Empty means "use
-    # MURMUR_TRANSLATE_URL if it is set, otherwise whatever is listening locally".
+    # The endpoint the reader connected, if any. Empty means "use MURMUR_TRANSLATE_URL if
+    # it is set, otherwise whatever is listening locally".
     "translateUrl": "",
+    # Which on-device translation model was chosen ("7b" or "1.5b"); None means the
+    # default in localmt.DEFAULT_VARIANT.
+    "translateVariant": "7b",
+    # Languages routed to a server the reader runs instead of the bundled model. Empty by
+    # default; Settings offers it for the languages the bundled one cannot do (Hindi).
+    "translateServerOnly": [],
     # The first-run screen asks about translation once. It is not a per-session nag: an
     # upgrade or a restart never reopens it, and Settings keeps the switch.
     "translateAsked": False,
