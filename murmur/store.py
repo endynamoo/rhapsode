@@ -376,6 +376,10 @@ def delete_doc(doc_id: str) -> bool:
             (config.FILES_DIR / row["file"]).unlink(missing_ok=True)
         for page in config.PAGES_DIR.glob(f"{doc_id}_*.png"):
             page.unlink(missing_ok=True)
+        # The page word boxes are a cache of the same document; leaving them behind left
+        # one JSON per page of every PDF the reader ever deleted.
+        for words in config.PAGES_DIR.glob(f"{doc_id}_*_words.json"):
+            words.unlink(missing_ok=True)
     return cur.rowcount > 0
 
 

@@ -293,6 +293,19 @@ class HttpTranslator:
             ],
         }
 
+    def _endpoint(self) -> str:
+        """The URL a completion is POSTed to, from whatever shape the URL has.
+
+        `check_url()` stores a base (`http://host/v1`), a person may paste a full
+        `…/v1/chat/completions`, and discovery returns the full one. Only the last two
+        are POSTable: POSTing the bare base answers 404 from every OpenAI-compatible
+        server, which is what a connected server did before this existed.
+        """
+        url = self.url.rstrip("/")
+        if url.endswith(("/chat/completions", "/completions")):
+            return url
+        return f"{url}/chat/completions"
+
     def translate(self, text: str, target: str, source: str = "auto") -> dict:
         if not self._resolve():
             raise TranslateUnavailable(
@@ -303,7 +316,7 @@ class HttpTranslator:
             import httpx
 
             with httpx.Client(timeout=90.0) as client:
-                response = client.post(self.url, json=self._payload(text, target, source))
+                response = client.post(self._endpoint(), json=self._payload(text, target, source))
             if response.status_code >= 400:
                 detail = response.text.strip()[:200]
                 raise TranslateError(f"Translation server said {response.status_code}: {detail}")

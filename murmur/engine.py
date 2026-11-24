@@ -11,6 +11,7 @@ import json
 import os
 import threading
 import time
+import uuid
 from pathlib import Path
 
 import numpy as np
@@ -177,6 +178,11 @@ class TTSEngine:
             if phonemes:
                 payload = phonemes
                 is_phonemes = True
+        except ValueError:
+            # Missing language support (or nothing to speak) carries advice for the reader;
+            # the HTTP layer maps ValueError to 400 with that text. Wrapping it turned a
+            # clear "install the language extra" into a 500.
+            raise
         except Exception as exc:
             raise RuntimeError(f"Could not prepare {lang} phonemes: {exc}") from exc
 
@@ -210,12 +216,20 @@ class TTSEngine:
             "path": str(wav_path),
         }
 
-        tmp_wav = wav_path.with_suffix(".tmp.wav")
+        # Unique per call. Playback and an export can ask for the same sentence at the
+        # same time; with a temp name derived only from the cache key, the second writer
+        # replaced a file the first had already moved, or published a half-written WAV.
+        stamp = f"{os.getpid()}-{uuid.uuid4().hex[:8]}"
+        tmp_wav = wav_path.with_name(f"{wav_path.name}.{stamp}.tmp")
         sf.write(tmp_wav, np.asarray(audio, dtype=np.float32), sample_rate, subtype="PCM_16")
-        tmp_meta = meta_path.with_suffix(".tmp.json")
+        tmp_meta = meta_path.with_name(f"{meta_path.name}.{stamp}.tmp")
         tmp_meta.write_text(json.dumps(meta, ensure_ascii=False), "utf-8")
-        os.replace(tmp_wav, wav_path)
-        os.replace(tmp_meta, meta_path)
+        try:
+            os.replace(tmp_wav, wav_path)
+            os.replace(tmp_meta, meta_path)
+        finally:
+            tmp_wav.unlink(missing_ok=True)
+            tmp_meta.unlink(missing_ok=True)
         _CLIP_META.put(key, dict(meta, path=str(wav_path), key=key))
         return meta
 

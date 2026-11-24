@@ -269,15 +269,17 @@ class FluxWorker:
                 process.stdin.write('{"op": "quit"}\n')
                 process.stdin.flush()
             process.wait(timeout=5)
-            return
         except Exception:  # noqa: BLE001 - fall through to a hard kill
-            pass
-        try:
-            process.kill()
-        except Exception:  # noqa: BLE001 - already gone
-            pass
+            try:
+                process.kill()
+            except Exception:  # noqa: BLE001 - already gone
+                pass
         finally:
+            # Every path closes painter.log: the graceful one used to return from inside
+            # the try, so the handle stayed open (and locked on Windows) for the life of
+            # the process. Dropping the atexit entry here keeps restarts from piling up.
             self._close_log()
+            atexit.unregister(self.stop)
 
 
 _PACKAGES = ("torch", "diffusers")

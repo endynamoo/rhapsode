@@ -10,6 +10,10 @@ phrased for a user, not for a diff reader.
 
 ## [Unreleased]
 
+## [0.3.6-beta] - 2026-11-24
+
+A bugfix release from a full read of the code (23 findings, filed as #123 to #145).
+
 ### Fixed
 
 - The release check that installs the app into a throwaway profile no longer damages the
@@ -23,6 +27,56 @@ phrased for a user, not for a diff reader.
   only accepted the Apple key, so the hint named a key the keyboard did not have and the
   shortcut a reader actually had (`Ctrl+N`, `Ctrl+,`) did nothing. The hint is written per
   platform now, `Ctrl` works everywhere and `⌘` stays on Apple keyboards.
+- **A translation server you connected in Settings or on the first-run screen now actually
+  translates.** The address was stored as an OpenAI base (`…/v1`) and POSTed as one, which
+  every compatible server answers with 404, so the app promised translation and then read the
+  original text. The completion endpoint is appended for a base, a `/v1` URL or a full
+  `…/chat/completions` alike.
+- **Chapter films keep their ending.** Every scene clip already carried the crossfade, and the
+  output was cut by one crossfade per join on top of that: a ten-scene chapter lost about 11
+  seconds of narration, mid-sentence. The film is now cut at the narration's own length.
+- **A stills engine that fails to warm up says so instead of leaving "Loading".** The failure
+  handler used a phase the activity record rejects, so it raised inside its own thread and the
+  reader waited on a spinner with no explanation.
+- **The installer builds its language gate on every build, and launches the app once.** The
+  Japanese/Chinese check sat after a `fail` that had already exited, so a build without the
+  language extra shipped greyed-out voices; and two postinstall entries started Rhapsode twice.
+- **Two sentences synthesised at the same moment no longer fight over one temp file.** Playback
+  and an export asking for the same sentence shared a temp name derived from the cache key.
+- **The fresh-install check can now see an orphaned stills engine.** It searched for a process
+  named `fluxgen`, but the painter runs as `murmur.fluxgen` under the image-venv Python, so
+  "nothing is left running" could pass while a painter still held the card.
+- **A missing language extra answers 400 with the advice, not 500.** The phoneme stage raised
+  the actionable error and the synthesis wrapper replaced it.
+- **Deleting a document deletes its page word-box caches,** not just the page images.
+- **Stopping the painter closes `painter.log` and drops its exit hook,** so repeated "Restart
+  engine" stops leaking a locked log handle and piling up `atexit` entries.
+- **Suffix range requests return the last bytes, not the first.** `bytes=-500` used to answer
+  bytes 0-500.
+- **An export without ffmpeg is offered and saved as the WAV it is.** The dialog and toast
+  named `.mp3` whatever the server produced, and a failed status poll could leave "Exporting…"
+  on screen forever.
+- **`run.sh` leaves the data directory to the platform** (only macOS is pinned to `~/.murmur`)
+  and opens the page with `xdg-open` on Linux, where `open` does not exist.
+- **`python -m murmur.bootstrap` now fetches the Japanese dictionary it always promised.**
+  The function for it was never called and would have raised `NameError`; the weight download
+  also gained a timeout, so a stalled connection fails instead of hanging the first-run screen.
+- **A Linux machine with a GPU is no longer given the CPU profile.** VRAM detection was
+  Windows-only, which put the painter on a profile it refuses to run; the stills docs pointed
+  Linux at a Windows-only script and the wrong interpreter.
+- **`uvicorn murmur.server:app --host 0.0.0.0` turns the token guard on.** The bind was read
+  from `MURMUR_HOST` only, so that start left the socket open to the network with no token.
+  The access guard has tests for the first time.
+- **A failed settings save says so and restores the real values,** instead of leaving a switch
+  showing a preference the server never stored.
+- **`POST /api/search/index {"doc": …}` starts the worker it reports as started,** instead of
+  queueing the book for a worker that may not be running.
+- `docs/ARCHITECTURE.md` gives one test count (406) in both places.
+
+### Changed
+
+- The installer still ships Japanese and Chinese voices; a build made without
+  `requirements-lang.txt` now stops instead of shipping them greyed out.
 
 ## [0.3.5-beta] - 2026-11-23
 

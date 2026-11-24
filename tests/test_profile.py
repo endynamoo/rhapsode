@@ -77,5 +77,23 @@ class EnvHandoffTests(unittest.TestCase):
             self.assertNotIn("MURMUR_FLUX_TEXT_DEVICE", os.environ)
 
 
+class VramDetectionTests(unittest.TestCase):
+    def test_linux_reads_the_card_instead_of_falling_back_to_cpu(self) -> None:
+        # Only Windows has the display-adapter registry key; a Linux machine with a
+        # CUDA/ROCm card used to look CPU-only, which put the painter on the `cpu`
+        # profile it refuses to run.
+        with mock.patch.object(profile.sys, "platform", "linux"), \
+                mock.patch("murmur.backends.detect._linux_gpu",
+                           return_value=("AMD Radeon", "amd", 15.9)):
+            self.assertEqual(15.9, profile._detect_vram())
+        self.assertEqual("balanced", profile.recommend(15.9))
+
+    def test_a_linux_machine_with_no_card_stays_none(self) -> None:
+        with mock.patch.object(profile.sys, "platform", "linux"), \
+                mock.patch("murmur.backends.detect._linux_gpu",
+                           return_value=("", "", None)):
+            self.assertIsNone(profile._detect_vram())
+
+
 if __name__ == "__main__":
     unittest.main()

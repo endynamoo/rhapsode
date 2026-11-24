@@ -182,6 +182,17 @@ def _export_worker(job_id: str, doc: dict, voice: str) -> None:
         job["error"] = str(exc)
 
 
+@app.get("/api/export/format")
+def export_format() -> dict:
+    """What an export will actually be written as, before any audio exists.
+
+    Without ffmpeg the worker writes a WAV. The UI hardcoded `.mp3`, so a machine
+    without ffmpeg put WAV bytes behind an .mp3 name in the save dialog.
+    """
+    ext = "mp3" if config.find_tool("ffmpeg") else "wav"
+    return {"ext": ext, "mime": "audio/mpeg" if ext == "mp3" else "audio/wav"}
+
+
 @app.post("/api/docs/{doc_id}/export")
 def start_export(doc_id: str, payload: dict | None = None) -> dict:
     doc = store.get_doc(doc_id)
@@ -189,6 +200,7 @@ def start_export(doc_id: str, payload: dict | None = None) -> dict:
         raise HTTPException(status_code=404, detail="Document not found")
     voice = (payload or {}).get("voice") or doc.get("voice") or DEFAULT_VOICE
     job_id = uuid.uuid4().hex[:12]
+    ext = "mp3" if config.find_tool("ffmpeg") else "wav"
     JOBS[job_id] = {
         "id": job_id,
         "state": "queued",
@@ -196,7 +208,8 @@ def start_export(doc_id: str, payload: dict | None = None) -> dict:
         "total": len(doc["units"]),
         "title": doc["title"],
         "docId": doc_id,
-        "suggestedName": export_name({"title": doc["title"], "ext": "mp3"}),
+        "ext": ext,
+        "suggestedName": export_name({"title": doc["title"], "ext": ext}),
     }
     def _run() -> None:
         _EXPORT_LOCK.acquire()

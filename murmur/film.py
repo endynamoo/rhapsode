@@ -1176,7 +1176,11 @@ def warm_engine() -> bool:
                 if imaging.image_gen.warm():
                     activity.phase("idle", "The stills engine is ready")
             except Exception as exc:  # noqa: BLE001 - reported, not raised
-                activity.finish(
+                # `phase`, not `finish`: a warm-load failure leaves the still idle (a scene
+                # will still be tried on demand), and `finish` rejects anything but
+                # ready/placeholder/failed - raising inside this thread, which left the
+                # reader looking at "loading" forever.
+                activity.phase(
                     "idle",
                     "The stills engine could not load; a scene will still be tried "
                     f"when asked for. {str(exc).strip()[:200]}",
@@ -1591,6 +1595,18 @@ def _scene_clip(image: Path, duration: float, out: Path, index: int) -> None:
     ])
 
 
+def chapter_video_seconds(total_audio: float) -> float:
+    """How many seconds of picture to keep for a chapter: the narration's own length.
+
+    Each clip is encoded `duration + XFADE` and the xfade joins overlap them by XFADE, so
+    the picture chain is never shorter than a normal chapter's audio. Cutting at the audio
+    length therefore keeps every spoken word - and never asks for picture that is not
+    there. Subtracting a crossfade per join (the old rule) cut `XFADE * (n - 1)` seconds
+    off the end: about 11 s of a ten-scene chapter, mid-sentence.
+    """
+    return max(0.1, float(total_audio))
+
+
 def _compose(doc_id: str, chapter: int, scenes: list[Scene], timeline: list[dict],
              narration: Path, total_audio: float, job: dict) -> Path:
     ffmpeg = _ffmpeg()
@@ -1658,7 +1674,11 @@ def _compose(doc_id: str, chapter: int, scenes: list[Scene], timeline: list[dict
     if job.get("cancelled"):
         raise RuntimeError("cancelled")
 
-    video_duration = max(0.1, total_audio - XFADE * max(0, len(clips) - 1))
+    # Every clip is encoded `duration + XFADE` and the xfade joins overlap them by XFADE,
+    # so the picture is at least as long as the narration. Cutting at `total_audio` keeps
+    # the whole reading: subtracting a crossfade per join used to lose XFADE * (n - 1)
+    # seconds off the end - about 11 s of a ten-scene chapter, mid-sentence.
+    video_duration = chapter_video_seconds(total_audio)
     output = config.FILM_DIR / doc_id / f"chapter_{chapter}.mp4"
 
     command = [ffmpeg, "-y"]

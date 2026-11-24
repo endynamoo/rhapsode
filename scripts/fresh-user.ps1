@@ -88,9 +88,20 @@ function Get-UninstallKeyState([string]$KeyPath) {
     return @{ present = $true; note = "saved $location" }
 }
 
+function Get-RhapsodeProcesses {
+    # The stills painter runs as `<image-venv>\Scripts\python.exe -m murmur.fluxgen`, so it
+    # has no process name of its own. A name filter therefore missed an orphan that can hold
+    # the whole card, and the "nothing is left running" check passed with it alive.
+    $named = @(Get-Process -Name 'Rhapsode', 'fluxgen' -ErrorAction SilentlyContinue)
+    $painters = @(Get-CimInstance Win32_Process -Filter "Name='python.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -and $_.CommandLine -like '*murmur.fluxgen*' } |
+        ForEach-Object { Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue })
+    return @($named + $painters)
+}
+
 # ---------------------------------------------------------------- preconditions
 Say "== fresh user check  ($stamp)"
-$running = @(Get-Process -Name 'Rhapsode', 'fluxgen' -ErrorAction SilentlyContinue)
+$running = @(Get-RhapsodeProcesses)
 if ($running.Count -gt 0) {
     Say "Rhapsode is already running (pid $($running[0].Id)). Quit it first: this test must own the port and the profile."
     exit 2
@@ -327,7 +338,7 @@ try {
             }
             Check 'the app exits when asked' $gone
             Start-Sleep -Seconds 2
-            $stragglers = @(Get-Process -Name 'Rhapsode', 'fluxgen' -ErrorAction SilentlyContinue)
+            $stragglers = @(Get-RhapsodeProcesses)
             $text = ($stragglers | ForEach-Object { "$($_.ProcessName):$($_.Id)" }) -join ' '
             Check 'nothing is left running' ($stragglers.Count -eq 0) $text
         }
@@ -358,7 +369,7 @@ finally {
     }
     if (-not $serving) {
         if ($appProcess -and -not $appProcess.HasExited) { try { $appProcess.Kill() } catch { } }
-        Get-Process -Name 'fluxgen' -ErrorAction SilentlyContinue | ForEach-Object { try { $_.Kill() } catch { } }
+        Get-RhapsodeProcesses | ForEach-Object { try { $_.Kill() } catch { } }
 
         # Put the machine's uninstall entry back exactly as it was. `reg` writes to stderr
         # for a missing key, which is fatal under $ErrorActionPreference = 'Stop', so it goes

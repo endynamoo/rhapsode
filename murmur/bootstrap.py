@@ -1,11 +1,13 @@
 """First-run setup: download Kokoro-82M weights with progress output."""
 from __future__ import annotations
 
+import pathlib
 import sys
 import threading
 import time
 import urllib.request
 from pathlib import Path
+from typing import Callable
 
 from . import config
 
@@ -47,11 +49,10 @@ def _download(url: str, dest: Path, label: str, minimum: int) -> None:
     start = time.time()
     last = 0.0
 
-    def hook(blocks: int, block_size: int, total: int) -> None:
+    def progress(downloaded: int, total: int) -> None:
         nonlocal last
-        downloaded = blocks * block_size
         now = time.time()
-        if now - last < 0.4 and downloaded < total:
+        if now - last < 0.4 and (total <= 0 or downloaded < total):
             return
         last = now
         pct = (downloaded / total * 100) if total > 0 else 0
@@ -66,7 +67,19 @@ def _download(url: str, dest: Path, label: str, minimum: int) -> None:
         bar = "█" * int(pct / 4) + "░" * (25 - int(pct / 4))
         _write(f"\r    [{bar}] {pct:5.1f}%  {speed:5.1f} MB/s ")
 
-    urllib.request.urlretrieve(url, tmp, reporthook=hook)
+    # urlretrieve has no timeout: a stalled connection held the first-run screen on
+    # "downloading" forever, with no error and no way to retry. Read it in chunks with
+    # one, and keep the same progress the window draws.
+    with urllib.request.urlopen(url, timeout=60) as response, open(tmp, "wb") as handle:
+        total = int(response.headers.get("content-length") or 0)
+        downloaded = 0
+        while True:
+            chunk = response.read(256 * 1024)
+            if not chunk:
+                break
+            handle.write(chunk)
+            downloaded += len(chunk)
+            progress(downloaded, total)
     tmp.replace(dest)
     _STATE["progress"] = {"label": label, "downloaded": dest.stat().st_size,
                           "total": dest.stat().st_size, "percent": 100.0,
@@ -128,11 +141,13 @@ def start_download() -> dict:
 
 
 def fetch_language_data(log: Callable[[str], None] | None = None) -> bool:
-    """Fetch what the extra languages need beyond their wheels.
+    """Make sure the extra languages have what they need beyond their wheels.
 
-    `pyopenjtalk` downloads its Open JTalk dictionary (23 MB) the first time a Japanese
-    sentence is spoken, which is a surprise at exactly the wrong moment and impossible
-    offline. Doing it here means "the model is downloaded" also means "the voices work".
+    `pyopenjtalk` ships its Open JTalk dictionary inside the wheel on 0.4.x and fetches it
+    on first use when it is absent - either a 23 MB surprise at the first Japanese sentence,
+    or nothing at all offline. Doing it here means "the model is downloaded" also means "the
+    voices work". This function existed for that and was never called, and its check was
+    wrong anyway: OPEN_JTALK_DICT_DIR is bytes on 0.4.x, so str() wrapped it as "b'...'".
 
     Returns True when there was nothing to do or it succeeded; never raises - a missing
     dictionary is not a reason to fail a download.
@@ -147,15 +162,28 @@ def fetch_language_data(log: Callable[[str], None] | None = None) -> bool:
     try:
         import pyopenjtalk
 
-        data = pyopenjtalk.OPEN_JTALK_DICT_DIR
-        if data and pathlib.Path(str(data)).exists() and any(pathlib.Path(str(data)).iterdir()):
+        def dictionary_ready() -> bool:
+            raw = getattr(pyopenjtalk, "OPEN_JTALK_DICT_DIR", "")
+            text = raw.decode("utf-8", "replace") if isinstance(raw, bytes) else str(raw)
+            path = pathlib.Path(text)
+            return bool(text) and path.exists() and any(path.iterdir())
+
+        if dictionary_ready():
             if log:
                 log("Japanese dictionary: already present")
             return True
         if log:
-            log("Japanese dictionary: downloading 23 MB (one time)")
-        pyopenjtalk.download(quiet=True)
-        return True
+            log("Japanese dictionary: fetching it now (one time, 23 MB)")
+        # 0.4.x downloads on first use through its private init; older releases exposed a
+        # public download(). Either name is called if it is there, then re-checked.
+        starter = getattr(pyopenjtalk, "_lazy_init", None) or getattr(pyopenjtalk, "download", None)
+        if callable(starter):
+            starter()
+        if dictionary_ready():
+            return True
+        if log:
+            log("Japanese dictionary: still missing after setup")
+        return False
     except Exception as exc:  # noqa: BLE001 - reported, never fatal
         if log:
             log(f"Japanese dictionary: could not fetch it ({exc})")
@@ -177,6 +205,11 @@ def main() -> None:
 
     store.init()
     _emit("  ✓ Library ready")
+    # The installer promises Japanese and Chinese voices. pyopenjtalk fetches a 23 MB
+    # dictionary on the first Japanese sentence otherwise - at the one moment a reader
+    # has no network and no explanation. This function existed for that and was never
+    # called, so the promise was not kept.
+    fetch_language_data(lambda text: _emit(f"  {text}"))
     _emit("Done. Start Rhapsode.")
 
 

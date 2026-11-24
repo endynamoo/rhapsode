@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 
 PROFILE_FILE = "engine.json"
@@ -162,7 +163,21 @@ def activate(home: Path, name: str, **overrides) -> dict:
     return loaded
 
 def _detect_vram() -> float | None:
-    """VRAM in GB from the display-adapter key, without importing torch."""
+    """VRAM in GB, without importing torch."""
+    if not sys.platform.startswith("win"):
+        # Only Windows has the display-adapter registry key; everywhere else the same
+        # detector the platform probe uses reads the card. Without this, a Linux machine
+        # with a CUDA or ROCm card looked like a CPU-only one, and the profile that
+        # followed told the painter to run as `cpu` - which it refuses to do.
+        if sys.platform.startswith("linux"):
+            try:
+                from .backends import detect
+
+                _name, _vendor, vram = detect._linux_gpu()
+                return vram or None
+            except Exception:  # pragma: no cover - a machine with no /sys entries
+                return None
+        return None
     try:
         import winreg
 

@@ -212,11 +212,25 @@ macOS (Apple Silicon, MLX):
 ./scripts/setup_flux.sh
 ```
 
-Windows and Linux (CUDA or ROCm):
+Windows (CUDA or ROCm):
 
 ```powershell
 .\scripts\setup_image.ps1              # reuse an existing GPU torch
 .\scripts\setup_image.ps1 -InstallTorch  # or install one into image-venv
+```
+
+Linux (CUDA or ROCm) - `setup_image.ps1` is Windows-only (PowerShell, `Scripts\python.exe`,
+`%LOCALAPPDATA%`), so the interpreter is built by hand. It must be the data directory's
+`image-venv`, because that is the only Python the painter runs; installing
+`requirements-film.txt` into `.venv` does not give Cinema anything to paint with:
+
+```bash
+# The Python you point at must already report a GPU:
+#   python -c "import torch; print(torch.cuda.is_available())"
+data="${XDG_DATA_HOME:-$HOME/.local/share}/rhapsode"
+python3.12 -m venv --system-site-packages "$data/image-venv"
+"$data/image-venv/bin/python" -m pip install --quiet "diffusers>=0.42" "transformers>=4.49" \
+  "accelerate>=1.3" "safetensors>=0.5" "huggingface_hub>=0.28" "pillow>=10.4"
 ```
 
 Both build `image-venv` inside the data directory and download the FLUX.2 [klein]

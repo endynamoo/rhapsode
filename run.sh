@@ -6,6 +6,13 @@ cd "$(dirname "$0")"
 PORT="${MURMUR_PORT:-8765}"
 URL="http://127.0.0.1:${PORT}"
 
+# Open the page with whatever desktop this is: `open` is macOS-only, Linux has xdg-open.
+open_url() {
+  if command -v open >/dev/null 2>&1; then open "$1"
+  elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$1" >/dev/null 2>&1
+  fi
+}
+
 if ! command -v uv >/dev/null 2>&1; then
   echo "Rhapsode needs uv to manage its Python environment."
   echo "Install it with:  brew install uv"
@@ -53,20 +60,25 @@ else
   echo "      Install Xcode Command Line Tools to enable them: xcode-select --install" >&2
 fi
 
-MURMUR_HOME="${MURMUR_HOME:-$HOME/.murmur}"
+# macOS keeps the historical ~/.murmur path. Everywhere else config.py picks the platform
+# convention (XDG on Linux); pinning it here sent a Linux reader to a directory the docs do
+# not mention, and left $XDG_DATA_HOME unused.
+if [ "$(uname -s)" = "Darwin" ]; then
+  export MURMUR_HOME="${MURMUR_HOME:-$HOME/.murmur}"
+fi
 if [ ! -f "$MURMUR_HOME/models/kokoro-v1.0.onnx" ] || [ ! -f "$MURMUR_HOME/models/voices-v1.0.bin" ]; then
   python -m murmur.bootstrap
 fi
 
 if curl -sf "${URL}/api/health" >/dev/null 2>&1; then
   echo "Rhapsode is already running at ${URL}"
-  [ "${MURMUR_NO_OPEN:-0}" = "1" ] || open "${URL}"
+  [ "${MURMUR_NO_OPEN:-0}" = "1" ] || open_url "${URL}"
   exit 0
 fi
 
 echo "Rhapsode → ${URL}"
 if [ "${MURMUR_NO_OPEN:-0}" != "1" ]; then
-  ( sleep 1.4; open "${URL}" ) &
+  ( sleep 1.4; open_url "${URL}" ) &
 fi
 
 exec python -m murmur

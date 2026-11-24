@@ -243,6 +243,17 @@ class GutterDetectorTests(unittest.TestCase):
 
 
 class ClipTests(unittest.TestCase):
+    def test_a_chapter_keeps_every_second_of_its_narration(self) -> None:
+        # The join overlaps live inside the clips, so the picture is never shorter than
+        # the audio. Subtracting a crossfade per join used to cut XFADE * (n - 1) seconds
+        # (about 11 s of a ten-scene chapter) off the narration.
+        for seconds in (0.0, 0.05, 42.5, 600.0):
+            with self.subTest(seconds=seconds):
+                kept = film.chapter_video_seconds(seconds)
+                self.assertGreaterEqual(kept, seconds)
+                self.assertGreaterEqual(kept, 0.1)
+        self.assertEqual(600.0, film.chapter_video_seconds(600.0))
+
     @unittest.skipUnless(
         config.find_tool("ffmpeg") and config.find_tool("ffprobe"),
         "ffmpeg is not installed",
