@@ -8,6 +8,11 @@ import { createSettingsView } from './views/settings.js';
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
+// Shortcut hints follow the keyboard the window is on: ⌘ on an Apple one, Ctrl everywhere
+// else. Both modifiers stay bound, because a Mac with a PC keyboard is a real setup.
+const IS_APPLE = /Mac|iPhone|iPad|iPod/.test(`${navigator.platform || ''} ${navigator.userAgent || ''}`);
+const MOD_LABEL = IS_APPLE ? '⌘' : 'Ctrl+';
+
 const DEFAULT_SETTINGS = {
   voice: 'af_heart',
   speed: 1.0,
@@ -450,8 +455,18 @@ function bindFirstRun() {
   }
 }
 
+// The two hints that name a modifier are written per platform rather than baked into
+// index.html, which said ⌘ on every operating system.
+function applyShortcutHints() {
+  const kbd = $('#addKbd');
+  if (kbd) kbd.textContent = `${MOD_LABEL}N`;
+  const settings = $('#settingsBtn');
+  if (settings) settings.title = `Settings (${MOD_LABEL},)`;
+}
+
 function bindUI() {
   bindFirstRun();
+  applyShortcutHints();
   $('#addBtn').addEventListener('click', openAdd);
   $('#emptyAdd').addEventListener('click', openAdd);
   $('#sampleBtn').addEventListener('click', addSample);
@@ -4030,12 +4045,12 @@ function onKeyDown(e) {
     if (document.body.classList.contains('focus')) setFocus(false);
     return;
   }
-  if (e.metaKey && e.key.toLowerCase() === 'n') {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
     e.preventDefault();
     openAdd();
     return;
   }
-  if (e.metaKey && e.key === ',') {
+  if ((e.metaKey || e.ctrlKey) && e.key === ',') {
     e.preventDefault();
     openSettings();
     return;

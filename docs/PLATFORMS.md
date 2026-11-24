@@ -207,8 +207,8 @@ explanation when FLUX is not viable.
   - `%USERPROFILE%\.murmur` remains a fallback for migration.
 - Replace `sips` with Pillow (`pillow-heif` for HEIC).
 - Bundle `ffmpeg.exe` (+ libass) under `resources/bin/`.
-- Keyboard: show `Ctrl` instead of `⌘` in hints; app menu and window controls
-  handled by pywebview.
+- Keyboard: hints show `Ctrl` on Windows and Linux and `⌘` on Apple keyboards, and both
+  modifiers are bound; app menu and window controls handled by pywebview.
 
 ### 4.2 NVIDIA
 
