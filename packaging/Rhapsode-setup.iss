@@ -75,7 +75,6 @@ Filename: "{app}\{#AppExe}"; Description: "Start Rhapsode now (it downloads its 
 ; transformer and the detectors, and writes the engine profile. It is a visible
 ; console window on purpose - a 3 GB download should show progress.
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\scripts\setup_engine.ps1"""; WorkingDir: "{app}"; Description: "Set up the stills engine now (~3 GB download)"; Flags: postinstall nowait runascurrentuser skipifsilent; Tasks: engine
-Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 ; Keep %LOCALAPPDATA%\Rhapsode (library database + 340 MB Kokoro model) on uninstall.

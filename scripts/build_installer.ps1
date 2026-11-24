@@ -74,14 +74,16 @@ if (-not $SkipBuild) {
         $pyinstaller = (Get-Command pyinstaller).Source
     } else {
         Fail 'pyinstaller is missing: uv pip install -r requirements-build.txt'
+    }
 
-# The installer promises 54 voices in 9 languages, Japanese and Chinese included. Both
-# need the optional language extra (requirements-lang.txt); a build without it would
-# ship a binary whose picker greys two languages out. Fail here, not in the release.
-& $python -c "import importlib.util, sys; missing=[n for n in ('misaki','pyopenjtalk') if importlib.util.find_spec(n) is None]; print('missing ' + ' '.join(missing) if missing else 'language extra present'); sys.exit(1 if missing else 0)"
-if ($LASTEXITCODE -ne 0) {
-    Fail 'the language extra is missing (uv pip install -r requirements-lang.txt) - the installer must ship Japanese and Chinese'
-}
+    # The installer promises 54 voices in 9 languages, Japanese and Chinese included. Both
+    # need the optional language extra (requirements-lang.txt); a build without it would
+    # ship a binary whose picker greys two languages out. Fail here, not in the release.
+    # This runs after the pyinstaller lookup deliberately: inside that else it only ever
+    # ran after Fail had exited, so it never protected a real build.
+    & $python -c "import importlib.util, sys; missing=[n for n in ('misaki','pyopenjtalk') if importlib.util.find_spec(n) is None]; print('missing ' + ' '.join(missing) if missing else 'language extra present'); sys.exit(1 if missing else 0)"
+    if ($LASTEXITCODE -ne 0) {
+        Fail 'the language extra is missing (uv pip install -r requirements-lang.txt) - the installer must ship Japanese and Chinese'
     }
     Say 'pyinstaller (a few minutes)'
     $buildLog = "$env:TEMP\pyi_build.log"
