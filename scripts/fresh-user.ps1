@@ -64,6 +64,29 @@ function Get-Tree([string]$path) {
     return @(Get-ChildItem -LiteralPath $path -Recurse -File -ErrorAction SilentlyContinue |
         ForEach-Object { $_.FullName.Substring($path.Length) + '|' + $_.LastWriteTimeUtc.Ticks })
 }
+# What the uninstall key currently says, and whether it is worth putting back.
+# present = $true only for an entry that names a directory that exists on this machine
+# outside a temp sandbox. Anything else belongs to a previous run of this script (the
+# sandbox root lives under %TEMP%\opencode\fresh-*), and restoring it would make the
+# Apps list describe an install that is gone.
+function Get-UninstallKeyState([string]$KeyPath) {
+    if (-not (Test-Path ("HKCU:\" + $KeyPath))) {
+        return @{ present = $false; note = 'none existed before the test' }
+    }
+    $location = (Get-ItemProperty ("HKCU:\" + $KeyPath) -ErrorAction SilentlyContinue).InstallLocation
+    if (-not $location) {
+        return @{ present = $false; note = 'the entry had no InstallLocation - treated as none' }
+    }
+    $trimmed = $location.TrimEnd('\')
+    $tempRoot = ([IO.Path]::GetFullPath($env:TEMP)).TrimEnd('\')
+    if ($trimmed -like ($tempRoot + '\*')) {
+        return @{ present = $false; note = "the entry pointed into a temp sandbox ($location) - treated as none" }
+    }
+    if (-not (Test-Path -LiteralPath $trimmed)) {
+        return @{ present = $false; note = "the entry pointed at $location, which does not exist - treated as none" }
+    }
+    return @{ present = $true; note = "saved $location" }
+}
 
 # ---------------------------------------------------------------- preconditions
 Say "== fresh user check  ($stamp)"
@@ -110,16 +133,37 @@ $beforeRoaming = Get-Tree $realRoaming
 # The installer writes a per-user uninstall key to the real registry - environment
 # variables do not redirect that. Save it, then put it back afterwards so running
 # this test cannot leave the machine describing a sandbox install that no longer
-# exists.
+# exists. A key left by an earlier sandbox is not the machine's own entry: it points
+# into a temp directory this script deletes, so restoring it later would leave Apps
+# describing an install that does not exist. That happened on 2026-11-23 and cost a
+# real 0.2.0-alpha entry.
 $uninstallKeyPath = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{8D3A1C1E-6F2B-4C6D-9E4A-1F0B0A000001}_is1'
 # Outside the sandbox on purpose: teardown removes the sandbox, and the machine's own entry
 # has to survive that. One fixed path, overwritten by each run.
 $backupDir = Join-Path $env:TEMP 'opencode\rh-uninstall-backup'
 New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
 $keyBackup = Join-Path $backupDir 'uninstall-key.reg'
-$hadKey = Test-Path ("HKCU:\" + $uninstallKeyPath)
-Remove-Item $keyBackup -Force -ErrorAction SilentlyContinue
-if ($hadKey) { & reg export ("HKCU\" + $uninstallKeyPath) $keyBackup /y | Out-Null }
+$keyMeta = Join-Path $backupDir 'uninstall-key.json'
+Remove-Item $keyBackup, $keyMeta -Force -ErrorAction SilentlyContinue
+$keyState = Get-UninstallKeyState -KeyPath $uninstallKeyPath
+$hadKey = [bool]$keyState.present
+$keyNote = [string]$keyState.note
+if ($hadKey) {
+    & reg export ("HKCU\" + $uninstallKeyPath) $keyBackup /y | Out-Null
+    if (-not (Test-Path $keyBackup)) {
+        Say "Cannot save the machine's uninstall entry, so this run would not be able to put it back:"
+        Say "  $keyNote"
+        Say "Nothing was installed. The entry is still where it was."
+        exit 2
+    }
+}
+# One fixed backup path is shared by every run, so the decision travels with the file:
+# the stop script must not have to guess whether what it finds describes this machine.
+@{ present = $hadKey; note = $keyNote; when = (Get-Date).ToString('o') } |
+    ConvertTo-Json | Set-Content -Path $keyMeta -Encoding UTF8
+if (-not $hadKey -and (Test-Path ("HKCU:\" + $uninstallKeyPath))) {
+    Say "   uninstall entry: $keyNote (it will be removed, not put back)"
+}
 
 $saved = @{
     LOCALAPPDATA = $env:LOCALAPPDATA; APPDATA = $env:APPDATA; USERPROFILE = $env:USERPROFILE
@@ -350,6 +394,7 @@ $report = [pscustomobject]@{
     port      = $Port
     checks    = $results
     failed    = $failed.Count
+    uninstallKey = @{ present = $hadKey; note = $keyNote }
 }
 $report | Add-Member -NotePropertyName serving -NotePropertyValue ([bool]$serving) -Force
 $json = Join-Path $root 'fresh-report.json'
@@ -372,7 +417,8 @@ if ($serving) {
     Say "   files:  $root"
     Say ""
     Say "   undo:   .\scripts\fresh-user-stop.ps1 -Root `"$root`""
-    Say "   (your machine's uninstall entry is saved at $keyBackup and is restored by that script)"
+    if ($hadKey) { Say "   (your machine's uninstall entry is saved at $keyBackup and is restored by that script)" }
+    else { Say "   (there was no machine uninstall entry to save: $keyNote)" }
     if ($failed.Count -gt 0) { Say "   ($($failed.Count) check(s) failed above)" }
     exit 0
 }

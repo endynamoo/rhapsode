@@ -301,10 +301,15 @@ release ships that folder inside the installer and inside the `.app`.
 
 Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is generated from it by `scripts/changelog_render.py`, so edit the changelog, not this copy.
 
+### Unreleased
+
+**Fixed**
+
+- The release check that installs the app into a throwaway profile no longer damages the machine's own Rhapsode entry in Apps. An entry left behind by a previous run of that check was saved as if it were the machine's and put back later, pointing at a temp directory that had been deleted - which is how a real 0.2.0-alpha entry was lost on 2026-11-23. Such an entry is now recognised at the start of the run and removed at the end, while a genuine entry is still saved and restored exactly as it was.
+
 ### 0.3.5-beta - 2026-11-23
 
 - **Translation is detected and connected before it is needed, not discovered at the first foreign sentence.** The first-run screen gained a second step: Rhapsode scans the usual local ports for an OpenAI-compatible server (llama.cpp, LM Studio, Ollama, vLLM), lists what it finds, takes an address if nothing is running, checks that address actually answers, and remembers it. **Not now** turns the *Translate to voice language* setting off instead of leaving a promise the app cannot keep. A saved endpoint is re-checked each time the screen opens, so moving or stopping the server is reported rather than silently failing. The scan is asked once per install, not once per restart.
-- **A first start now prepares the voice instead of failing at the first play.** A new install had no voice model and said nothing about it: the app opened empty, and the first press of Listen answered with an error whose fix was hidden in Settings. The window now opens on a *Getting your voice ready* screen with a real progress bar (bytes and speed), starts the 340 MB download itself, and disappears when the voice is there - and a failed play opens that screen rather than a toast. `MURMUR_FIRST_RUN=0` keeps the old behaviour for tests and for anyone who would rather meet it in Settings. The installer also starts the app when setup finishes, because the app is where a progress bar can exist.
 
 ### 0.3.4-beta - 2026-11-19
 
@@ -318,7 +323,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - **Highlight the spoken word** is now a switch in Settings (on by default), covering Book view and translated text. Manga never highlights — there are no words on screen to follow — so it stays still whatever the switch says.
 
-*...and 116 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 117 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
 
