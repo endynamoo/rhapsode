@@ -9,13 +9,34 @@ from __future__ import annotations
 
 import hmac
 import ipaddress
+import sys
 from urllib.parse import urlsplit
 
 from fastapi import Request
 
 from . import config, netinfo
 
-PUBLIC = config.PUBLIC if config.PUBLIC is not None else (config.HOST not in config.LOOPBACK)
+def public_bind(host: str, argv: list[str]) -> bool:
+    """Whether this process will accept connections from another machine.
+
+    `MURMUR_HOST` is how the app's own launchers widen the bind, and the value is
+    already resolved into `host`. A bare `uvicorn murmur.server:app --host 0.0.0.0`
+    does not set it: the socket is open to the LAN while `PUBLIC` stayed false, which
+    meant the guard let every remote request through with no token. Reading the host
+    out of the command line closes that path, and the default (nothing named) is still
+    local-only.
+    """
+    if host and host.strip() not in config.LOOPBACK:
+        return True
+    for index, part in enumerate(argv):
+        if part == "--host" and index + 1 < len(argv):
+            return argv[index + 1].strip() not in config.LOOPBACK
+        if part.startswith("--host="):
+            return part.split("=", 1)[1].strip() not in config.LOOPBACK
+    return False
+
+
+PUBLIC = config.PUBLIC if config.PUBLIC is not None else public_bind(config.HOST, sys.argv)
 TOKEN = config.access_token() if PUBLIC else ""
 
 
@@ -50,7 +71,8 @@ def matches(value: str, expected: str) -> bool:
         return False
 
 
-__all__ = ["PUBLIC", "TOKEN", "access_urls", "client_host", "is_local", "local_host_ok", "matches"]
+__all__ = ["PUBLIC", "TOKEN", "access_urls", "client_host", "is_local", "local_host_ok",
+           "matches", "public_bind"]
 
 
 def access_urls() -> list[dict]:
