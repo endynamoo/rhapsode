@@ -305,7 +305,8 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 **Fixed**
 
-- The release check that installs the app into a throwaway profile no longer damages the machine's own Rhapsode entry in Apps. An entry left behind by a previous run of that check was saved as if it were the machine's and put back later, pointing at a temp directory that had been deleted - which is how a real 0.2.0-alpha entry was lost on 2026-11-23. Such an entry is now recognised at the start of the run and removed at the end, while a genuine entry is still saved and restored exactly as it was.
+- The release check that installs the app into a throwaway profile no longer damages the
+- Keyboard hints and the shortcuts behind them now match the machine. On Windows and Linux the Add document button advertised `⌘N` and the cog advertised "Settings (⌘,)", and the handlers only accepted the Apple key, so the hint named a key the keyboard did not have and the shortcut a reader actually had (`Ctrl+N`, `Ctrl+,`) did nothing. The hint is written per platform now, `Ctrl` works everywhere and `⌘` stays on Apple keyboards.
 
 ### 0.3.5-beta - 2026-11-23
 
