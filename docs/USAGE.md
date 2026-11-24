@@ -61,9 +61,18 @@ word cursor derived from the translated timing, so the render still follows alon
 
 - Detection, translation, and the language switch run on-device. On macOS that is
   Apple's Translation framework; nothing is sent anywhere. On Windows and Linux
-  it is a local OpenAI-compatible server: set `MURMUR_TRANSLATE_URL` (and
-  `MURMUR_TRANSLATE_MODEL` if the server needs a name), or leave both unset and
-  Rhapsode picks up a server already listening on 8091, 8080, 8000, 1234 or 11434.
+  Rhapsode offers to fetch its own translator on first start - **Download the
+  on-device translator** (4.5 GB once, or 1.1 GB as a smaller, weaker option) - which
+  runs llama.cpp on this machine. Settings -> Translation can start that download
+  again at any time. Nothing leaves the computer either way.
+- A server you already run still works and takes priority for the languages you send
+  it: set `MURMUR_TRANSLATE_URL` (and `MURMUR_TRANSLATE_MODEL` if the server needs a
+  name), or leave both unset and Rhapsode picks up a server listening on 8091, 8080,
+  8000, 1234 or 11434. **Settings -> Send these to my server** routes a language there.
+- Hindi is the one language the bundled translator cannot do well (measured on the
+  0.5B, 1.5B and 3B models; the 3B is also under a research licence). Tick **Hindi**
+  under *Send these to my server* once you have connected a server, or those sentences
+  are read in the original text with an accent.
 - Source language is detected automatically, so a Spanish PDF read by an English
   voice is translated into English too.
 - Only sentences that need it are translated. Results are cached in the library
@@ -77,8 +86,7 @@ word cursor derived from the translated timing, so the render still follows alon
 Apple needs a language pack for each direction. If one is missing, Rhapsode falls
 back to the original sentence and tells you to add it in **System Settings →
 General → Language & Region → Translation Languages**. On Windows and Linux a
-missing `MURMUR_TRANSLATE_URL` has the same effect: the voice reads the original
-text.
+missing translator has the same effect: the voice reads the original text.
 
 ## Quick Read from anywhere
 

@@ -301,19 +301,21 @@ release ships that folder inside the installer and inside the `.app`.
 
 Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is generated from it by `scripts/changelog_render.py`, so edit the changelog, not this copy.
 
+### Unreleased
+
+**Added**
+
+- **Translation works on a first install, without installing anything else.** Until now a foreign voice needed a model server you already ran (llama.cpp, LM Studio, Ollama), so a fresh install answered "Translation is not set up on this machine" the first time someone chose one. The first start now offers a one-time download of an on-device translator - llama.cpp plus Qwen2.5-Instruct, 4.5 GB, or a 1.1 GB smaller model - fetched only when the box is ticked, with the same progress the voice download uses. Settings -> Translation can start it again at any time. Nothing leaves the computer.
+- Settings -> **Send these to my server** routes individual languages to a server you run, for the ones the bundled model cannot do. Hindi is measured and stated as such: Spanish, French, Japanese and Chinese read well, Hindi needs that server (or reads the original text with an accent).
+- Translation requests now carry a token cap and, for the bundled server, a repetition penalty. At temperature 0 an unstable decode repeated one clause until the context ended - measured on Japanese and Hindi - which is a read that never finishes.
+
 ### 0.3.6-beta - 2026-11-24
 
 **Fixed**
 
 - The release check that installs the app into a throwaway profile no longer damages the machine's own Rhapsode entry in Apps. An entry left behind by a previous run of that check was saved as if it were the machine's and put back later, pointing at a temp directory that had been deleted - which is how a real 0.2.0-alpha entry was lost on 2026-11-23. Such an entry is now recognised at the start of the run and removed at the end, while a genuine entry is still saved and restored exactly as it was.
-- Keyboard hints and the shortcuts behind them now match the machine. On Windows and Linux the Add document button advertised `⌘N` and the cog advertised "Settings (⌘,)", and the handlers only accepted the Apple key, so the hint named a key the keyboard did not have and the shortcut a reader actually had (`Ctrl+N`, `Ctrl+,`) did nothing. The hint is written per platform now, `Ctrl` works everywhere and `⌘` stays on Apple keyboards.
-- **A translation server you connected in Settings or on the first-run screen now actually translates.** The address was stored as an OpenAI base (`…/v1`) and POSTed as one, which every compatible server answers with 404, so the app promised translation and then read the original text. The completion endpoint is appended for a base, a `/v1` URL or a full `…/chat/completions` alike.
 
-### 0.3.5-beta - 2026-11-23
-
-- **Translation is detected and connected before it is needed, not discovered at the first foreign sentence.** The first-run screen gained a second step: Rhapsode scans the usual local ports for an OpenAI-compatible server (llama.cpp, LM Studio, Ollama, vLLM), lists what it finds, takes an address if nothing is running, checks that address actually answers, and remembers it. **Not now** turns the *Translate to voice language* setting off instead of leaving a promise the app cannot keep. A saved endpoint is re-checked each time the screen opens, so moving or stopping the server is reported rather than silently failing. The scan is asked once per install, not once per restart.
-
-*...and 137 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 140 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
 

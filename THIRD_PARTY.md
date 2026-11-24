@@ -165,3 +165,25 @@ Separately, `opencv-contrib-python-headless` is used for exactly two things —
 Rhapsode never calls. Running `yunet.onnx` through `onnxruntime` (which already
 executes the other two detectors) and resizing with Pillow would remove that wheel
 from the bundle entirely.
+
+## Translation (fetched at first run; Apache-2.0 and MIT)
+
+The on-device translator is not in the installer. When a reader ticks **Download the
+on-device translator** on first start (or opens Settings -> Translation), Rhapsode
+fetches these and nothing else:
+
+| Component | Version | Licence | Source |
+| --- | --- | --- | --- |
+| llama.cpp `llama-server`, CPU build | `b12676` | MIT | <https://github.com/ggml-org/llama.cpp/releases/tag/b12676> |
+| Qwen2.5-7B-Instruct GGUF, `q4_k_m` (two shards) | Qwen2.5-7B-Instruct | Apache-2.0 | <https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF> |
+| Qwen2.5-1.5B-Instruct GGUF, `q4_k_m` (the smaller option) | Qwen2.5-1.5B-Instruct | Apache-2.0 | <https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF> |
+
+Both licences are permissive, so no source offer is involved here (see
+[`licenses/SOURCES.md`](licenses/SOURCES.md) for the copyleft components that are in
+the installer). The model's own Apache-2.0 `LICENSE` is fetched beside the weights so
+the attribution travels with the file.
+
+Qwen2.5-**3B** is deliberately not offered: it ships under the Qwen Research Licence,
+which is not compatible with redistributing this app. The measured alternative was a
+Dedicated NMT model per language pair, but it would need `torch` to convert and would
+still pivot through English for most pairs.

@@ -10,6 +10,23 @@ phrased for a user, not for a diff reader.
 
 ## [Unreleased]
 
+### Added
+
+- **Translation works on a first install, without installing anything else.** Until now a
+  foreign voice needed a model server you already ran (llama.cpp, LM Studio, Ollama), so a
+  fresh install answered "Translation is not set up on this machine" the first time someone
+  chose one. The first start now offers a one-time download of an on-device translator -
+  llama.cpp plus Qwen2.5-Instruct, 4.5 GB, or a 1.1 GB smaller model - fetched only when the
+  box is ticked, with the same progress the voice download uses. Settings -> Translation can
+  start it again at any time. Nothing leaves the computer.
+- Settings -> **Send these to my server** routes individual languages to a server you run,
+  for the ones the bundled model cannot do. Hindi is measured and stated as such: Spanish,
+  French, Japanese and Chinese read well, Hindi needs that server (or reads the original
+  text with an accent).
+- Translation requests now carry a token cap and, for the bundled server, a repetition
+  penalty. At temperature 0 an unstable decode repeated one clause until the context ended -
+  measured on Japanese and Hindi - which is a read that never finishes.
+
 ## [0.3.6-beta] - 2026-11-24
 
 A bugfix release from a full read of the code (23 findings, filed as #123 to #145).
