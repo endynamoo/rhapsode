@@ -49,23 +49,33 @@ class ProgressTest(unittest.TestCase):
     def test_a_download_reports_bytes_as_it_goes(self):
         seen = []
 
-        def fake_urlretrieve(url, dest, reporthook=None):
-            reporthook(1, 10, 20)
-            seen.append(bootstrap.state()["progress"])
-            reporthook(2, 10, 20)
-            seen.append(bootstrap.state()["progress"])
-            with open(dest, "wb") as handle:
-                handle.write(b"x" * 200)
+        class FakeResponse:
+            # urlopen is read in chunks now (with a timeout), instead of urlretrieve.
+            headers = {"content-length": "40"}
 
-        with mock.patch("urllib.request.urlretrieve", side_effect=fake_urlretrieve), \
+            def __init__(self) -> None:
+                self.chunks = [b"x" * 10, b"x" * 10, b"x" * 10, b""]
+
+            def read(self, size: int) -> bytes:
+                chunk = self.chunks.pop(0)
+                seen.append(bootstrap.state()["progress"])
+                return chunk
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc) -> bool:
+                return False
+
+        with mock.patch("urllib.request.urlopen", return_value=FakeResponse()), \
                 mock.patch.object(config, "weight_problem", return_value="missing"), \
                 mock.patch.object(config, "MODEL_MIN_BYTES", 1):
             bootstrap._download("https://example.invalid/x", __import__("pathlib").Path(
                 self._tmpfile()), "Test", 1)
         self.assertTrue(seen)
-        # The first sample is the first report; the second was throttled or not, either
-        # way the shape is what the UI reads.
-        sample = seen[0]
+        # The first read happens before any progress exists; the shape the UI reads is
+        # whatever the download reported from the first chunk on.
+        sample = next(s for s in seen if s)
         for key in ("label", "downloaded", "total", "percent", "mbPerSecond"):
             self.assertIn(key, sample)
 
