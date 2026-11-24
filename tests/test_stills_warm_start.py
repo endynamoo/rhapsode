@@ -182,8 +182,12 @@ class WarmEngineTests(unittest.TestCase):
         with self.patches(gen), mock.patch.object(film, "activity") as activity:
             self.assertTrue(film.warm_engine())
             film._warm_thread.join(5)
-            activity.finish.assert_called()
-            self.assertIn("not enough VRAM", str(activity.finish.call_args))
+            # phase("idle", ...), not finish("idle", ...): finish only accepts
+            # ready/placeholder/failed and raised inside this thread, so the report was
+            # never written and the UI sat on "loading".
+            activity.phase.assert_called()
+            activity.finish.assert_not_called()
+            self.assertIn("not enough VRAM", str(activity.phase.call_args))
 
 
 class FilmImagesWarmTests(unittest.TestCase):
