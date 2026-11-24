@@ -159,7 +159,16 @@ export function createSettingsView(deps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patch),
       })) };
-    } catch (_) {}
+    } catch (err) {
+      // Callers update state and the switch before this runs, so a failed PUT used to
+      // leave the UI describing a preference the server never stored - and it was gone
+      // on the next reload. Say so, then put the real values back.
+      toast(`That setting was not saved: ${err.message}`, 'error');
+      try {
+        state.settings = { ...state.settings, ...(await api('/api/settings')) };
+        applySettings();
+      } catch (_) {}
+    }
   }
 
   function toggleTheme() {

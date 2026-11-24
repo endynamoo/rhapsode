@@ -3925,25 +3925,27 @@ async function addSample() {
 
 /* ─────────────────────────── export ─────────────────────────── */
 
-function exportFileName() {
+function exportFileName(format) {
   const title = (state.doc && state.doc.title) || 'murmur';
   const safe = title.replace(/[^\w\s-]/g, '').trim().slice(0, 80) || 'murmur';
-  return `${safe}.mp3`;
+  return `${safe}.${(format && format.ext) || 'mp3'}`;
 }
 
 /* Ask where the file should go before any audio is made. Browsers that can write
    to the chosen file directly (Edge, Chrome) get a real save dialog; the rest get
    an ordinary download plus a toast naming the folder, because a page cannot
-   choose a path. */
-async function pickExportHandle() {
+   choose a path. The format comes from the server: without ffmpeg an export is a
+   WAV, and naming it .mp3 put the wrong extension on the bytes. */
+async function pickExportHandle(format) {
   if (typeof window.showSaveFilePicker !== 'function') return null;
+  const ext = (format && format.ext) || 'mp3';
+  const audio = ext === 'wav'
+    ? { description: 'WAV audio', accept: { 'audio/wav': ['.wav'] } }
+    : { description: 'MP3 audio', accept: { 'audio/mpeg': ['.mp3'] } };
   try {
     return await window.showSaveFilePicker({
-      suggestedName: exportFileName(),
-      types: [
-        { description: 'MP3 audio', accept: { 'audio/mpeg': ['.mp3'] } },
-        { description: 'WAV audio', accept: { 'audio/wav': ['.wav'] } },
-      ],
+      suggestedName: exportFileName(format),
+      types: [audio],
     });
   } catch (err) {
     if (err && err.name === 'AbortError') return 'cancelled';
@@ -3951,11 +3953,11 @@ async function pickExportHandle() {
   }
 }
 
-async function saveExport(job, handle) {
+async function saveExport(job, handle, format) {
   const url = `/api/export/${job.id}/file`;
   if (!handle) {
     download(url);
-    toast(`Saved ${exportFileName()} to your Downloads folder`, 'info', 5000);
+    toast(`Saved ${job.suggestedName || exportFileName(format)} to your Downloads folder`, 'info', 5000);
     return;
   }
   const response = await fetch(url);
@@ -3972,7 +3974,8 @@ async function saveExport(job, handle) {
 
 async function exportDoc() {
   if (!state.doc) return;
-  const handle = await pickExportHandle();
+  const format = await api('/api/export/format').catch(() => ({ ext: 'mp3', mime: 'audio/mpeg' }));
+  const handle = await pickExportHandle(format);
   if (handle === 'cancelled') return;
   try {
     const job = await api(`/api/docs/${state.doc.id}/export`, {
@@ -3982,22 +3985,35 @@ async function exportDoc() {
     });
     const el = toast(`Exporting 0 of ${job.total} sentences…`, 'info', 0);
     const label = el.querySelector('.toast-text');
+    let failures = 0;
     const timer = setInterval(async () => {
       try {
         const status = await api(`/api/export/${job.id}`);
+        failures = 0;
         if (status.state === 'running' || status.state === 'queued') {
           label.textContent = `Exporting ${status.done} of ${status.total} sentences…`;
         } else if (status.state === 'done') {
           clearInterval(timer);
           el.remove();
-          saveExport(status, handle).catch((err) => toast(err.message, 'error'));
+          saveExport(status, handle, format).catch((err) => toast(err.message, 'error'));
         } else if (status.state === 'error') {
           clearInterval(timer);
           el.remove();
           toast(status.error || 'Export failed', 'error');
+        } else if (status.state === 'cancelled') {
+          clearInterval(timer);
+          el.remove();
+          toast('Export cancelled', 'info');
         }
-      } catch (_) {
-        clearInterval(timer);
+      } catch (err) {
+        // One failed poll is a hiccup; three in a row means the export is not coming
+        // back. Either way the permanent "Exporting…" toast has to go.
+        failures += 1;
+        if (failures >= 3) {
+          clearInterval(timer);
+          el.remove();
+          toast(`Export stopped answering: ${err.message}`, 'error');
+        }
       }
     }, 900);
   } catch (err) {
