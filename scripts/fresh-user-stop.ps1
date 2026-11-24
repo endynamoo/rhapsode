@@ -51,20 +51,42 @@ if ($uninstaller) {
 }
 
 # The installer's HKCU entry is what a machine uses to uninstall Rhapsode. Remove the
-# sandbox's, then put back whatever existed before the test.
+# sandbox's, then put back whatever existed before the test - but only when there really
+# was something to put back. fresh-user.ps1 writes its decision to uninstall-key.json,
+# because the backup path is fixed and shared, so the file alone cannot say whether it
+# describes this machine or a sandbox from a previous run. Before 2026-11-23 it could not
+# say either, and a sandbox entry made during an earlier run was restored as if it were the
+# machine's own.
 $keyPath = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{8D3A1C1E-6F2B-4C6D-9E4A-1F0B0A000001}_is1'
 & cmd /c "reg delete `"HKCU\$keyPath`" /f >nul 2>&1"
 # The backup lives outside the sandbox, because this script deletes the sandbox.
 $backup = Join-Path $env:TEMP 'opencode\rh-uninstall-backup\uninstall-key.reg'
-$hadBackup = Test-Path $backup
-if ($hadBackup) {
-    & cmd /c "reg import `"$backup`" >nul 2>&1"
+$meta = Join-Path $env:TEMP 'opencode\rh-uninstall-backup\uninstall-key.json'
+$restore = $false
+$why = 'no backup was recorded'
+if (Test-Path $meta) {
+    try {
+        $state = Get-Content $meta -Raw | ConvertFrom-Json
+        $restore = [bool]$state.present -and (Test-Path $backup)
+        $why = [string]$state.note
+        if ([bool]$state.present -and -not (Test-Path $backup)) { $why = 'the record says there was an entry, but its file is missing' }
+    } catch {
+        $why = 'the backup record could not be read'
+    }
+} elseif (Test-Path $backup) {
+    # A run from before the record existed left only the .reg. Trust it only when it names
+    # a directory that still exists and is not a sandbox.
+    $text = Get-Content $backup -Raw
+    $match = [regex]::Match($text, '"InstallLocation"="([^"]*)"')
+    $location = if ($match.Success) { ($match.Groups[1].Value -replace '\\\\', '\').TrimEnd('\') } else { '' }
+    $restore = [bool]$location -and (Test-Path -LiteralPath $location)
+    $why = if ($restore) { "restored from an older backup at $location" } else { "an older backup pointed at '$location', which does not exist - not restored" }
 }
-$restored = Test-Path ("HKCU:\" + $keyPath)
-$note = ''
-if (-not $hadBackup) { $note = ' (none existed before the test)' }
-Say "   machine's uninstall entry present after teardown: $restored$note"
-if (-not $hadBackup -and $restored) { Say "   WARNING: an entry exists but no backup was found - check where it points" }
+if ($restore) { & cmd /c "reg import `"$backup`" >nul 2>&1" }
+$present = Test-Path ("HKCU:\" + $keyPath)
+$outcome = if ($present) { 'restored' } else { 'none' }
+Say "   machine's uninstall entry: $outcome - $why"
+if (-not $restore -and $present) { Say "   WARNING: an entry is present but no valid backup was recorded - check where it points" }
 
 Say "== removing the sandbox"
 Remove-Item -LiteralPath $Root -Recurse -Force -ErrorAction SilentlyContinue
