@@ -1,3 +1,3 @@
 """Murmur — a local, private read-aloud app powered by Kokoro-82M."""
 
-__version__ = "0.3.5-beta"
+__version__ = "0.3.6-beta"
