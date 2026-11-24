@@ -26,6 +26,11 @@ phrased for a user, not for a diff reader.
 - Translation requests now carry a token cap and, for the bundled server, a repetition
   penalty. At temperature 0 an unstable decode repeated one clause until the context ended -
   measured on Japanese and Hindi - which is a read that never finishes.
+- **Hindi is refused rather than answered.** Every bundled model measured produced fluent
+  nonsense in Hindi (issue #150), and Rhapsode would read that aloud. A Hindi voice now says
+  plainly that Hindi needs a model server you run, and reads the original text with the
+  voice's accent until one is connected. The translation cache key also carries the backend,
+  so a sentence cached from one engine is never served after switching engines.
 
 ## [0.3.6-beta] - 2026-11-24
 

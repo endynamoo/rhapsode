@@ -11,8 +11,11 @@ import hashlib
 from . import language, store, translate, voices
 
 
-def _cache_key(target: str, text: str) -> str:
-    return hashlib.sha1(f"v1|{target}|{text}".encode("utf-8")).hexdigest()
+def _cache_key(backend: str, target: str, text: str) -> str:
+    # v2, and the backend is part of the key. A translation cached from one backend used
+    # to be served after switching to another - or after the bundled model arrived - which
+    # is how a bad engine's output would survive the engine being fixed or refused.
+    return hashlib.sha1(f"v2|{backend}|{target}|{text}".encode("utf-8")).hexdigest()
 
 
 def prepare(text: str, voice: str, enabled: bool = True) -> dict:
@@ -33,7 +36,8 @@ def prepare(text: str, voice: str, enabled: bool = True) -> dict:
     if not enabled or not result["target"]:
         return result
 
-    key = _cache_key(result["target"], text)
+    key = _cache_key(translate.translator.backend(result["target"]) or "",
+                     result["target"], text)
     cached = store.translation_get(key)
     if cached is not None:
         result["text"] = cached
