@@ -54,11 +54,16 @@ ASSETS = {
 
 #: The weights a reader can fetch. Sizes and checksums are the files this release
 #: was measured against; a mismatch is refused rather than loaded.
+#:
+#: `languages` is the measured capability, not the language list of the model card:
+#: on 0.6B..7B Qwen produced fluent nonsense in Hindi (see issue #150), so Hindi is
+#: absent here and the chain refuses it rather than reading gibberish aloud.
 VARIANTS: dict[str, dict] = {
     "7b": {
         "label": "7B",
         "repo": "Qwen/Qwen2.5-7B-Instruct-GGUF",
         "note": "correct for Spanish, French, Japanese and Chinese; about 2 s a sentence",
+        "languages": ["en", "es", "fr", "it", "pt", "ja", "zh"],
         "files": [
             ("qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf", 3_993_201_344,
              "dfce12e3862a5283ccfb88221b48480e58745165de856439950d0f22590580db"),
@@ -70,6 +75,7 @@ VARIANTS: dict[str, dict] = {
         "label": "1.5B",
         "repo": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
         "note": "a third of the download and twice as fast; weaker in French and Japanese",
+        "languages": ["en", "es", "fr", "it", "pt", "ja", "zh"],
         "files": [
             ("qwen2.5-1.5b-instruct-q4_k_m.gguf", 1_117_320_736,
              "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"),
@@ -154,6 +160,17 @@ def installed(name: str | None = None) -> bool:
 
 def size_of(name: str) -> int:
     return sum(size for _file, size, _sha in VARIANTS[name]["files"])
+
+
+def languages(name: str | None = None) -> list[str]:
+    """The languages this variant translates well, as measured (see VARIANTS)."""
+    return list(VARIANTS[name or variant()]["languages"])
+
+
+def supports(lang: str, name: str | None = None) -> bool:
+    """Whether the bundled model can translate into `lang` ("hi-IN" counts as "hi")."""
+    base = (lang or "").split("-")[0].lower()
+    return bool(base) and base in languages(name)
 
 
 # ---------------------------------------------------------------- the download
@@ -339,13 +356,15 @@ def stop() -> None:
 
 def status() -> dict:
     name = variant()
-    sizes = {key: {"label": spec["label"], "bytes": size_of(key), "note": spec["note"]}
+    sizes = {key: {"label": spec["label"], "bytes": size_of(key), "note": spec["note"],
+                   "languages": list(spec["languages"])}
              for key, spec in VARIANTS.items()}
     return {
         "enabled": enabled(),
         "variant": name,
         "installed": installed(name) if enabled() else False,
         "runtime": binary_path() is not None,
+        "languages": languages(name),
         "server": {"running": running(), "url": _server_url},
         "download": state(),
         "variants": sizes,

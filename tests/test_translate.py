@@ -260,10 +260,13 @@ class RoutingTests(unittest.TestCase):
         chain.local.translate.assert_called_once()
         chain.http.translate.assert_not_called()
 
-    def test_a_routed_language_falls_back_to_the_bundled_model(self) -> None:
-        with mock.patch.object(store, "get_settings", return_value={"translateServerOnly": ["hi"]}):
+    def test_a_routed_language_falls_back_to_the_bundled_model_when_it_can_do_it(self) -> None:
+        # Routing is a preference, not a promise: a language the bundled model handles goes
+        # there when the server the reader routed it to is not running.
+        with mock.patch.object(store, "get_settings",
+                               return_value={"translateServerOnly": ["fr"]}):
             chain = self._chain(http=False)
-            chain.translate("namaste", "hi")
+            chain.translate("bonjour", "fr")
         chain.local.translate.assert_called_once()
 
     def test_a_local_failure_falls_back_to_the_readers_server(self) -> None:
@@ -281,6 +284,25 @@ class RoutingTests(unittest.TestCase):
         self.assertIn("local", status)
         self.assertEqual(["hi"], status["serverOnly"])
         self.assertIn("installed", status["local"])
+
+    def test_the_bundled_model_refuses_a_language_it_cannot_do(self) -> None:
+        # Hindi measured as fluent nonsense on every size (issue #150): refusing means the
+        # original text is read with an accent, instead of gibberish being spoken.
+        chain = self._chain(local=True, http=False)
+        with mock.patch.object(translate.localmt, "supports", return_value=False):
+            with self.assertRaises(translate.TranslateUnavailable) as caught:
+                chain.translate("namaste", "hi")
+        self.assertIn("Hindi", str(caught.exception))
+        chain.local.translate.assert_not_called()
+
+    def test_hindi_routed_to_a_server_still_uses_the_server(self) -> None:
+        with mock.patch.object(store, "get_settings",
+                               return_value={"translateServerOnly": ["hi"]}):
+            chain = self._chain(local=True, http=True)
+            with mock.patch.object(translate.localmt, "supports", return_value=False):
+                chain.translate("namaste", "hi")
+        chain.http.translate.assert_called_once()
+        chain.local.translate.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -449,6 +449,10 @@ class TranslatorChain:
             return set()
         return {str(item).strip().lower() for item in chosen if str(item).strip()}
 
+    def _local_can_do(self, target: str) -> bool:
+        """Whether the bundled model translates this language well (measured, not claimed)."""
+        return localmt.enabled() and localmt.supports(target)
+
     def _pick(self, target: str):
         if self.swift.available():
             return self.swift
@@ -456,14 +460,30 @@ class TranslatorChain:
         if base in self._server_only():
             if self.http.available():
                 return self.http
-            if self.local.available():
+            if self.local.available() and self._local_can_do(target):
                 return self.local
             return None
-        if self.local.available():
+        if self.local.available() and self._local_can_do(target):
             return self.local
         if self.http.available():
             return self.http
         return None
+
+    def _refusal(self, target: str) -> str:
+        name = LANGUAGE_NAMES.get(target.split("-")[0].lower(), target)
+        if self.local.available() and not localmt.supports(target):
+            # Refusing is the point: the model produces fluent nonsense in Hindi (issue
+            # #150), and speaking that is worse than reading the original with an accent.
+            return (
+                f"The on-device translator cannot translate {name}. Connect a model server "
+                "you run in Settings -> Translation to translate it; until then the "
+                "original text is read with the accent of the chosen voice."
+            )
+        return (
+            "Translation needs a model on this machine: download the on-device translator "
+            "in Settings -> Translation, or point MURMUR_TRANSLATE_URL at an "
+            "OpenAI-compatible server."
+        )
 
     def available(self) -> bool:
         return bool(self.swift.available() or self.http.available() or self.local.available())
@@ -553,11 +573,7 @@ class TranslatorChain:
     def translate(self, text: str, target: str, source: str = "auto") -> dict:
         chosen = self._pick(target)
         if chosen is None:
-            raise TranslateUnavailable(
-                "Translation needs a model on this machine: download the on-device "
-                "translator in Settings -> Translation, or point MURMUR_TRANSLATE_URL at "
-                "an OpenAI-compatible server."
-            )
+            raise TranslateUnavailable(self._refusal(target))
         try:
             return chosen.translate(text, target, source)
         except TranslateUnavailable:

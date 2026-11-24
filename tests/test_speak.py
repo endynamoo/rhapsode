@@ -45,6 +45,9 @@ class NoBackend:
     def available(self) -> bool:
         return False
 
+    def backend(self, target: str | None = None) -> str | None:
+        return None
+
     def translate(self, text, target, source="auto"):  # pragma: no cover - must not run
         raise AssertionError("nothing should be translated without a backend")
 
@@ -56,6 +59,9 @@ class RecordingBackend:
 
     def available(self) -> bool:
         return True
+
+    def backend(self, target: str | None = None) -> str:
+        return "recording"
 
     def translate(self, text: str, target: str, source: str = "auto") -> dict:
         self.calls.append((text, target, source))
@@ -140,6 +146,17 @@ class SwitchTests(unittest.TestCase):
                 prepared = speak.prepare("The lantern keeper waited.", "ef_dora", enabled=False)
         self.assertFalse(prepared["translated"])
         self.assertIsNone(prepared["error"])
+
+
+class CacheKeyTests(unittest.TestCase):
+    def test_the_key_carries_the_backend_and_the_target(self) -> None:
+        # Switching backend (or the bundled model arriving after a server was used) must
+        # not serve the old engine's sentence from the cache.
+        same = speak._cache_key("local", "fr", "hello")
+        self.assertEqual(same, speak._cache_key("local", "fr", "hello"))
+        self.assertNotEqual(same, speak._cache_key("http", "fr", "hello"))
+        self.assertNotEqual(same, speak._cache_key("local", "es", "hello"))
+        self.assertNotEqual(same, speak._cache_key("local", "fr", "hello there"))
 
 
 if __name__ == "__main__":

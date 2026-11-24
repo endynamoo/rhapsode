@@ -51,6 +51,17 @@ class VariantTests(unittest.TestCase):
         self.assertEqual("7b", localmt.DEFAULT_VARIANT)
         self.assertIn("1.5b", localmt.VARIANTS)
 
+    def test_the_measured_languages_are_declared_and_hindi_is_not(self) -> None:
+        # Hindi is refused rather than answered: every model measured produced fluent
+        # nonsense for it (issue #150), and speaking that is worse than an accent.
+        for name in localmt.VARIANTS:
+            with self.subTest(variant=name):
+                self.assertTrue(localmt.supports("fr", name))
+                self.assertTrue(localmt.supports("ja", name))
+                self.assertFalse(localmt.supports("hi", name))
+        self.assertTrue(localmt.supports("fr-CA"), "a regional code counts as its base")
+        self.assertFalse(localmt.supports(""))
+
 
 class StateTests(unittest.TestCase):
     def setUp(self) -> None:
