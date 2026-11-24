@@ -10,6 +10,14 @@ phrased for a user, not for a diff reader.
 
 ## [Unreleased]
 
+### Fixed
+
+- Keyboard hints and the shortcuts behind them now match the machine. On Windows and Linux the
+  Add document button advertised `⌘N` and the cog advertised "Settings (⌘,)", and the handlers
+  only accepted the Apple key, so the hint named a key the keyboard did not have and the
+  shortcut a reader actually had (`Ctrl+N`, `Ctrl+,`) did nothing. The hint is written per
+  platform now, `Ctrl` works everywhere and `⌘` stays on Apple keyboards.
+
 ## [0.3.5-beta] - 2026-11-23
 
 - **Translation is detected and connected before it is needed, not discovered at the first

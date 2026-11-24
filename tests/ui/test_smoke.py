@@ -201,6 +201,28 @@ class SmokeTests(unittest.TestCase):
         titles = self.page.locator(".lib-item .lib-title").all_inner_texts()
         self.assertTrue(any(TITLE in title for title in titles), titles)
 
+    def test_shortcut_hints_name_the_keys_this_keyboard_has(self) -> None:
+        # index.html advertised ⌘N and "Settings (⌘,)" on every operating system, and
+        # onKeyDown only accepted the Apple modifier, so the shortcut a Windows or
+        # Linux reader was shown did nothing - and the keys they do have did nothing
+        # either. Both halves are checked here because either alone still lies.
+        self.open_app()
+        mac = sys.platform == "darwin"
+        self.assertEqual(
+            "⌘N" if mac else "Ctrl+N",
+            self.page.locator("#addBtn kbd").inner_text().strip(),
+            "the add-document hint must name this keyboard's modifier",
+        )
+        self.assertEqual(
+            "Settings (⌘,)" if mac else "Settings (Ctrl+,)",
+            self.page.locator("#settingsBtn").get_attribute("title"),
+        )
+        self.page.keyboard.press("Meta+n" if mac else "Control+n")
+        self.page.wait_for_selector("#addModal:not([hidden])")
+        self.page.locator("#addModal").evaluate("(el) => { el.hidden = true }")
+        self.page.keyboard.press("Meta+," if mac else "Control+,")
+        self.page.wait_for_selector("#settingsModal:not([hidden])")
+
     def test_opening_a_book_shows_its_text(self) -> None:
         self.open_app()
         self.page.locator(".lib-item", has_text=TITLE).first.click()
