@@ -35,7 +35,7 @@ pillow-heif>=0.20; sys_platform != "darwin"
 # OCR — on-device, no models to download.
 # macOS: Apple Vision. Windows: Windows.Media.Ocr through winsdk, which uses the
 # language packs the machine already has. Linux: install tesseract-ocr.
-pyobjc-framework-Vision>=10.3; sys_platform == "darwin"
+pyobjc-framework-Vision>=13.0; sys_platform == "darwin"
 winsdk>=1.0.0b10; sys_platform == "win32"
 
 # Cinema stills (optional; install with `uv pip install -r requirements-film.txt`)
