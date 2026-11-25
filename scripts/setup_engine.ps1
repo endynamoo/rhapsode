@@ -27,6 +27,10 @@ $venv = Join-Path $homeDir 'image-venv'
 $python = Join-Path $venv 'Scripts\python.exe'
 New-Item -ItemType Directory -Force -Path $homeDir | Out-Null
 $env:HF_HOME = Join-Path $homeDir 'models\hf'
+# Xet's chunked transfer stalled at zero bytes on Windows and left the card spinning with no
+# error and no timeout; the classic HTTP path is slower to start and actually finishes.
+$env:HF_HUB_DISABLE_XET = '1'
+$env:HF_HUB_DISABLE_SYMLINKS_WARNING = '1'
 
 # ---- what is in this machine --------------------------------------------------
 # Sunshine and remote sessions add virtual adapters; they are never the renderer.
@@ -196,8 +200,6 @@ if (Test-Path $python) {
     }
     $torchVersion = & $python -c "import torch;print(torch.__version__)" 2>$null
     Say "torch sees the card: $torchVersion"
-    $marker = "{ ""ready"": true, ""torch"": ""$torchVersion"", ""when"": ""$(Get-Date -Format s)"" }"
-    Set-Content -Path (Join-Path $venv 'rhapsode-ready.json') -Value $marker -Encoding ASCII
 }
 
 # ---- weights ------------------------------------------------------------------
@@ -212,6 +214,13 @@ if ($SkipWeights) {
     } elseif (Test-Path $python) {
         Say "fetching the q4 transformer (2.4 GB)"
         & $python -c "from huggingface_hub import hf_hub_download; print(hf_hub_download('unsloth/FLUX.2-klein-4B-GGUF', 'flux-2-klein-4b-Q4_K_M.gguf'))"
+        if ($LASTEXITCODE) { Fail "the q4 transformer did not download (see the lines above)" }
+        $gguf = Get-ChildItem (Join-Path $env:HF_HOME 'hub') -Recurse -Filter '*klein*Q4_K_M*.gguf' -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $gguf -or $gguf.Length -lt 1GB) {
+            # A silent failure here used to report "engine setup finished" with no weights at
+            # all, and the card said Installed because the marker had already been written.
+            Fail "the q4 transformer is missing or incomplete on disk"
+        }
     }
     if (Test-Path '.venv\Scripts\python.exe') {
         & '.venv\Scripts\python.exe' -c @"
@@ -223,6 +232,14 @@ for name in (detectors.FACES_MODEL, detectors.PERSON_MODEL, detectors.POSE_MODEL
         print(f'   {name}: {exc}')
 "@
     }
+}
+
+# ---- the marker the app reads as ready ----------------------------------------
+# Written last, after the weights: a marker written before a download that failed made the
+# card say "Installed" with no transformer on disk (seen 2026-11-25).
+if ((Test-Path $python) -and $torchVersion) {
+    $marker = "{ ""ready"": true, ""torch"": ""$torchVersion"", ""when"": ""$(Get-Date -Format s)"" }"
+    Set-Content -Path (Join-Path $venv 'rhapsode-ready.json') -Value $marker -Encoding ASCII
 }
 
 # ---- profile ------------------------------------------------------------------
