@@ -178,6 +178,21 @@ from the bundle entirely.
 Python can still build the stills interpreter - uv fetches a managed CPython without admin
 rights and seeds pip into the venv.
 
+## ffmpeg (fetched from Settings; GPL-3.0)
+
+MP3 export and chapter films need ffmpeg. The app can fetch the pinned gyan.dev release
+build into `<data>/tools/ffmpeg` (Settings -> ffmpeg, 113 MB zip, sha256 pinned), and
+`config.find_tool` prefers that copy over PATH:
+
+| Component | Version | Licence | Source |
+| --- | --- | --- | --- |
+| ffmpeg (gyan.dev release essentials build) | 9.1 | **GPL-3.0** | <https://www.gyan.dev/ffmpeg/builds/> - build scripts <https://github.com/GyanD/codexffmpeg> |
+
+Because that build is GPL-3.0, `licenses/SOURCES.md` carries its source commit and the
+written offer, `licenses/NOTICE.txt` names it, and the archive's own LICENSE is kept next to
+the binary when it is unpacked. Nothing GPL is added to the installer by this: the download is
+requested by the reader.
+
 ## Translation (fetched at first run; Apache-2.0 and MIT)
 
 The on-device translator is not in the installer. When a reader ticks **Download the

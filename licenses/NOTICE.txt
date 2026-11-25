@@ -13,6 +13,7 @@ also contains the following, under their own licences:
 | `libsndfile` (via `soundfile`) | 1.2.2 | LGPL-2.1 |
 | `libheif` (via `pillow-heif`) | 1.23.6 | LGPL-3.0 |
 | FFmpeg inside the OpenCV wheel (unused by Rhapsode) | 5.1 | LGPL-2.1-or-later |
+| FFmpeg for MP3 export and chapter films (gyan.dev release essentials, downloaded by the app on request, not bundled in the installer) | 9.1 | GPL-3.0 |
 
 The licence texts are in this folder, beside this notice. The source for the GPL
 and LGPL components — and for everything else in this build — is listed in

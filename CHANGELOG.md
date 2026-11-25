@@ -12,10 +12,17 @@ phrased for a user, not for a diff reader.
 
 ### Added
 
+- **ffmpeg can be installed from Settings.** Without it MP3 export fell back to WAV and
+  chapter films could not be cut, and the error told every platform to use Homebrew. Settings
+  → ffmpeg fetches the pinned gyan.dev release build (9.1, 113 MB, sha256 checked) into the
+  data directory; `config.find_tool` prefers that copy over PATH. That build is **GPL-3.0**, so
+  `licenses/NOTICE.txt`, `licenses/SOURCES.md` (source commit and written offer) and
+  `THIRD_PARTY.md` name it, and the archive's own LICENSE is kept beside the binary. Nothing
+  GPL is added to the installer: the reader asks for the download.
 - **The stills engine is offered on first start, not discovered inside Cinema.** A machine
   with a supported GPU used to meet Manga as "no stills engine" with advice to run a
   PowerShell script. The first-run sequence now ends with a third card - after the voice and
-  translation - offering *Set up the stills engine, about 5 GB, one time*: one tick, the
+  translation - offering *Set up the stills engine, about 16 GB, one time*: one tick, the
   same script the installer's optional task runs, its output on screen, and Settings →
   Stills engine to start it again. A machine with no usable GPU is not offered it, because
   a placeholder is the right answer there.
@@ -55,6 +62,10 @@ phrased for a user, not for a diff reader.
 
 ### Fixed
 
+- **A download's status call could deadlock.** `state()` takes the lock and the early returns
+  inside `start_download()` called it while already holding a plain `Lock`, so the second call
+  hung forever. Both the ffmpeg and the translation-model downloaders are reentrant now; the
+  ffmpeg test that asks "already installed?" is what caught it.
 - **A packaged install never fetched the Japanese dictionary.** `fetch_language_data` was only
   called by `python -m murmur.bootstrap`, which a frozen app never runs, so the first Japanese
   sentence pulled 23 MB with no progress. The app's voice download now fetches it too.

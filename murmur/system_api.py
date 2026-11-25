@@ -24,6 +24,7 @@ from . import (
     config,
     enginesetup,
     extract,
+    ffmpeg,
     fonts,
     imaging,
     langs,
@@ -258,9 +259,9 @@ def setup_engine() -> dict:
     """Install the stills engine now, from inside the app.
 
     Runs the same script the installer's optional task runs: torch for this card's vendor,
-    diffusers, the q4 transformer, the detectors, then the profile. Only started when
+    diffusers, the q4 transformer, the text encoder, then the profile. Only started when
     someone asked (the first-run card or Settings), and never on a machine with no GPU
-    profile - a placeholder is the correct answer there, not a 5 GB download.
+    profile - a placeholder is the correct answer there, not a 16 GB download.
     """
     active = config.PROFILE or {}
     if active.get("profile") in {None, "", "cpu"}:
@@ -270,6 +271,23 @@ def setup_engine() -> dict:
                    "what Cinema uses here (CPU painting is planned for 0.4).",
         )
     return enginesetup.start()
+
+
+@router.get("/api/ffmpeg")
+def ffmpeg_status() -> dict:
+    """Whether this machine can cut MP3 exports and chapter films, and what it is using."""
+    return ffmpeg.state()
+
+
+@router.post("/api/ffmpeg", status_code=202)
+def ffmpeg_download() -> dict:
+    """Fetch the pinned GPL ffmpeg build into the data directory.
+
+    gyan.dev's release essentials build: libmp3lame for the MP3 export, libass for the
+    burned-in subtitles, libx264 for the H.264 chapter film. Its licence travels with it
+    (licenses/SOURCES.md carries the offer and the source commit).
+    """
+    return ffmpeg.start_download()
 
 
 @router.post("/api/engine/profile")

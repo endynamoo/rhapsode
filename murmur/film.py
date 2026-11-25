@@ -1538,7 +1538,7 @@ def _ffmpeg() -> str:
         # The old text told every platform to use Homebrew. Say what this machine needs, and
         # name the alternative that works without it.
         if sys.platform.startswith("win"):
-            advice = "install it (winget install Gyan.FFmpeg) and restart Rhapsode"
+            advice = "install it from Settings -> ffmpeg, or (winget install Gyan.FFmpeg) and restart"
         elif sys.platform == "darwin":
             advice = "install it (brew install ffmpeg)"
         else:
