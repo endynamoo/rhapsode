@@ -8,6 +8,7 @@ import os
 import queue
 import re
 import subprocess
+import sys
 import threading
 import time
 import uuid
@@ -1534,7 +1535,18 @@ _ASS_SUPPORT: bool | None = None
 def _ffmpeg() -> str:
     path = config.find_tool("ffmpeg")
     if not path:
-        raise RuntimeError("ffmpeg is required for film rendering (brew install ffmpeg)")
+        # The old text told every platform to use Homebrew. Say what this machine needs, and
+        # name the alternative that works without it.
+        if sys.platform.startswith("win"):
+            advice = "install it (winget install Gyan.FFmpeg) and restart Rhapsode"
+        elif sys.platform == "darwin":
+            advice = "install it (brew install ffmpeg)"
+        else:
+            advice = "install it (sudo apt install ffmpeg, or your distribution's package)"
+        raise RuntimeError(
+            f"ffmpeg is required to render a chapter film - {advice}. "
+            "Stills and reading work without it."
+        )
     return path
 
 

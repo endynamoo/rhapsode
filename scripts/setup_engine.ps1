@@ -232,6 +232,28 @@ for name in (detectors.FACES_MODEL, detectors.PERSON_MODEL, detectors.POSE_MODEL
         print(f'   {name}: {exc}')
 "@
     }
+
+    # The text encoder, VAE and scheduler come from the diffusers repo. A reader must not be
+    # assumed to have them: without them the first still is a placeholder even though the
+    # transformer and torch are in place. The q4 transformer is the only big file we use from
+    # the GGUF repo; the repo's own safetensors transformer is deliberately not fetched.
+    $encoderDir = Join-Path $env:HF_HOME 'hub\models--black-forest-labs--FLUX.2-klein-4B'
+    $encoderBytes = 0
+    if (Test-Path $encoderDir) {
+        $encoderBytes = (Get-ChildItem $encoderDir -Recurse -File -ErrorAction SilentlyContinue |
+            Measure-Object Length -Sum).Sum
+    }
+    if ($encoderBytes -ge 10GB) {
+        Say "text encoder already present"
+    } elseif (Test-Path $python) {
+        Say "fetching the text encoder, VAE and tokenizer (about 9 GB)"
+        & $python -c "from huggingface_hub import snapshot_download; snapshot_download('black-forest-labs/FLUX.2-klein-4B', allow_patterns=['text_encoder/*', 'tokenizer/*', 'vae/*', 'scheduler/*', 'model_index.json'])"
+        if ($LASTEXITCODE) { Fail "the text encoder did not download (see the lines above)" }
+        $encoderBytes = (Get-ChildItem $encoderDir -Recurse -File -ErrorAction SilentlyContinue |
+            Measure-Object Length -Sum).Sum
+        if ($encoderBytes -lt 10GB) { Fail "the text encoder is missing or incomplete on disk" }
+        Say ("text encoder ready (" + [math]::Round($encoderBytes / 1GB, 1) + " GB)")
+    }
 }
 
 # ---- the marker the app reads as ready ----------------------------------------

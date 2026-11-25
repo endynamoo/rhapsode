@@ -39,8 +39,25 @@ phrased for a user, not for a diff reader.
   voice's accent until one is connected. The translation cache key also carries the backend,
   so a sentence cached from one engine is never served after switching engines.
 
+### Changed
+
+- **The stills setup now fetches the text encoder.** Before, it installed torch and the q4
+  transformer and left the encoder (FLUX.2 [klein]'s text encoder, VAE and tokenizer - about
+  16 GB) to download during the first still, which assumed the machine already had it. The
+  card now says *about 19 GB* and the setup is complete when it says ready; Settings says
+  "the text encoder is missing" for an install that predates this.
+- The stills offer is Windows-only. Apple Silicon paints through mflux with nothing to
+  install, and Linux has no setup script - a Mac no longer gets a card whose only possible
+  answer is "the script is missing".
+- `/api/health` reports **ffmpeg**, because MP3 export silently falls back to WAV and chapter
+  films need it; the film error now names the install command for the platform instead of
+  `brew install ffmpeg` on Windows.
+
 ### Fixed
 
+- **A packaged install never fetched the Japanese dictionary.** `fetch_language_data` was only
+  called by `python -m murmur.bootstrap`, which a frozen app never runs, so the first Japanese
+  sentence pulled 23 MB with no progress. The app's voice download now fetches it too.
 - **The stills setup could report success with nothing to paint with.** The q4 transformer
   download could return without error and the script carried on, and the "ready" marker was
   written before the weights - so the card said *Installed* with no transformer on disk. The

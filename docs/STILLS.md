@@ -248,9 +248,12 @@ python3.12 -m venv --system-site-packages "$data/image-venv"
   "accelerate>=1.3" "safetensors>=0.5" "huggingface_hub>=0.28" "pillow>=10.4"
 ```
 
-Both build `image-venv` inside the data directory and download the FLUX.2 [klein]
-4B weights (about 16 GB) on first use. Without it, stills fall back to the
-deterministic placeholder painter — the reader and the narration are unaffected.
+Both build `image-venv` inside the data directory. On Windows the app's first-run card
+runs the same script and also fetches the q4 transformer (2.4 GB) and the text encoder,
+VAE and tokenizer (about 16 GB) in that one step, so the first still does not have to
+download anything; the manual commands above leave those to the first still, which is
+why a hand-built engine is slower the first time. Without an engine, stills fall back to
+the deterministic placeholder painter - the reader and the narration are unaffected.
 
 Rendering is a short batch: a 30-minute chapter is roughly 20–30 stills. On an
 RX 9070 XT, 1080p High takes about two minutes per still including model load, and

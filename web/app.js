@@ -415,6 +415,10 @@ function paintEngineSetup(setup) {
       state.textContent = (setup && setup.reason) || 'Not available on this platform.';
     } else if (setup.run && setup.run.running) {
       state.textContent = `Setting up - ${last || 'working'}`;
+    } else if (setup.installed && setup.textEncoder && setup.textEncoder.ready === false) {
+      // An install from before the setup fetched the encoder: the painter is there, the
+      // weights that read a prompt are not.
+      state.textContent = 'Installed, but the text encoder is missing. Press Set up to fetch it.';
     } else if (setup.installed) {
       state.textContent = 'Installed - Cinema paints on this machine.';
     } else if (setup.run && setup.run.error) {

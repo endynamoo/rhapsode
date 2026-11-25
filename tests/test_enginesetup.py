@@ -43,6 +43,15 @@ class StatusTests(unittest.TestCase):
         self.assertFalse(status["available"])
         self.assertIn("Linux", status["reason"])
         self.assertIn("docs/STILLS.md", status["reason"])
+        self.assertFalse(status["needed"], "Linux is never offered a card it cannot honour")
+
+    def test_a_mac_is_never_offered_a_setup_it_does_not_need(self) -> None:
+        # Apple Silicon paints through mflux; the .app does not ship scripts/ and never should.
+        with mock.patch.object(enginesetup.sys, "platform", "darwin"), \
+                mock.patch.object(config, "PROFILE", {"profile": "balanced"}), \
+                mock.patch.object(enginesetup, "installed", return_value=False):
+            self.assertFalse(enginesetup.needed())
+            self.assertIn("mflux", enginesetup.no_script_reason())
 
     def test_the_command_runs_the_script_with_powershell(self) -> None:
         script = Path("C:/apps/Rhapsode/scripts/setup_engine.ps1")
@@ -66,6 +75,19 @@ class StatusTests(unittest.TestCase):
             with mock.patch.object(config, "INSTALL_ROOT", root), \
                     mock.patch.object(enginesetup.sys, "platform", "win32"):
                 self.assertEqual(script, enginesetup.script_path())
+
+
+    def test_the_text_encoder_is_reported_separately(self) -> None:
+        # The setup fetches it now; an install from before that must not look complete.
+        with mock.patch.object(enginesetup, "text_encoder_bytes", return_value=12 * 1024 ** 3):
+            self.assertTrue(enginesetup.text_encoder_ready())
+        with mock.patch.object(enginesetup, "text_encoder_bytes", return_value=4 * 1024 ** 3):
+            self.assertFalse(enginesetup.text_encoder_ready(), "one shard is not enough")
+
+    def test_status_carries_the_text_encoder_state(self) -> None:
+        with mock.patch.object(enginesetup, "text_encoder_bytes", return_value=0):
+            status = enginesetup.status()
+        self.assertEqual({"ready": False, "bytes": 0}, status["textEncoder"])
 
 
 class StartTests(unittest.TestCase):
