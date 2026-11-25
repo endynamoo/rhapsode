@@ -55,6 +55,33 @@ function Find-GpuTorch {
     return ''
 }
 
+# ---- a base interpreter that actually runs -----------------------------------
+# `py -3.12` is not enough on its own: this machine lists 3.12 only as the Microsoft
+# Store alias, which the launcher cannot start ("No suitable Python runtime found").
+# Try the names a real install answers to, and only accept one that reports 3.11/3.12.
+function Test-PythonVersion {
+    param([string[]]$Command)
+    if (-not $Command -or -not $Command[0]) { return $false }
+    $exe = $Command[0]
+    $rest = @()
+    if ($Command.Count -gt 1) { $rest = $Command[1..($Command.Count - 1)] }
+    $version = & $exe @rest -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    return ($version -eq '3.12' -or $version -eq '3.11')
+}
+
+function Find-BasePython {
+    $candidates = @()
+    if ($env:MURMUR_BASE_PYTHON) { $candidates += ,@($env:MURMUR_BASE_PYTHON) }
+    $candidates += ,@('python3.12')
+    $candidates += ,@('python')
+    $candidates += ,@('py', '-3.12')
+    foreach ($candidate in $candidates) {
+        if (Test-PythonVersion $candidate) { return ,$candidate }
+    }
+    return $null
+}
+
 # ---- image venv ---------------------------------------------------------------
 if (Test-Path $python) {
     Say "image-venv already exists"
@@ -66,8 +93,17 @@ if (Test-Path $python) {
         Say "reusing the GPU torch at $base"
         & $base -m venv --system-site-packages $venv
     } else {
-        Say "creating a plain image-venv"
-        & py -3.12 -m venv $venv
+        $interpreter = Find-BasePython
+        if (-not $interpreter) {
+            Say "no Python 3.11 or 3.12 could be started on this machine"
+            Say "install one (winget install --id Python.Python.3.12 -e) or set MURMUR_BASE_PYTHON"
+            Fail "stills engine not set up"
+        }
+        $exe = $interpreter[0]
+        $rest = @()
+        if ($interpreter.Count -gt 1) { $rest = $interpreter[1..($interpreter.Count - 1)] }
+        Say ("creating an image-venv with " + $exe + " " + ($rest -join " ")).Trim()
+        & $exe @rest -m venv $venv
     }
 }
 

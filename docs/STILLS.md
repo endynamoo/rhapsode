@@ -210,6 +210,13 @@ The app offers this itself on first start (the third card, after the voice and t
 and **Settings → Stills engine** re-runs it, which is the short path. The commands below are
 what that runs, and how to do it by hand.
 
+The script finds a base interpreter itself: `MURMUR_BASE_PYTHON` if set, then `python3.12`,
+`python`, and finally `py -3.12`, accepting only one that reports 3.11 or 3.12. That matters
+on machines where the `py` launcher lists 3.12 only as the Microsoft Store alias, which it
+cannot start. If a GPU torch already lives somewhere else (unsloth, a ROCm build),
+`MURMUR_TORCH_PYTHON` points at its interpreter and the venv reuses it instead of
+downloading several gigabytes.
+
 macOS (Apple Silicon, MLX):
 
 ```bash
