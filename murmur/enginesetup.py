@@ -43,8 +43,13 @@ def venv_python() -> Path:
 
 
 def installed() -> bool:
-    """An interpreter exists where the painter looks for one."""
-    return venv_python().is_file()
+    """The setup finished and left its marker: an interpreter alone is not enough.
+
+    The venv appears minutes before the weights do, so checking for the interpreter made
+    the card say "Installed" while it was still downloading and vanish mid-run. The
+    script writes `rhapsode-ready.json` only after torch has seen the card.
+    """
+    return (venv_python().parent.parent / "rhapsode-ready.json").is_file()
 
 
 def needed() -> bool:
