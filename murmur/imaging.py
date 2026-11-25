@@ -156,6 +156,10 @@ class FluxWorker:
     def _env(self) -> dict:
         env = dict(os.environ)
         env.setdefault("HF_HOME", str(config.HOME / "models" / "hf"))
+        # Xet's chunked transfer stalled at zero bytes on Windows with no error and no
+        # timeout, leaving the card on "Painting" forever. The classic HTTP path finishes.
+        env.setdefault("HF_HUB_DISABLE_XET", "1")
+        env.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
         return env
 
     @property
@@ -442,6 +446,8 @@ class FluxPythonBackend(ImageBackend):
         """Slow path: a fresh interpreter, used when the resident painter fails."""
         env = dict(os.environ)
         env.setdefault("HF_HOME", str(config.HOME / "models" / "hf"))
+        env.setdefault("HF_HUB_DISABLE_XET", "1")
+        env.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
         command = [
             *_painter_command(self.python, script),
             "--prompt", job["prompt"],
@@ -653,6 +659,8 @@ class FluxKleinBackend(ImageBackend):
     def _run(cmd: list[str], out_path: Path) -> None:
         env = dict(os.environ)
         env.setdefault("HF_HOME", str(config.HOME / "models" / "hf"))
+        env.setdefault("HF_HUB_DISABLE_XET", "1")
+        env.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.unlink(missing_ok=True)
         result = proc.run(

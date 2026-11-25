@@ -39,6 +39,18 @@ phrased for a user, not for a diff reader.
   voice's accent until one is connected. The translation cache key also carries the backend,
   so a sentence cached from one engine is never served after switching engines.
 
+### Fixed
+
+- **The stills setup could report success with nothing to paint with.** The q4 transformer
+  download could return without error and the script carried on, and the "ready" marker was
+  written before the weights - so the card said *Installed* with no transformer on disk. The
+  marker is now written last, the download's exit code is checked, and a transformer smaller
+  than 1 GB counts as missing.
+- **Downloads no longer stall forever on Xet.** huggingface_hub's chunked transfer sat at zero
+  bytes with no error and no timeout on Windows (seen on the 2.4 GB transformer and on the
+  first still's text encoder). The setup script and every painter process now set
+  `HF_HUB_DISABLE_XET=1`, which uses the classic HTTP path that finishes.
+
 ## [0.3.6-beta] - 2026-11-24
 
 A bugfix release from a full read of the code (23 findings, filed as #123 to #145).
