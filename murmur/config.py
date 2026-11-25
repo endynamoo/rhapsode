@@ -10,6 +10,10 @@ FROZEN = bool(getattr(sys, "frozen", False))
 
 # In a packaged .app, data files live next to the executable (_MEIPASS).
 ASSET_ROOT = Path(getattr(sys, "_MEIPASS", APP_ROOT)) if FROZEN else APP_ROOT
+#: Things shipped *beside* the executable - scripts/, licenses/ - are not inside the
+#: frozen package: `_internal` holds the Python payload, while the installer puts those
+#: next to Rhapsode.exe. Anything that runs a shipped script must look here.
+INSTALL_ROOT = Path(sys.executable).resolve().parent if FROZEN else APP_ROOT
 WEB_DIR = ASSET_ROOT / "web"
 BUNDLED_MODELS = ASSET_ROOT / "models"
 

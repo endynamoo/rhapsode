@@ -28,11 +28,12 @@ _reader: threading.Thread | None = None
 
 def script_path() -> Path | None:
     """The setup script for this platform, when one ships."""
+    root = Path(getattr(config, "INSTALL_ROOT", config.APP_ROOT))
     if sys.platform.startswith("win"):
-        candidate = config.APP_ROOT / "scripts" / "setup_engine.ps1"
+        candidate = root / "scripts" / "setup_engine.ps1"
         return candidate if candidate.is_file() else None
     if sys.platform == "darwin":
-        candidate = config.APP_ROOT / "scripts" / "setup_flux.sh"
+        candidate = root / "scripts" / "setup_flux.sh"
         return candidate if candidate.is_file() else None
     return None
 
@@ -105,7 +106,7 @@ def start() -> dict:
         try:
             _child = proc.spawn(
                 command(),
-                cwd=str(config.APP_ROOT),
+                cwd=str(config.INSTALL_ROOT),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -134,6 +135,8 @@ def start() -> dict:
                     _state.update(done=True, error=None)
                 else:
                     _state.update(done=False, error=f"setup exited with code {code}")
+            if code == 0:
+                _adopt_profile()
         except Exception as exc:  # noqa: BLE001 - the reader is told, the app carries on
             with _lock:
                 _state.update(running=False, done=False, error=str(exc))
@@ -141,6 +144,23 @@ def start() -> dict:
     _reader = threading.Thread(target=pump, name="stills-setup", daemon=True)
     _reader.start()
     return status()
+
+
+def _adopt_profile() -> None:
+    """Save the profile the finished setup implies.
+
+    `scripts/setup_engine.ps1` ends by importing `murmur` with the *image* interpreter to
+    write engine.json. In a packaged install there is no `murmur` for that interpreter
+    (it is inside the frozen app), so that step fails while the interpreter itself is
+    fine. The app already knows how to recommend and activate a profile, so it finishes
+    the job here.
+    """
+    from . import profile as engine_profile
+
+    try:
+        engine_profile.activate(config.HOME, engine_profile.recommend(engine_profile._detect_vram()))
+    except Exception:  # noqa: BLE001 - the painter recommends again on its own
+        pass
 
 
 def stop() -> None:

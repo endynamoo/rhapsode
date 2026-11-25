@@ -52,6 +52,21 @@ class StatusTests(unittest.TestCase):
         self.assertIn("-ExecutionPolicy", command)
         self.assertIn(str(script), command)
 
+    def test_the_script_is_looked_for_beside_the_executable(self) -> None:
+        # In a frozen build the package lives in _internal while scripts/ sits next to
+        # Rhapsode.exe. Looking beside config.APP_ROOT found nothing, and the 2026-11-25
+        # fresh install offered a card that could only answer "the script is missing".
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            script = root / "scripts" / "setup_engine.ps1"
+            script.parent.mkdir(parents=True)
+            script.write_text("Write-Host hi", encoding="ascii")
+            with mock.patch.object(config, "INSTALL_ROOT", root), \
+                    mock.patch.object(enginesetup.sys, "platform", "win32"):
+                self.assertEqual(script, enginesetup.script_path())
+
 
 class StartTests(unittest.TestCase):
     def setUp(self) -> None:
