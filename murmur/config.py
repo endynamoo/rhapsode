@@ -162,6 +162,12 @@ def find_tool(name: str) -> str | None:
     """Find a Homebrew/CLI tool even when Finder gave the app a tiny PATH."""
     import shutil
 
+    # A copy this app installed itself wins over whatever PATH happens to hold: it is the
+    # version the setup verified, and on Windows a packaged reader has no PATH entry at all.
+    if name in {"ffmpeg", "ffprobe"}:
+        managed = HOME / "tools" / "ffmpeg" / "bin" / f"{name}.exe"
+        if managed.is_file():
+            return str(managed)
     found = shutil.which(name)
     if found:
         return found

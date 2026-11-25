@@ -475,6 +475,62 @@ async function prepareEngine(showCard) {
   }
 }
 
+// ---------------------------------------------------------------- ffmpeg
+
+async function ffmpegStatus() {
+  try {
+    return await api('/api/ffmpeg');
+  } catch (_) {
+    return {};
+  }
+}
+
+function paintFfmpeg(state) {
+  const label = $('#ffmpegState');
+  const get = $('#ffmpegGet');
+  if (label) {
+    if (!state || state.available === undefined) {
+      label.textContent = 'Checking.';
+    } else if (state.running) {
+      const pct = (state.progress && state.progress.percent) || 0;
+      label.textContent = `Downloading - ${pct}%`;
+    } else if (state.error) {
+      label.textContent = state.error;
+    } else if (state.installed) {
+      label.textContent = `Installed (${state.version}, ${state.licence}) - MP3 export and chapter films work.`;
+    } else if (state.available) {
+      label.textContent = 'Found on this computer.';
+    } else {
+      label.textContent = 'Not installed. MP3 export falls back to WAV and chapter films cannot be cut.';
+    }
+  }
+  if (get) get.hidden = !!(state && state.available);
+}
+
+async function startFfmpegDownload() {
+  try {
+    await api('/api/ffmpeg', { method: 'POST' });
+  } catch (err) {
+    toast(err.message, 'error');
+    return;
+  }
+  const timer = setInterval(async () => {
+    const state = await ffmpegStatus();
+    paintFfmpeg(state);
+    if (!state.running) {
+      clearInterval(timer);
+      if (state.done || state.available) toast('ffmpeg is ready. MP3 export and films work now.');
+      else if (state.error) toast(`ffmpeg download failed: ${state.error}`, 'error');
+    }
+  }, 900);
+}
+
+function wireFfmpeg() {
+  const get = $('#ffmpegGet');
+  if (get) get.addEventListener('click', () => { get.disabled = true; startFfmpegDownload(); });
+  ffmpegStatus().then(paintFfmpeg);
+}
+
 function wireEngineSetup() {
   const install = $('#engineLocalInstall');
   if (install) {
@@ -703,6 +759,7 @@ function bindUI() {
   applyShortcutHints();
   wireLocalTranslation();
   wireEngineSetup();
+  wireFfmpeg();
   $('#addBtn').addEventListener('click', openAdd);
   $('#emptyAdd').addEventListener('click', openAdd);
   $('#sampleBtn').addEventListener('click', addSample);

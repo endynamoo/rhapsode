@@ -16,8 +16,11 @@ from PyPI into your own environment, and you hold the licences directly.
 | `phonemizer` (Python bindings to eSpeak NG) | 3.6.0 | <https://github.com/bootphon/phonemizer/tree/v3.6.0> · sdist: <https://pypi.org/project/phonemizer/3.6.0/#files> | [`GPL-3.0.txt`](GPL-3.0.txt) |
 | eSpeak NG (`espeak-ng.dll` + `espeak-ng-data`) | 1.52.0 | <https://github.com/espeak-ng/espeak-ng/tree/1.52.0> | [`GPL-3.0.txt`](GPL-3.0.txt) |
 | `espeakng-loader` (packages the eSpeak NG build above) | 0.2.4 | <https://github.com/thewh1teagle/espeakng-loader> · sdist: <https://pypi.org/project/espeakng-loader/0.2.4/#files> | MIT (loader only) |
+| FFmpeg binary build (Settings -> ffmpeg; downloaded by the app, not bundled) | 9.1, gyan.dev release essentials | <https://github.com/FFmpeg/FFmpeg/commit/74e4393595> - binaries: <https://www.gyan.dev/ffmpeg/builds/> - build scripts: <https://github.com/GyanD/codexffmpeg> | [`GPL-3.0.txt`](GPL-3.0.txt) |
 
-`espeakng-loader` is MIT; the library and data it carries are the GPL-3.0 part.
+`espeakng-loader` is MIT; the library and data it carries are the GPL-3.0 part. The
+FFmpeg row is a **separately downloaded** binary: the installer does not contain it, and
+Settings -> ffmpeg fetches the pinned build when a reader wants MP3 export or chapter films.
 The Windows installer and the macOS bundles include both, because
 `kokoro-onnx`'s tokenizer phonemises through them.
 

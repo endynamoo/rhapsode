@@ -87,7 +87,9 @@ DEFAULT_VARIANT = "7b"
 
 _STATE = {"running": False, "done": False, "error": None, "variant": "",
           "label": "", "size": 0, "progress": None}
-_lock = threading.Lock()
+# Reentrant: state() takes the lock too, and the early returns below call it while
+# holding it - a plain Lock made the second call deadlock (found by tests, 2026-11-25).
+_lock = threading.RLock()
 _download_thread: threading.Thread | None = None
 _server = None            # proc.spawn handle
 _server_url: str = ""
