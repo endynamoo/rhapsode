@@ -184,6 +184,9 @@ def health() -> dict:
         "voices": len(VOICES),
         "ocr": ocr.available(),
         "ocrBackend": ocr.backend_name(),
+        # MP3 export falls back to WAV and chapter films need it, so say whether this machine
+        # has one instead of letting the failure surface only when someone presses Export.
+        "ffmpeg": bool(config.find_tool("ffmpeg")),
         "translate": translate.translator.available(),
         # Which voices can actually be spoken here, and why not when they cannot.
         "languages": {code: langs.support(code) for code in langs.SPECIAL},

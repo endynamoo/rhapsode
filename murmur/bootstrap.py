@@ -118,6 +118,11 @@ def start_download() -> dict:
     def _run() -> None:
         try:
             download_weights()
+            # The installer promises Japanese voices, and pyopenjtalk fetches a 23 MB Open JTalk
+            # dictionary on the first Japanese sentence otherwise - at the one moment a reader
+            # may be offline. The CLI setup does this; a packaged app never runs that CLI, so
+            # the app does it here, once, behind the same progress the voice download shows.
+            fetch_language_data()
             _STATE.update(running=False, done=True, error=None, progress=None)
         except Exception as exc:  # pragma: no cover - network failures
             _STATE.update(running=False, done=False, error=str(exc), progress=None)

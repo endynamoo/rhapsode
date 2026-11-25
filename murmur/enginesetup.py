@@ -47,13 +47,45 @@ def installed() -> bool:
 
     The venv appears minutes before the weights do, so checking for the interpreter made
     the card say "Installed" while it was still downloading and vanish mid-run. The
-    script writes `rhapsode-ready.json` only after torch has seen the card.
+    script writes `rhapsode-ready.json` only after torch has seen the card. The text encoder
+    is checked separately because an install that predates the setup fetching it would
+    otherwise look complete.
     """
     return (venv_python().parent.parent / "rhapsode-ready.json").is_file()
 
 
+#: The diffusers repo holds the text encoder, VAE, tokenizer and scheduler. Under this many
+#: bytes it is a partial download, not a usable pipeline.
+TEXT_ENCODER_FLOOR = 10 * 1024 ** 3
+
+
+def text_encoder_bytes() -> int:
+    root = (config.HOME / "models" / "hf" / "hub"
+            / "models--black-forest-labs--FLUX.2-klein-4B")
+    total = 0
+    if root.is_dir():
+        for path in root.rglob("*"):
+            try:
+                if path.is_file():
+                    total += path.stat().st_size
+            except OSError:
+                continue
+    return total
+
+
+def text_encoder_ready() -> bool:
+    return text_encoder_bytes() >= TEXT_ENCODER_FLOOR
+
+
 def needed() -> bool:
-    """A machine that can paint, with nothing set up yet."""
+    """A machine that can paint, with nothing set up yet.
+
+    Windows only: Apple Silicon paints through mflux with nothing to install, and Linux has no
+    setup script at all. Offering a card that can only end in "the script is missing" is the
+    dev-machine assumption this feature exists to remove.
+    """
+    if not sys.platform.startswith("win"):
+        return False
     active = config.PROFILE or {}
     return (
         script_path() is not None
@@ -72,6 +104,11 @@ def command() -> list[str]:
 
 
 def no_script_reason() -> str:
+    if sys.platform == "darwin":
+        return (
+            "Apple Silicon paints stills through mflux, with nothing to install. "
+            "There is no separate engine to set up on this Mac."
+        )
     if sys.platform.startswith("linux"):
         return (
             "Linux has no setup script: build the stills interpreter by hand where the "
@@ -90,6 +127,7 @@ def status() -> dict:
         "needed": needed(),
         "python": str(venv_python()),
         "profile": (config.PROFILE or {}).get("profile"),
+        "textEncoder": {"ready": text_encoder_ready(), "bytes": text_encoder_bytes()},
         "run": state,
         "reason": "" if script_path() is not None else no_script_reason(),
     }
@@ -152,7 +190,7 @@ def start() -> dict:
 
 
 def _adopt_profile() -> None:
-    """Save the profile the finished setup implies.
+    """Save the profile the finished setup implies, and fetch the small detectors.
 
     `scripts/setup_engine.ps1` ends by importing `murmur` with the *image* interpreter to
     write engine.json. In a packaged install there is no `murmur` for that interpreter
@@ -165,6 +203,23 @@ def _adopt_profile() -> None:
     try:
         engine_profile.activate(config.HOME, engine_profile.recommend(engine_profile._detect_vram()))
     except Exception:  # noqa: BLE001 - the painter recommends again on its own
+        pass
+    # Face/pose detectors are small ONNX files the app itself can run (onnxruntime lives in
+    # this process, not in the image venv). Fetch them now so the first polished still does
+    # not wait on them, and never let that failure touch the setup result.
+    threading.Thread(target=_prefetch_detectors, name="detectors", daemon=True).start()
+
+
+def _prefetch_detectors() -> None:
+    try:
+        from . import detectors
+
+        for name in (detectors.FACES_MODEL, detectors.PERSON_MODEL, detectors.POSE_MODEL):
+            try:
+                detectors._fetch(name)
+            except Exception:  # noqa: BLE001 - optional polish, not a setup failure
+                continue
+    except Exception:  # noqa: BLE001 - same
         pass
 
 
