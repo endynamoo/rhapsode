@@ -148,6 +148,27 @@ if (-not $DryRun -and (Test-Path $python)) {
     }
 }
 
+# ---- proof it can actually paint -----------------------------------------------
+# A venv, a CPU torch and 2.4 GB of weights look like success and paint nothing. Check the
+# card before spending the download, and leave a marker the app reads as "ready".
+if (Test-Path $python) {
+    $visible = & $python -c "import torch;print(torch.cuda.is_available())" 2>$null
+    if ($visible -ne 'True') {
+        Say "torch cannot see the graphics card, so Cinema would only show placeholders"
+        if ($vendor -eq 'amd') {
+            Say "AMD on Windows needs a ROCm build of torch; the public ROCm index has no Windows wheel"
+            Say "set MURMUR_TORCH_PYTHON to an interpreter that has one, or see docs\STILLS.md"
+        } else {
+            Say "install the torch build this card needs, or see docs\STILLS.md"
+        }
+        Fail "stills engine prepared, but no GPU torch is visible"
+    }
+    $torchVersion = & $python -c "import torch;print(torch.__version__)" 2>$null
+    Say "torch sees the card: $torchVersion"
+    $marker = "{ ""ready"": true, ""torch"": ""$torchVersion"", ""when"": ""$(Get-Date -Format s)"" }"
+    Set-Content -Path (Join-Path $venv 'rhapsode-ready.json') -Value $marker -Encoding ASCII
+}
+
 # ---- weights ------------------------------------------------------------------
 if ($SkipWeights) {
     Say "skipping weights (-SkipWeights)"
@@ -181,15 +202,23 @@ if ($DryRun) {
 }
 if (-not (Test-Path $venvPy)) { Fail "no interpreter to write the profile with" }
 
-if ($Profile -eq 'auto') {
-    $vram = & $venvPy -c "from murmur import profile; print(profile._detect_vram() or 0)" 2>$null
-    $Profile = & $venvPy -c "from murmur import profile; print(profile.recommend(float('$vram')))" 2>$null
-    $Profile = ($Profile | Select-Object -Last 1).Trim()
-    Say "detected VRAM: $vram GB -> profile '$Profile'"
-    if ($vram -ge 10 -and $vram -lt 22) {
-        Say "if this card is shared (remote desktop, another GPU job), use -Profile lite: ~5 GiB instead of ~13"
+# A packaged install has no `murmur` for the image interpreter (it lives inside the frozen
+# app), so asking it to save the profile only produces a traceback. The app writes and
+# activates the profile itself when the setup reports success.
+$hasMurmur = & $venvPy -c "import murmur; print('yes')" 2>$null
+if ($hasMurmur -eq 'yes') {
+    if ($Profile -eq 'auto') {
+        $vram = & $venvPy -c "from murmur import profile; print(profile._detect_vram() or 0)" 2>$null
+        $Profile = & $venvPy -c "from murmur import profile; print(profile.recommend(float('$vram')))" 2>$null
+        $Profile = ($Profile | Select-Object -Last 1).Trim()
+        Say "detected VRAM: $vram GB -> profile '$Profile'"
+        if ($vram -ge 10 -and $vram -lt 22) {
+            Say "if this card is shared (remote desktop, another GPU job), use -Profile lite: ~5 GiB instead of ~13"
+        }
     }
+    & $venvPy -c "from pathlib import Path; from murmur import profile; print(profile.describe(profile.save(Path(r'$homeDir'), '$Profile')))"
+} else {
+    Say "the app writes the profile when it starts (no murmur module for the image interpreter)"
 }
-& $venvPy -c "from pathlib import Path; from murmur import profile; print(profile.describe(profile.save(Path(r'$homeDir'), '$Profile')))"
 
 Say 'engine setup finished'

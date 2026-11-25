@@ -413,12 +413,12 @@ function paintEngineSetup(setup) {
   if (state) {
     if (!setup || setup.available === false) {
       state.textContent = (setup && setup.reason) || 'Not available on this platform.';
-    } else if (setup.installed) {
-      state.textContent = 'Installed - Cinema paints on this machine.';
     } else if (setup.run && setup.run.running) {
       state.textContent = `Setting up - ${last || 'working'}`;
+    } else if (setup.installed) {
+      state.textContent = 'Installed - Cinema paints on this machine.';
     } else if (setup.run && setup.run.error) {
-      state.textContent = setup.run.error;
+      state.textContent = last ? `${setup.run.error} - ${last}` : setup.run.error;
     } else if (setup.needed) {
       state.textContent = 'Not set up. Manga shows placeholder cards until it is.';
     } else {
