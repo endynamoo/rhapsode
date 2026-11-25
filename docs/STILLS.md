@@ -206,6 +206,10 @@ proportion or longer than the body are logged in the sidecar as `flags`.
 
 ## Install the stills engine once
 
+The app offers this itself on first start (the third card, after the voice and translation),
+and **Settings → Stills engine** re-runs it, which is the short path. The commands below are
+what that runs, and how to do it by hand.
+
 macOS (Apple Silicon, MLX):
 
 ```bash

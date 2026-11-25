@@ -2026,3 +2026,15 @@ body.focus .focus-exit { display: inline-flex; }
   font-size: 13px;
   color: var(--muted);
 }
+
+/* The stills setup card shows the script's own output: a bar for "working", lines for truth. */
+.first-run-log {
+  margin: 8px 0 0;
+  max-height: 120px;
+  overflow: auto;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+  white-space: pre-wrap;
+}

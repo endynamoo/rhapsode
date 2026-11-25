@@ -12,6 +12,13 @@ phrased for a user, not for a diff reader.
 
 ### Added
 
+- **The stills engine is offered on first start, not discovered inside Cinema.** A machine
+  with a supported GPU used to meet Manga as "no stills engine" with advice to run a
+  PowerShell script. The first-run sequence now ends with a third card - after the voice and
+  translation - offering *Set up the stills engine, about 5 GB, one time*: one tick, the
+  same script the installer's optional task runs, its output on screen, and Settings →
+  Stills engine to start it again. A machine with no usable GPU is not offered it, because
+  a placeholder is the right answer there.
 - **Translation works on a first install, without installing anything else.** Until now a
   foreign voice needed a model server you already ran (llama.cpp, LM Studio, Ollama), so a
   fresh install answered "Translation is not set up on this machine" the first time someone

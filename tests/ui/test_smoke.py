@@ -903,6 +903,44 @@ class SmokeTests(unittest.TestCase):
         self.assertTrue(posts, "checking the box must start the download")
         self.assertEqual("7b", posts[0].get("variant"))
 
+    def test_the_stills_engine_is_offered_after_translation(self) -> None:
+        """A GPU machine with no image-venv gets the third card, and the tick runs setup."""
+        page = self.page
+        posts: list[str] = []
+        state = {"running": False, "done": False}
+
+        def setup() -> dict:
+            return {
+                "available": True, "installed": state["done"], "needed": not state["done"],
+                "python": "C:/tmp/image-venv/Scripts/python.exe", "profile": "balanced",
+                "run": {"running": state["running"], "done": state["done"], "error": None,
+                        "lines": ["gpu: AMD Radeon RX 9070 XT (amd)", "installing torch"]},
+                "reason": "",
+            }
+
+        def engine(route):
+            if route.request.method == "POST":
+                posts.append(route.request.url)
+                state["running"] = True
+                state["done"] = True
+            route.fulfill(json={"setup": setup()})
+
+        # Apple makes prepareTranslation return before it shows a card, so the engine
+        # offer is what a fresh first run sees after the voice.
+        page.route("**/api/translate?probe=true", lambda route: route.fulfill(json={
+            "available": False, "backend": None, "apple": True, "configuredUrl": "",
+            "savedUrl": "", "servers": [], "reason": "", "ports": [8091]}))
+        page.route("**/api/engine/setup", engine)
+        page.route("**/api/engine", engine)
+        page.route("**/api/settings", lambda route: route.fulfill(json={"ok": True}))
+        page.goto(self.base, wait_until="domcontentloaded")
+        page.wait_for_selector("#engineSetup:not([hidden])", timeout=15000)
+        self.assertIn("about 5", page.text_content("#engineSetup") or "")
+        page.check("#engineLocalInstall")
+        page.wait_for_function(
+            "() => document.querySelector('#engineSetup').hidden", timeout=15000)
+        self.assertTrue(posts, "checking the box must start the setup")
+
     def test_declining_translation_turns_the_setting_off(self) -> None:
         page = self.page
         page.route("**/api/translate?probe=true", lambda route: route.fulfill(json={
