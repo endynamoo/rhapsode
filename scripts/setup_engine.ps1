@@ -63,6 +63,8 @@ function Test-PythonVersion {
     param([string[]]$Command)
     if (-not $Command -or -not $Command[0]) { return $false }
     $exe = $Command[0]
+    # A name that is not on PATH is a "no", not an error a reader should see in the card.
+    if (-not (Get-Command $exe -ErrorAction SilentlyContinue)) { return $false }
     $rest = @()
     if ($Command.Count -gt 1) { $rest = $Command[1..($Command.Count - 1)] }
     $version = & $exe @rest -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null
@@ -82,6 +84,23 @@ function Find-BasePython {
     return $null
 }
 
+# ---- uv: the interpreter the app ships for machines that have no Python ---------
+# The installer puts uv.exe beside Rhapsode.exe. It can fetch a managed CPython without
+# admin rights, which is the only way a machine that has never had Python can still build
+# the image venv.
+function Find-Uv {
+    $candidates = @(
+        (Join-Path $PSScriptRoot '..\uv.exe'),
+        (Join-Path $PSScriptRoot 'uv.exe')
+    )
+    foreach ($candidate in $candidates) {
+        if (Test-Path $candidate) { return (Resolve-Path $candidate).Path }
+    }
+    $command = Get-Command uv -ErrorAction SilentlyContinue
+    if ($command) { return $command.Source }
+    return ''
+}
+
 # ---- image venv ---------------------------------------------------------------
 if (Test-Path $python) {
     Say "image-venv already exists"
@@ -94,16 +113,24 @@ if (Test-Path $python) {
         & $base -m venv --system-site-packages $venv
     } else {
         $interpreter = Find-BasePython
-        if (-not $interpreter) {
-            Say "no Python 3.11 or 3.12 could be started on this machine"
-            Say "install one (winget install --id Python.Python.3.12 -e) or set MURMUR_BASE_PYTHON"
-            Fail "stills engine not set up"
+        if ($interpreter) {
+            $exe = $interpreter[0]
+            $rest = @()
+            if ($interpreter.Count -gt 1) { $rest = $interpreter[1..($interpreter.Count - 1)] }
+            Say ("creating an image-venv with " + $exe + " " + ($rest -join " ")).Trim()
+            & $exe @rest -m venv $venv
+        } else {
+            $uv = Find-Uv
+            if (-not $uv) {
+                Say "no Python 3.11 or 3.12 could be started on this machine"
+                Say "install one (winget install --id Python.Python.3.12 -e) or set MURMUR_BASE_PYTHON"
+                Fail "stills engine not set up"
+            }
+            Say "no system Python; fetching 3.12 with uv ($uv)"
+            $uvOutput = & $uv venv --python 3.12 --seed $venv 2>&1
+            foreach ($line in $uvOutput) { Say "$line" }
+            if ($LASTEXITCODE) { Fail "uv could not create the image-venv" }
         }
-        $exe = $interpreter[0]
-        $rest = @()
-        if ($interpreter.Count -gt 1) { $rest = $interpreter[1..($interpreter.Count - 1)] }
-        Say ("creating an image-venv with " + $exe + " " + ($rest -join " ")).Trim()
-        & $exe @rest -m venv $venv
     }
 }
 
@@ -122,9 +149,10 @@ if (-not $DryRun -and (Test-Path $python)) {
         }
         if ($index) {
             Say "installing torch for $vendor from $index (several GB)"
-            & $python -m pip install --quiet torch --index-url $index
+            $torchOutput = & $python -m pip install --quiet torch --index-url $index 2>&1
             if ($LASTEXITCODE) {
-                Say "torch install failed; stills will fall back to the placeholder"
+                foreach ($line in ($torchOutput | Select-Object -Last 3)) { Say "$line" }
+                Say "torch install failed; stills would fall back to the placeholder"
                 Say "pass -TorchIndex with the wheel index your driver needs"
             }
         } else {

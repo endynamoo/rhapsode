@@ -41,3 +41,6 @@ Thumbs.db
 # Development note for parallel agent sessions: kept in the working copy,
 # never published with the app.
 docs/CONCURRENCY.md
+
+# uv.exe is fetched by scripts/build_installer.ps1 (pinned by sha256), never committed.
+packaging/uv.exe

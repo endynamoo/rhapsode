@@ -58,6 +58,7 @@ Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\THIRD_PARTY.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\licenses\*"; DestDir: "{app}\licenses"; Flags: ignoreversion
 Source: "..\scripts\setup_engine.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
+Source: "..\packaging\uv.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"
