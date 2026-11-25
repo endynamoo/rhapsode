@@ -217,6 +217,10 @@ cannot start. If a GPU torch already lives somewhere else (unsloth, a ROCm build
 `MURMUR_TORCH_PYTHON` points at its interpreter and the venv reuses it instead of
 downloading several gigabytes.
 
+When no Python 3.11/3.12 can be started at all, the shipped `uv.exe` (beside `Rhapsode.exe`)
+fetches a managed CPython 3.12 and builds the venv with it — no admin rights, no Store
+alias. Only that one download is extra; everything after it is the same.
+
 macOS (Apple Silicon, MLX):
 
 ```bash

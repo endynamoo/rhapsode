@@ -108,6 +108,34 @@ if (-not $SkipBuild) {
 }
 
 # ---- package ------------------------------------------------------------------
+# The stills setup needs a Python 3.12 to build its venv from, and a packaged install has
+# no interpreter of its own. uv (MIT OR Apache-2.0) is shipped beside the exe and fetches a
+# managed CPython when the machine has none - which is the normal case for this app.
+# Pinned by checksum: the build either has the file this was tested with or it stops.
+$uvVersion = '0.13.5'
+$uvZip = 'uv-x86_64-pc-windows-msvc.zip'
+$uvSha = 'a38b8d1902b7cfbc76b423ba1bb456f623f42064cdc72628b6075b89afd1019a'
+$uvExe = Join-Path $PWD 'packaging\uv.exe'
+if (Test-Path $uvExe) {
+    $have = (Get-FileHash $uvExe -Algorithm SHA256).Hash.ToLower()
+    if ($have -ne 'f45d1cb9d9140ca6d3f4005fdfc0ebeccf849fd04d1dc85804155cb923f1597b') {
+        Fail "packaging\uv.exe is not the pinned $uvVersion build (sha256 $have)"
+    }
+    Say "uv $uvVersion present"
+} else {
+    Say "fetching uv $uvVersion (15 MB)"
+    $tmpZip = Join-Path $env:TEMP $uvZip
+    $tmpDir = Join-Path $env:TEMP 'uv-build'
+    Invoke-WebRequest -Uri "https://github.com/astral-sh/uv/releases/download/$uvVersion/$uvZip" -OutFile $tmpZip
+    $got = (Get-FileHash $tmpZip -Algorithm SHA256).Hash.ToLower()
+    if ($got -ne $uvSha) { Fail "uv download did not match its checksum ($got)" }
+    Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
+    Expand-Archive $tmpZip -DestinationPath $tmpDir -Force
+    $found = Get-ChildItem $tmpDir -Recurse -Filter 'uv.exe' | Select-Object -First 1
+    if (-not $found) { Fail 'uv zip had no uv.exe in it' }
+    Copy-Item $found.FullName $uvExe -Force
+}
+
 $iscc = @(
     'C:\Program Files\Inno Setup 7\ISCC.exe',
     'C:\Program Files (x86)\Inno Setup 6\ISCC.exe',

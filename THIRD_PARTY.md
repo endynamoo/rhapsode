@@ -166,6 +166,18 @@ Rhapsode never calls. Running `yunet.onnx` through `onnxruntime` (which already
 executes the other two detectors) and resizing with Pillow would remove that wheel
 from the bundle entirely.
 
+## Stills setup (shipped as a tool; the interpreter it needs may be fetched)
+
+| Component | Version | Licence | Source |
+| --- | --- | --- | --- |
+| uv (`uv.exe`, beside the executable) | 0.13.5 | MIT OR Apache-2.0 | <https://github.com/astral-sh/uv/releases/tag/0.13.5> |
+| CPython fetched by uv | 3.12.x | PSF-2.0 | <https://www.python.org/downloads/> |
+
+`packaging/uv.exe` is not in git: `scripts/build_installer.ps1` fetches the pinned build
+(sha256 `a38b8d19…`) and refuses anything else. It exists so a machine that has never had
+Python can still build the stills interpreter - uv fetches a managed CPython without admin
+rights and seeds pip into the venv.
+
 ## Translation (fetched at first run; Apache-2.0 and MIT)
 
 The on-device translator is not in the installer. When a reader ticks **Download the
