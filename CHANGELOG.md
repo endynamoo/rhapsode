@@ -42,9 +42,9 @@ phrased for a user, not for a diff reader.
 ### Changed
 
 - **The stills setup now fetches the text encoder.** Before, it installed torch and the q4
-  transformer and left the encoder (FLUX.2 [klein]'s text encoder, VAE and tokenizer - about
-  16 GB) to download during the first still, which assumed the machine already had it. The
-  card now says *about 19 GB* and the setup is complete when it says ready; Settings says
+  transformer and left the encoder (FLUX.2 [klein]'s text encoder, VAE and tokenizer - 8.2 GB
+  on a clean fetch) to download during the first still, which assumed the machine already had it. The
+  card now says *about 16 GB* and the setup is complete when it says ready; Settings says
   "the text encoder is missing" for an install that predates this.
 - The stills offer is Windows-only. Apple Silicon paints through mflux with nothing to
   install, and Linux has no setup script - a Mac no longer gets a card whose only possible

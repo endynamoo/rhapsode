@@ -935,7 +935,7 @@ class SmokeTests(unittest.TestCase):
         page.route("**/api/settings", lambda route: route.fulfill(json={"ok": True}))
         page.goto(self.base, wait_until="domcontentloaded")
         page.wait_for_selector("#engineSetup:not([hidden])", timeout=15000)
-        self.assertIn("about 19", page.text_content("#engineSetup") or "")
+        self.assertIn("about 16", page.text_content("#engineSetup") or "")
         page.check("#engineLocalInstall")
         page.wait_for_function(
             "() => document.querySelector('#engineSetup').hidden", timeout=15000)

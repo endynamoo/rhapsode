@@ -54,9 +54,10 @@ def installed() -> bool:
     return (venv_python().parent.parent / "rhapsode-ready.json").is_file()
 
 
-#: The diffusers repo holds the text encoder, VAE, tokenizer and scheduler. Under this many
-#: bytes it is a partial download, not a usable pipeline.
-TEXT_ENCODER_FLOOR = 10 * 1024 ** 3
+#: The diffusers repo holds the text encoder, VAE, tokenizer and scheduler: 8.2 GB measured
+#: on a clean fetch (the encoder shards are 5.0 and 3.1 GB). Under this many bytes it is a
+#: partial download, not a usable pipeline.
+TEXT_ENCODER_FLOOR = 6 * 1024 ** 3
 
 
 def text_encoder_bytes() -> int:

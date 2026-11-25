@@ -79,7 +79,7 @@ class StatusTests(unittest.TestCase):
 
     def test_the_text_encoder_is_reported_separately(self) -> None:
         # The setup fetches it now; an install from before that must not look complete.
-        with mock.patch.object(enginesetup, "text_encoder_bytes", return_value=12 * 1024 ** 3):
+        with mock.patch.object(enginesetup, "text_encoder_bytes", return_value=7 * 1024 ** 3):
             self.assertTrue(enginesetup.text_encoder_ready())
         with mock.patch.object(enginesetup, "text_encoder_bytes", return_value=4 * 1024 ** 3):
             self.assertFalse(enginesetup.text_encoder_ready(), "one shard is not enough")
