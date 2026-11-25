@@ -250,7 +250,7 @@ python3.12 -m venv --system-site-packages "$data/image-venv"
 
 Both build `image-venv` inside the data directory. On Windows the app's first-run card
 runs the same script and also fetches the q4 transformer (2.4 GB) and the text encoder,
-VAE and tokenizer (about 16 GB) in that one step, so the first still does not have to
+VAE and tokenizer (8.2 GB measured) in that one step, so the first still does not have to
 download anything; the manual commands above leave those to the first still, which is
 why a hand-built engine is slower the first time. Without an engine, stills fall back to
 the deterministic placeholder painter - the reader and the narration are unaffected.

@@ -243,15 +243,15 @@ for name in (detectors.FACES_MODEL, detectors.PERSON_MODEL, detectors.POSE_MODEL
         $encoderBytes = (Get-ChildItem $encoderDir -Recurse -File -ErrorAction SilentlyContinue |
             Measure-Object Length -Sum).Sum
     }
-    if ($encoderBytes -ge 10GB) {
+    if ($encoderBytes -ge 6GB) {
         Say "text encoder already present"
     } elseif (Test-Path $python) {
-        Say "fetching the text encoder, VAE and tokenizer (about 9 GB)"
+        Say "fetching the text encoder, VAE and tokenizer (about 8 GB)"
         & $python -c "from huggingface_hub import snapshot_download; snapshot_download('black-forest-labs/FLUX.2-klein-4B', allow_patterns=['text_encoder/*', 'tokenizer/*', 'vae/*', 'scheduler/*', 'model_index.json'])"
         if ($LASTEXITCODE) { Fail "the text encoder did not download (see the lines above)" }
         $encoderBytes = (Get-ChildItem $encoderDir -Recurse -File -ErrorAction SilentlyContinue |
             Measure-Object Length -Sum).Sum
-        if ($encoderBytes -lt 10GB) { Fail "the text encoder is missing or incomplete on disk" }
+        if ($encoderBytes -lt 6GB) { Fail "the text encoder is missing or incomplete on disk" }
         Say ("text encoder ready (" + [math]::Round($encoderBytes / 1GB, 1) + " GB)")
     }
 }
