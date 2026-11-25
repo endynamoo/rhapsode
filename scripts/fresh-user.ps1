@@ -30,6 +30,7 @@ param(
     [switch]$FullFirstRun,
     [switch]$KeepSandbox,
     [switch]$Serve,
+    [switch]$NoHostTorch,
     [int]$Port = 8899,
     [int]$FirstRunMinutes = 12
 )
@@ -138,6 +139,10 @@ Say "   sandbox:   $root"
 
 $realData = Join-Path $env:LOCALAPPDATA 'Rhapsode'
 $realRoaming = Join-Path $env:APPDATA 'Rhapsode'
+# The redirection below happens before the app starts, so the real profile has to be
+# remembered now: the host-torch handover needs paths outside the sandbox.
+$realLocal = $env:LOCALAPPDATA
+$realProfile = $env:USERPROFILE
 $beforeData = Get-Tree $realData
 $beforeRoaming = Get-Tree $realRoaming
 
@@ -232,6 +237,23 @@ try {
             # The packaged app opens the default browser itself when WebView2 is unavailable;
             # a test run must not do that, so the person decides when to look.
             $env:MURMUR_NO_BROWSER = '1'
+            # The sandbox redirects USERPROFILE and LOCALAPPDATA, so the stills setup cannot
+            # see a ROCm torch that lives in this machine's real profile - and then the gate
+            # would only ever exercise the refusal. Hand it over explicitly (a real user with
+            # that torch would be found by the same check), unless -NoHostTorch asks for the
+            # stranger's view.
+            if (-not $NoHostTorch) {
+                $hostTorch = @(
+                    (Join-Path $realLocal 'Rhapsode\image-venv\Scripts\python.exe'),
+                    (Join-Path $realProfile '.unsloth\studio\unsloth_studio\Scripts\python.exe')
+                ) | Where-Object { Test-Path $_ } | Where-Object {
+                    (& $_ -c "import torch;print(torch.cuda.is_available())" 2>$null) -eq 'True'
+                } | Select-Object -First 1
+                if ($hostTorch) {
+                    $env:MURMUR_TORCH_PYTHON = $hostTorch
+                    Say "host GPU torch: $hostTorch"
+                }
+            }
             $script:appProcess = Start-Process -FilePath $exe -PassThru -ArgumentList @('--port', "$Port")
             $health = Get-Health $Port
             Check 'the server answers /api/health' ($null -ne $health)

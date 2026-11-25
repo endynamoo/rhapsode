@@ -45,7 +45,10 @@ Say "gpu: $gpuName ($vendor)"
 function Find-GpuTorch {
     $candidates = @(
         $env:MURMUR_TORCH_PYTHON,
-        "$env:USERPROFILE\.unsloth\studio\unsloth_studio\Scripts\python.exe"
+        "$env:USERPROFILE\.unsloth\studio\unsloth_studio\Scripts\python.exe",
+        # An engine venv from an earlier install of this app: upgrading should reuse the
+        # torch it already paid for, not download it again.
+        "$env:LOCALAPPDATA\Rhapsode\image-venv\Scripts\python.exe"
     )
     foreach ($candidate in $candidates) {
         if (-not $candidate -or -not (Test-Path $candidate)) { continue }
