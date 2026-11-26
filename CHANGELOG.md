@@ -10,6 +10,13 @@ phrased for a user, not for a diff reader.
 
 ## [Unreleased]
 
+## [0.3.6-beta] - 2026-11-26
+
+The first release since 0.3.4-beta: the 23 findings from a full read of the code, on-device
+translation that works on a first install, the stills engine offered at first start, and
+ffmpeg installable from Settings. Windows is the tested platform; the release notes state
+what still needs a Mac, a Linux machine and an Intel GPU.
+
 ### Added
 
 - **ffmpeg can be installed from Settings.** Without it MP3 export fell back to WAV and
@@ -45,9 +52,14 @@ phrased for a user, not for a diff reader.
   plainly that Hindi needs a model server you run, and reads the original text with the
   voice's accent until one is connected. The translation cache key also carries the backend,
   so a sentence cached from one engine is never served after switching engines.
+- **A machine with no Python can still set up stills.** The Windows installer now carries `uv` (MIT, sha256 pinned), and `setup_engine.ps1` uses it to fetch its own CPython 3.12 when no 3.11/3.12 can be started - the case a stranger with a fresh Windows account hits. The script also names `MURMUR_BASE_PYTHON` for people who keep their own interpreter elsewhere.
+- **An existing GPU torch is reused.** Upgrading a machine that already had a working `image-venv` used to re-download torch; setup now finds `MURMUR_TORCH_PYTHON` or the existing engine first and layers the rest on top.
 
 ### Changed
 
+- The installer's optional engine task said "~3 GB of models"; it now says about 16 GB, which is what the setup fetches (interpreter, FLUX.2 [klein], 8.2 GB text encoder).
+- `requirements-film.txt` is gone. It was three comments and a no-op, yet five entry points presented it as the film dependency set; Cinema is set up by the app itself.
+- macOS bundles are labelled ad-hoc signed, not notarized, in the platform table.
 - **The stills setup now fetches the text encoder.** Before, it installed torch and the q4
   transformer and left the encoder (FLUX.2 [klein]'s text encoder, VAE and tokenizer - 8.2 GB
   on a clean fetch) to download during the first still, which assumed the machine already had it. The
@@ -59,9 +71,12 @@ phrased for a user, not for a diff reader.
 - `/api/health` reports **ffmpeg**, because MP3 export silently falls back to WAV and chapter
   films need it; the film error now names the install command for the platform instead of
   `brew install ffmpeg` on Windows.
+- The installer still ships Japanese and Chinese voices; a build made without
+  `requirements-lang.txt` now stops instead of shipping them greyed out.
 
 ### Fixed
 
+- **The Linux launcher starts.** `run.sh` runs with `set -u` and read `$MURMUR_HOME`, which is exported only on macOS, so the documented Linux install died before it reached the app. It asks the app where its data lives instead.
 - **Ticking *Smaller download* on the translation card did nothing.** The smaller option only
   relabelled the size; the other checkbox was silently the start button, so a reader who chose
   the 1.1 GB model saw a dead control (issue #165). Either box now starts the download it
@@ -83,13 +98,6 @@ phrased for a user, not for a diff reader.
   bytes with no error and no timeout on Windows (seen on the 2.4 GB transformer and on the
   first still's text encoder). The setup script and every painter process now set
   `HF_HUB_DISABLE_XET=1`, which uses the classic HTTP path that finishes.
-
-## [0.3.6-beta] - 2026-11-24
-
-A bugfix release from a full read of the code (23 findings, filed as #123 to #145).
-
-### Fixed
-
 - The release check that installs the app into a throwaway profile no longer damages the
   machine's own Rhapsode entry in Apps. An entry left behind by a previous run of that check
   was saved as if it were the machine's and put back later, pointing at a temp directory that
@@ -147,10 +155,11 @@ A bugfix release from a full read of the code (23 findings, filed as #123 to #14
   queueing the book for a worker that may not be running.
 - `docs/ARCHITECTURE.md` gives one test count (406) in both places.
 
-### Changed
+### Security
 
-- The installer still ships Japanese and Chinese voices; a build made without
-  `requirements-lang.txt` now stops instead of shipping them greyed out.
+- **A page on another website can no longer act on the app.** Any page the reader had open could POST to `127.0.0.1` - `Quit`, a 16 GB engine setup, model downloads - because a no-body POST needs no CORS preflight. Unsafe methods now require a same-origin `Origin`/`Sec-Fetch-Site`; command-line clients that send neither still work. The standalone engine sidecar refuses non-loopback binds, the film-image route validates its document id instead of joining it into a path, and the translation endpoint check parses the host rather than matching a prefix (`127.0.0.1@evil.example` was accepted).
+- **The ffmpeg download is pinned to an immutable artefact.** The URL was the moving `ffmpeg-release-essentials.zip` alias, so the next upstream release would have failed the 9.1 checksum and broken the new Settings download.
+- A `SECURITY.md` now documents private reporting; build jobs in CI are read-only and only tag jobs may attach release files; `.gitignore` covers the library databases, downloaded weights and the remote-access token.
 
 ## [0.3.5-beta] - 2026-11-23
 
