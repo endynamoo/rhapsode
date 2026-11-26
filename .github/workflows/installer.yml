@@ -131,6 +131,8 @@ jobs:
       - name: Attach the installer to the release
         env:
           GH_TOKEN: ${{ github.token }}
+          # No checkout in this job, so `gh` needs to be told the repository.
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           ls -l dist
