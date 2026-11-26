@@ -25,7 +25,10 @@ class StatusTests(unittest.TestCase):
             self.assertFalse(enginesetup.needed())
 
     def test_a_gpu_machine_without_a_venv_needs_it(self) -> None:
-        with mock.patch.object(config, "PROFILE", {"profile": "balanced"}), \
+        # The offer is Windows-only (macOS paints through mflux, Linux has no script), so a
+        # Linux CI run must still see the Windows decision this test is about.
+        with mock.patch.object(enginesetup.sys, "platform", "win32"), \
+                mock.patch.object(config, "PROFILE", {"profile": "balanced"}), \
                 mock.patch.object(enginesetup, "script_path", return_value=Path("setup.ps1")), \
                 mock.patch.object(enginesetup, "installed", return_value=False):
             self.assertTrue(enginesetup.needed())
