@@ -30,7 +30,7 @@ pillow>=10.4
 # Headless: no GUI stack, and the contrib build is what carries FaceDetectorYN.
 opencv-contrib-python-headless>=4.10
 # HEIC/HEIF decoding where macOS `sips` is not available
-pillow-heif>=0.20; sys_platform != "darwin"
+pillow-heif>=1.8.1; sys_platform != "darwin"
 
 # OCR — on-device, no models to download.
 # macOS: Apple Vision. Windows: Windows.Media.Ocr through winsdk, which uses the
