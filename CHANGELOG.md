@@ -62,6 +62,11 @@ phrased for a user, not for a diff reader.
 
 ### Fixed
 
+- **Ticking *Smaller download* on the translation card did nothing.** The smaller option only
+  relabelled the size; the other checkbox was silently the start button, so a reader who chose
+  the 1.1 GB model saw a dead control (issue #165). Either box now starts the download it
+  names, and a browser test ticks only the smaller one and asserts the request carries
+  `{"variant": "1.5b", "download": true}`.
 - **A download's status call could deadlock.** `state()` takes the lock and the early returns
   inside `start_download()` called it while already holding a plain `Lock`, so the second call
   hung forever. Both the ffmpeg and the translation-model downloaders are reentrant now; the

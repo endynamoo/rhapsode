@@ -595,6 +595,8 @@ function paintLocalTranslation(local) {
    the same progress the voice download uses, and then translation simply works. */
 async function startLocalDownload(variantName) {
   const progress = $('#translateLocalProgress');
+  const installBox = $('#translateLocalInstall');
+  const smallBox = $('#translateLocalSmall');
   if (progress) progress.hidden = false;
   try {
     await api('/api/translate/model', {
@@ -605,6 +607,8 @@ async function startLocalDownload(variantName) {
   } catch (err) {
     toast(err.message, 'error');
     if (progress) progress.hidden = true;
+    if (installBox) installBox.disabled = false;
+    if (smallBox) smallBox.disabled = false;
     return;
   }
   const timer = setInterval(async () => {
@@ -631,6 +635,8 @@ async function startLocalDownload(variantName) {
         box.checked = false;
         box.disabled = false;
       }
+      const alternative = $('#translateLocalSmall');
+      if (alternative) alternative.disabled = false;
       toast(`Translation download failed: ${download.error}`, 'error');
     }
   }, 900);
@@ -639,17 +645,36 @@ async function startLocalDownload(variantName) {
 function wireLocalTranslation() {
   const install = $('#translateLocalInstall');
   const small = $('#translateLocalSmall');
+
+  // One starter for both boxes. Ticking "Smaller download" used to do nothing at all - it
+  // only relabelled the size, while the other checkbox was silently the start button
+  // (issue #165). Either box now starts the variant it describes.
+  function startLocal(variant) {
+    if (install && install.disabled) return;  // a download is already under way
+    if (small) small.disabled = true;
+    if (install) {
+      install.checked = true;
+      install.disabled = true;
+    }
+    const label = $('#translateLocalSize');
+    if (label) label.textContent = variant === '1.5b' ? '1.1 GB' : '4.5 GB';
+    startLocalDownload(variant);
+  }
+
   if (small) {
     small.addEventListener('change', () => {
+      if (small.checked) {
+        startLocal('1.5b');
+        return;
+      }
       const label = $('#translateLocalSize');
-      if (label) label.textContent = small.checked ? '1.1 GB' : '4.5 GB';
+      if (label) label.textContent = install && install.checked ? '1.1 GB' : '4.5 GB';
     });
   }
   if (install) {
     install.addEventListener('change', () => {
       if (!install.checked) return;
-      install.disabled = true;
-      startLocalDownload(small && small.checked ? '1.5b' : '7b');
+      startLocal(small && small.checked ? '1.5b' : '7b');
     });
   }
   const get = $('#translateModelGet');

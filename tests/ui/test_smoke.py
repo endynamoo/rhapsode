@@ -903,6 +903,58 @@ class SmokeTests(unittest.TestCase):
         self.assertTrue(posts, "checking the box must start the download")
         self.assertEqual("7b", posts[0].get("variant"))
 
+    def test_checking_the_smaller_download_also_starts_it(self) -> None:
+        """Issue #165: the smaller option was a modifier with no visible effect.
+
+        A reader who ticks "Smaller download" and nothing else expects that download to
+        start; the only control that started anything used to be the other checkbox.
+        """
+        page = self.page
+        posts: list[dict] = []
+        state = {"installed": False, "running": True}
+
+        def local() -> dict:
+            variant = posts[0].get("variant") if posts else "7b"
+            return {
+                "enabled": True, "variant": variant, "installed": state["installed"],
+                "runtime": True, "server": {"running": False, "url": ""},
+                "download": {"running": state["running"], "done": state["installed"],
+                             "error": None, "variant": variant,
+                             "progress": {"percent": 100, "label": "the model"}},
+                "variants": {
+                    "7b": {"label": "7B", "bytes": 4_500_000_000, "note": ""},
+                    "1.5b": {"label": "1.5B", "bytes": 1_100_000_000, "note": ""},
+                },
+                "reason": "",
+            }
+
+        def model(route):
+            if route.request.method == "POST":
+                posts.append(route.request.post_data_json or {})
+                state["installed"] = True
+            route.fulfill(json=local())
+
+        def status(route):
+            route.fulfill(json={
+                "available": state["installed"],
+                "backend": "local" if state["installed"] else None,
+                "apple": False, "configuredUrl": "", "savedUrl": "", "servers": [],
+                "local": local(), "serverOnly": [], "reason": "", "ports": [8091],
+            })
+
+        page.route("**/api/translate/model", model)
+        page.route("**/api/translate", status)
+        page.route("**/api/settings", lambda route: route.fulfill(json={"ok": True}))
+        page.goto(self.base, wait_until="domcontentloaded")
+        page.wait_for_selector("#translateSetup:not([hidden])", timeout=15000)
+        page.check("#translateLocalSmall")
+        page.wait_for_function(
+            "() => document.querySelector('#translateSetup').hidden", timeout=15000)
+        self.assertTrue(posts, "ticking the smaller download must start it")
+        self.assertEqual("1.5b", posts[0].get("variant"))
+        self.assertTrue(posts[0].get("download"))
+        self.assertIn("1.1", page.text_content("#translateLocalSize") or "")
+
     def test_the_stills_engine_is_offered_after_translation(self) -> None:
         """A GPU machine with no image-venv gets the third card, and the tick runs setup."""
         page = self.page
