@@ -190,6 +190,18 @@ class SmokeTests(unittest.TestCase):
     def open_app(self) -> None:
         self.page.goto(self.base + "/", wait_until="load")
         self.page.wait_for_selector(".lib-item, .lib-empty, .empty-title")
+        # The first-run overlays are part of the product, but a journey that is about the
+        # library must not be blocked by one. They appeared on Linux CI but not on the
+        # developer's machine, which turned every click into a 15-second timeout.
+        self.dismiss_first_run_overlays()
+
+    def dismiss_first_run_overlays(self) -> None:
+        for card, button in (("#firstRun:not([hidden])", "#firstRunSkip"),
+                             ("#translateSetup:not([hidden])", "#translateSkip")):
+            if self.page.locator(card).count():
+                control = self.page.locator(button)
+                if control.count() and control.first.is_visible():
+                    control.first.click()
 
     def open_settings(self) -> None:
         self.page.click("#settingsBtn")
