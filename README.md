@@ -314,7 +314,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 - The release check that installs the app into a throwaway profile no longer damages the machine's own Rhapsode entry in Apps. An entry left behind by a previous run of that check was saved as if it were the machine's and put back later, pointing at a temp directory that had been deleted - which is how a real 0.2.0-alpha entry was lost on 2026-11-23. Such an entry is now recognised at the start of the run and removed at the end, while a genuine entry is still saved and restored exactly as it was.
 
-*...and 151 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 152 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
 
