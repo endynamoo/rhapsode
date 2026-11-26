@@ -113,18 +113,16 @@ Classify the GPU vendor from the name: `NVIDIA`, `AMD/Radeon`, `Intel`,
   `requirements.txt` through `winsdk`, reading whatever language packs Windows
   already has), Linux uses Tesseract — install `tesseract-ocr`, the only backend
   that needs a separate binary.
-- **Translation**: instead of setting this up by hand, the first-run screen detects a local
-  server and offers to connect it (and Settings keeps the switch). Underneath, macOS uses
-  Apple's Translation framework (add packs in System Settings). Windows and Linux use any
-  local OpenAI-compatible server: set
-  `MURMUR_TRANSLATE_URL` (e.g. `http://127.0.0.1:8091/v1/chat/completions`) and
-  optionally `MURMUR_TRANSLATE_MODEL`; with neither set, ports 8091, 8080, 8000,
-  1234 and 11434 are probed for `/v1/models`, so a lane that is already running is
-  used as-is. Without either, `health.translate` is false and foreign voices read
-  the original text with an accent.
-- **Disk**: ~1–2 GB base; +2.5 GB for film dependencies; +23 MB if you
-  download the optional search model. Image models download separately on first
-  film build.
+- **Translation**: the first-run screen offers a one-time on-device translator (4.5 GB, or
+  1.1 GB for the smaller model): llama.cpp plus Qwen2.5-Instruct, fetched only when the box is
+  ticked. Spanish, French, Japanese and Chinese read well; Hindi is measured and needs a model
+  server you run. That server, if you have one, is any local OpenAI-compatible endpoint
+  (`MURMUR_TRANSLATE_URL`, e.g. `http://127.0.0.1:8091/v1`); with none saved the app probes
+  ports 8091, 8080, 8000, 1234 and 11434 on **this machine only** for `/v1/models`. Nothing is
+  sent to a remote service.
+- **Disk**: roughly 1-2 GB base; +16 GB if you set up the stills engine; +4.5 GB (or +1.1 GB)
+  for the on-device translator; +23 MB for the optional search model. Every large piece is a
+  download you opt into, and Settings shows each one's state.
 - **Data directory** (database, models, cache, films):
   - macOS: `~/.murmur` (kept for compatibility)
   - Windows: `%LOCALAPPDATA%\Rhapsode`
@@ -231,9 +229,9 @@ uv pip install --python .venv\Scripts\python.exe -r requirements.txt
 
 Optional film dependencies (large, ~2.5 GB):
 
-```powershell
-uv pip install --python .venv\Scripts\python.exe -r requirements-film.txt
-```
+Cinema stills are set up from the app itself - the first-run card, or Settings -> Stills
+engine. Nothing is installed here: the app fetches its own image interpreter and weights
+(about 16 GB) into the data directory.
 
 Download the voice model:
 
@@ -337,9 +335,9 @@ uv pip install --python .venv/bin/python -r requirements.txt
 
 Optional films:
 
-```bash
-uv pip install --python .venv/bin/python -r requirements-film.txt
-```
+Cinema stills are set up from the app itself (first-run card, or Settings -> Stills engine)
+on Windows. Linux has no setup script yet: the editor's manual `image-venv` steps are in
+`docs/STILLS.md`, or stills stay placeholders.
 
 NVIDIA only (match the driver):
 

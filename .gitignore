@@ -44,3 +44,16 @@ docs/CONCURRENCY.md
 
 # uv.exe is fetched by scripts/build_installer.ps1 (pinned by sha256), never committed.
 packaging/uv.exe
+
+# Runtime data if MURMUR_HOME points at the checkout: the library, weights and the
+# remote-access token must never be committed, even by accident.
+access_token
+murmur.db
+search.db
+models/
+data/
+cache/
+exports/
+films/
+*.onnx
+*.gguf

@@ -231,7 +231,7 @@ helpers it needs. No bundler: the browser resolves the relative import, the
 static import means the module runs before `app.js`'s own body, and the browser
 suite (`tests/ui/`) is the safety net for the move.
 
-**Tests** — `tests/`, 406 cases, `unittest`; run from the repo root with
+**Tests** — `tests/`, about 460 cases, plus 28 browser journeys in `tests/ui/`, `unittest`; run from the repo root with
 `python -m unittest discover -s tests`.
 
 ### 2.2 The types that actually carry behaviour
@@ -748,7 +748,7 @@ natural targets for a refactor:
 | `murmur/server.py` | 253 lines | app setup, access guard, audio export, static mounts; the routes live in `library_api.py`, `system_api.py`, `film_api.py` and `search_api.py`. |
 | `murmur/library_api.py` | 510 lines | every `/api/docs` route: ingest, upload, PDF page render and word boxes, EPUB chapters, patch and delete. |
 | `murmur/film.py` | 1.7k lines | planning, prompt writing, painting, polish, and ffmpeg rendering share one module and one queue. |
-| `tests/` | 406 cases | Python only, except the browser journeys in `tests/ui/` that need playwright and skip without it. |
+| `tests/` | about 460 cases, plus 28 browser journeys | Python only, except the browser journeys in `tests/ui/` that need playwright and skip without it. |
 
 ---
 

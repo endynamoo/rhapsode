@@ -5,7 +5,7 @@ PDF, a scanned page, a screenshot or a web page and Rhapsode speaks it in a loca
 voice, follows the words with the voice, and — if you want — paints the scenes it
 reads into manga-style stills. No account, no cloud, no per-word billing, no upload.
 
-![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/version-0.3.5--beta-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml) [![linux](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml)
+![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/version-0.3.6--beta-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml) [![linux](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml)
 
 ## In motion
 
@@ -213,8 +213,8 @@ the verification checklist live in **[INSTALL.md](INSTALL.md)**.
 
 | Platform | Read / TTS / highlight | Chapter stills → MP4 | Native bundle |
 |---|---|---|---|
-| macOS 13+ (Apple Silicon) | supported | supported (MPS + MLX) | `.app` + DMG |
-| macOS Intel | supported | placeholder (CPU painting planned for 0.4) | `.app` + DMG |
+| macOS 13+ (Apple Silicon) | supported | supported (MPS + MLX) | `.app` + DMG (ad-hoc signed, not notarized) |
+| macOS Intel | supported | placeholder (CPU painting planned for 0.4) | `.app` + DMG (ad-hoc signed, not notarized) |
 | Windows 10/11 x64 | preview, installer or source | NVIDIA CUDA or AMD ROCm; placeholder without one | Inno Setup installer (preview) |
 | Linux x64 | preview, source install | NVIDIA CUDA or AMD ROCm; placeholder without one | not yet |
 

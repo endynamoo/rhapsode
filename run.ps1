@@ -36,12 +36,11 @@ if (-not (Test-Path $py)) {
     & $uv venv --python 3.12 .venv
 }
 $stamp = ".venv\.requirements.sha"
-$hash = (Get-FileHash -Algorithm SHA256 -Path requirements.txt, requirements-film.txt |
+$hash = (Get-FileHash -Algorithm SHA256 -Path requirements.txt |
          ForEach-Object Hash) -join '+'
 if (-not (Test-Path $stamp) -or (Get-Content $stamp) -ne $hash) {
     "installing deps via uv (minutes the first time)"
     & $uv pip install --python $py -q -r requirements.txt
-    & $uv pip install --python $py -q -r requirements-film.txt
     if ($Desktop) { & $uv pip install --python $py -q "pywebview>=5.3" }
     if ($LASTEXITCODE) { "warning: film deps failed; reader unaffected" }
     Set-Content $stamp $hash
