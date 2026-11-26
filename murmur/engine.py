@@ -58,14 +58,17 @@ class TTSEngine:
             if self._model is not None:
                 return
             tts_backends.configure()
-            from kokoro_onnx import Kokoro
-
+            # Check the weights before importing the engine that loads them: a fresh install
+            # has no model, and the advice for that must not depend on the TTS package being
+            # installed (CI runs the suite without kokoro-onnx).
             problem = config.voice_model_problem()
             if problem:
                 raise FileNotFoundError(
                     f"The voice model is incomplete: {problem}. "
                     + missing_model_advice()
                 )
+            from kokoro_onnx import Kokoro
+
             self._model = Kokoro(str(config.MODEL_PATH), str(config.VOICES_PATH))
             self._model_version = config.MODEL_PATH.stat().st_mtime
             self.last_error = None

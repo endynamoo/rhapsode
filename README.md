@@ -316,6 +316,7 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 
 **Fixed**
 
+- **A missing voice model is reported before the TTS package is imported.** The engine imported `kokoro_onnx` first, so on a machine without the runtime stack the reader saw a `ModuleNotFoundError` instead of the actionable "Download it again" advice. CI runs the suite without `kokoro-onnx`, which is how this surfaced.
 - **A short paste now says what it needs.** The button disabled below three words while the handler silently rejected anything under ten characters, so `a b c` looked ready and then did nothing when clicked (issue #148). Both use one rule now, and the hint reads "2 of 3 words - a sentence or two is enough".
 
 ### 0.3.6-beta - 2026-11-26
@@ -323,13 +324,12 @@ Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is
 **Added**
 
 - **ffmpeg can be installed from Settings.** Without it MP3 export fell back to WAV and chapter films could not be cut, and the error told every platform to use Homebrew. Settings → ffmpeg fetches the pinned gyan.dev release build (9.1, 113 MB, sha256 checked) into the data directory; `config.find_tool` prefers that copy over PATH. That build is **GPL-3.0**, so `licenses/NOTICE.txt`, `licenses/SOURCES.md` (source commit and written offer) and `THIRD_PARTY.md` name it, and the archive's own LICENSE is kept beside the binary. Nothing GPL is added to the installer: the reader asks for the download.
-- **The stills engine is offered on first start, not discovered inside Cinema.** A machine with a supported GPU used to meet Manga as "no stills engine" with advice to run a PowerShell script. The first-run sequence now ends with a third card - after the voice and translation - offering *Set up the stills engine, about 16 GB, one time*: one tick, the same script the installer's optional task runs, its output on screen, and Settings → Stills engine to start it again. A machine with no usable GPU is not offered it, because a placeholder is the right answer there.
 
 ### 0.3.5-beta - 2026-11-23
 
 - **Translation is detected and connected before it is needed, not discovered at the first foreign sentence.** The first-run screen gained a second step: Rhapsode scans the usual local ports for an OpenAI-compatible server (llama.cpp, LM Studio, Ollama, vLLM), lists what it finds, takes an address if nothing is running, checks that address actually answers, and remembers it. **Not now** turns the *Translate to voice language* setting off instead of leaving a promise the app cannot keep. A saved endpoint is re-checked each time the screen opens, so moving or stopping the server is reported rather than silently failing. The scan is asked once per install, not once per restart.
 
-*...and 161 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 162 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
 

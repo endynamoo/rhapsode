@@ -12,3 +12,5 @@ trafilatura>=2.0
 beautifulsoup4>=4.12
 pillow>=13.0.0
 numpy>=2.0
+# tests/test_synth_temp.py writes through the real temp name, so the writer must be present.
+soundfile>=0.12
