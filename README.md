@@ -2,11 +2,11 @@
 
 # Rhapsode — local text-to-speech (TTS) for PDF, EPUB and scanned pages
 
-Turn anything you can read into an audiobook, while you read it. Drop in a book, a PDF, an
-EPUB, a scanned page, a screenshot or a web page and Rhapsode speaks it in a local
-text-to-speech voice, follows the words with the voice, and — if you want — paints the scenes
-it reads into manga-style stills. Everything runs offline on your own machine: no account, no
-cloud, no per-word billing, no upload.
+**Read it, hear it, see it.** Turn anything you can read into an audiobook, while you read it.
+Drop in a book, a PDF, an EPUB, a scanned page, a screenshot or a web page and Rhapsode speaks
+it in a local text-to-speech voice, follows the words with the voice, translates each sentence
+before it is read, and — if you want — paints a still for each scene. Everything runs offline
+on your own machine: no account, no cloud, no per-word billing, no upload.
 
 **[Download the latest release](https://github.com/endynamoo/rhapsode/releases/latest)** —
 Windows installer (per-user, no admin), macOS DMG for Apple Silicon or Intel (ad-hoc signed),
