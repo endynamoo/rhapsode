@@ -301,20 +301,18 @@ release ships that folder inside the installer and inside the `.app`.
 
 Newest first. The full history is in [CHANGELOG.md](CHANGELOG.md); this block is generated from it by `scripts/changelog_render.py`, so edit the changelog, not this copy.
 
-### Unreleased
+### 0.3.6-beta - 2026-11-26
 
 **Added**
 
 - **ffmpeg can be installed from Settings.** Without it MP3 export fell back to WAV and chapter films could not be cut, and the error told every platform to use Homebrew. Settings → ffmpeg fetches the pinned gyan.dev release build (9.1, 113 MB, sha256 checked) into the data directory; `config.find_tool` prefers that copy over PATH. That build is **GPL-3.0**, so `licenses/NOTICE.txt`, `licenses/SOURCES.md` (source commit and written offer) and `THIRD_PARTY.md` name it, and the archive's own LICENSE is kept beside the binary. Nothing GPL is added to the installer: the reader asks for the download.
 - **The stills engine is offered on first start, not discovered inside Cinema.** A machine with a supported GPU used to meet Manga as "no stills engine" with advice to run a PowerShell script. The first-run sequence now ends with a third card - after the voice and translation - offering *Set up the stills engine, about 16 GB, one time*: one tick, the same script the installer's optional task runs, its output on screen, and Settings → Stills engine to start it again. A machine with no usable GPU is not offered it, because a placeholder is the right answer there.
 
-### 0.3.6-beta - 2026-11-24
+### 0.3.5-beta - 2026-11-23
 
-**Fixed**
+- **Translation is detected and connected before it is needed, not discovered at the first foreign sentence.** The first-run screen gained a second step: Rhapsode scans the usual local ports for an OpenAI-compatible server (llama.cpp, LM Studio, Ollama, vLLM), lists what it finds, takes an address if nothing is running, checks that address actually answers, and remembers it. **Not now** turns the *Translate to voice language* setting off instead of leaving a promise the app cannot keep. A saved endpoint is re-checked each time the screen opens, so moving or stopping the server is reported rather than silently failing. The scan is asked once per install, not once per restart.
 
-- The release check that installs the app into a throwaway profile no longer damages the machine's own Rhapsode entry in Apps. An entry left behind by a previous run of that check was saved as if it were the machine's and put back later, pointing at a temp directory that had been deleted - which is how a real 0.2.0-alpha entry was lost on 2026-11-23. Such an entry is now recognised at the start of the run and removed at the end, while a genuine entry is still saved and restored exactly as it was.
-
-*...and 152 more entries in [CHANGELOG.md](CHANGELOG.md).*
+*...and 161 more entries in [CHANGELOG.md](CHANGELOG.md).*
 
 <!-- CHANGELOG:END -->
 
