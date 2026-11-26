@@ -756,6 +756,28 @@ class SmokeTests(unittest.TestCase):
         self.assertTrue(any("Added Through The UI" in title for title in titles), titles)
 
 
+    def test_a_short_paste_says_what_it_needs_instead_of_ignoring_the_click(self) -> None:
+        """Issue #148: the button disabled below three words while the handler silently
+        rejected anything under ten characters, so "a b c" looked ready and did nothing."""
+        self.open_app()
+        self.page.click("#addBtn")
+        self.page.wait_for_selector("#addModal:not([hidden])")
+        self.page.fill("#pasteText", "two words")
+        self.page.wait_for_function(
+            "() => document.querySelector('#pasteAdd').disabled", timeout=5000)
+        hint = self.page.text_content("#pasteCount") or ""
+        self.assertIn("3 words", hint, f"the hint must say what is missing: {hint!r}")
+        # Three short words is valid text: the button must enable *and* the click must work,
+        # which is exactly the case the old pair of thresholds disagreed about.
+        self.page.fill("#pasteTitle", "Three Words")
+        self.page.fill("#pasteText", "a b c")
+        self.page.wait_for_function(
+            "() => !document.querySelector('#pasteAdd').disabled", timeout=5000)
+        self.page.click("#pasteAdd")
+        self.page.locator("#addModal").wait_for(state="hidden", timeout=20000)
+        row = self.page.locator(".lib-title", has_text="Three Words").first
+        row.wait_for(timeout=20000)
+
     def test_a_fresh_install_prepares_the_voice_instead_of_failing_at_play(self) -> None:
         """The stranger's first screen: progress, not a play button that 503s.
 
