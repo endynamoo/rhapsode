@@ -102,9 +102,13 @@ Two routes do play, if this ever matters:
 1. **GitHub's own uploader.** Drag the file into a comment box on any issue or pull request; the
    URL it returns (`https://github.com/user-attachments/assets/...`) renders as a player, in that
    comment and in a README. This needs a browser session - the REST API cannot create one.
-2. **GitHub Pages** with a small HTML page holding `<audio controls>`. It needs a paid plan for
-   a private repository and administration rights to enable; on this repository the API answers
-   `403` for the token used here, so it has not been done.
+2. **GitHub Pages** with a small HTML page holding `<audio controls>`. Free on a public
+   repository; this repository does not run one, because the portfolio site below already hosts
+   the demos.
+
+The public route that does work today is **[Poiesis](https://endynamoo.github.io/poiesis/)**,
+the portfolio site for this project and Opsis: it plays a reading clip rendered by this
+engine with the word timings in step, and the translation clip is being added there.
 
 ## Why there is no video on the front page
 
