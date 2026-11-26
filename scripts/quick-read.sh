@@ -4,11 +4,11 @@
 #
 # Bind this script to a global hotkey with Shortcuts.app:
 #   1. Shortcuts.app → + → "Run Shell Script"
-#   2. paste:  ~/Documents/Default\ Project/murmur/scripts/quick-read.sh
+#   2. paste:  /path/to/rhapsode/scripts/quick-read.sh
 #   3. Give the shortcut a keyboard shortcut (e.g. ⌃⌥R)
 #   4. Grant Accessibility permission when macOS asks.
 #
-# If Murmur is already open in a tab, it plays immediately; otherwise a new
+# If Rhapsode is already open in a tab, it plays immediately; otherwise a new
 # tab opens and you may need to press play once (browser autoplay rules).
 set -uo pipefail
 
@@ -17,7 +17,7 @@ BASE="http://127.0.0.1:${PORT}"
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 
 notify() {
-  osascript -e "display notification \"$1\" with title \"Murmur\"" >/dev/null 2>&1 || true
+  osascript -e "display notification \"$1\" with title \"Rhapsode\"" >/dev/null 2>&1 || true
 }
 
 open_result() {
@@ -35,14 +35,14 @@ open_result() {
 
 # Make sure the app is running.
 if ! curl -sf "${BASE}/api/health" >/dev/null 2>&1; then
-  notify "Murmur isn't running — starting it…"
+  notify "Rhapsode isn't running — starting it…"
   MURMUR_NO_OPEN=1 nohup "${HERE}/run.sh" >/tmp/murmur.log 2>&1 &
   for _ in $(seq 1 60); do
     curl -sf "${BASE}/api/health" >/dev/null 2>&1 && break
     sleep 0.25
   done
   if ! curl -sf "${BASE}/api/health" >/dev/null 2>&1; then
-    notify "Could not start Murmur — see /tmp/murmur.log"
+    notify "Could not start Rhapsode — see /tmp/murmur.log"
     exit 1
   fi
 fi
@@ -102,6 +102,6 @@ RESPONSE="$(printf '%s' "$TEXT" | curl -sS -X POST "${BASE}/api/quick-read" \
   -H 'Content-Type: text/plain; charset=utf-8' --data-binary @-)"
 
 if ! open_result "$RESPONSE"; then
-  notify "Murmur could not read that text."
+  notify "Rhapsode could not read that text."
   exit 1
 fi

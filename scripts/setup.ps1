@@ -43,8 +43,7 @@ if (-not (Test-Path $venvPy)) {
 if (-not $SkipDeps) {
     "   installing requirements (minutes the first time)"
     & $uv pip install --python $venvPy -q -r requirements.txt
-    & $uv pip install --python $venvPy -q -r requirements-film.txt
-    if ($LASTEXITCODE) { "   warning: film deps failed; the reader still works" }
+    if ($LASTEXITCODE) { "   warning: dependency install failed; the reader needs requirements.txt" }
 }
 
 Step 'voice model'

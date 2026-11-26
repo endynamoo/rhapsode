@@ -25,14 +25,10 @@ if [ ! -d .venv ]; then
 fi
 
 STAMP=".venv/.requirements.sha"
-HASH="$(cat requirements.txt requirements-film.txt | shasum -a 256 | awk '{print $1}')"
+HASH="$(shasum -a 256 requirements.txt | awk '{print $1}')"
 if [ ! -f "$STAMP" ] || [ "$(cat "$STAMP")" != "$HASH" ]; then
   echo "Installing dependencies…"
   uv pip install --python .venv/bin/python -q -r requirements.txt
-  if [ "${MURMUR_SKIP_FILM:-0}" != "1" ]; then
-    uv pip install --python .venv/bin/python -q -r requirements-film.txt \
-      || echo "warning: Cinema dependencies failed to install; run without Cinema or install requirements-film.txt manually." >&2
-  fi
   echo "$HASH" > "$STAMP"
 fi
 
@@ -66,7 +62,10 @@ fi
 if [ "$(uname -s)" = "Darwin" ]; then
   export MURMUR_HOME="${MURMUR_HOME:-$HOME/.murmur}"
 fi
-if [ ! -f "$MURMUR_HOME/models/kokoro-v1.0.onnx" ] || [ ! -f "$MURMUR_HOME/models/voices-v1.0.bin" ]; then
+# `set -u` made this read fail on Linux, where MURMUR_HOME is deliberately unset:
+# ask the app where its data lives instead of guessing at the platform convention.
+DATA_HOME="${MURMUR_HOME:-$(python -c 'from murmur import config; print(config.HOME)')}"
+if [ ! -f "$DATA_HOME/models/kokoro-v1.0.onnx" ] || [ ! -f "$DATA_HOME/models/voices-v1.0.bin" ]; then
   python -m murmur.bootstrap
 fi
 

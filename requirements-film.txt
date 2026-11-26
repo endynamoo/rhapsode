@@ -1,3 +1,0 @@
-# Cinema stills: local text-to-image with FLUX.2 [klein] 4B via diffusers.
-# Optional and large (PyTorch is ~2.5 GB installed). Rhapsode runs fine without it;
-# stills fall back to the placeholder painter when these are missing.

@@ -4,7 +4,7 @@
 
 #define AppName        "Rhapsode"
 #ifndef AppVersion
-  #define AppVersion   "0.3.5-beta"
+  #define AppVersion   "0.3.6-beta"
 #endif
 #define AppPublisher   "endynamoo"
 #define AppExe         "Rhapsode.exe"
@@ -49,7 +49,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 ; different left edges. The engine row says what it is, so the second heading
 ; was only adding a ragged edge.
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "Additional tasks:"; Flags: unchecked
-Name: "engine"; Description: "Set up the stills engine (Python environment, torch, ~3 GB of models)"; GroupDescription: "Additional tasks:"; Flags: checkedonce
+Name: "engine"; Description: "Set up the stills engine (Python environment, torch, FLUX.2 and the text encoder - about 16 GB)"; GroupDescription: "Additional tasks:"; Flags: checkedonce
 
 [Files]
 Source: "{#SourceDir}\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion

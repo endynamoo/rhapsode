@@ -237,7 +237,7 @@ Windows (CUDA or ROCm):
 Linux (CUDA or ROCm) - `setup_image.ps1` is Windows-only (PowerShell, `Scripts\python.exe`,
 `%LOCALAPPDATA%`), so the interpreter is built by hand. It must be the data directory's
 `image-venv`, because that is the only Python the painter runs; installing
-`requirements-film.txt` into `.venv` does not give Cinema anything to paint with:
+the reader's own dependencies into `.venv` does not give Cinema anything to paint with:
 
 ```bash
 # The Python you point at must already report a GPU:
