@@ -10,6 +10,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from . import config, localmt, proc, store
 
@@ -87,7 +88,16 @@ def check_url(url: str, timeout: float = 3.0) -> dict:
     cleaned = (url or "").strip().rstrip("/")
     if not cleaned:
         return {"ok": False, "reason": "Give the address of a local model server."}
-    if not cleaned.startswith(("http://127.0.0.1", "http://localhost")):
+    # A prefix test is not host validation: `http://127.0.0.1@evil.example` and
+    # `http://localhost.evil.example` both passed it, and the reader's book text is
+    # POSTed to whatever answered. Parse the URL and require an exact loopback host.
+    try:
+        parts = urlsplit(cleaned)
+    except ValueError:
+        return {"ok": False, "reason": "That is not a valid address."}
+    if parts.scheme != "http" or parts.username or parts.password:
+        return {"ok": False, "reason": "Use a server on this machine: http://127.0.0.1:<port>/v1."}
+    if (parts.hostname or "").lower() not in config.LOOPBACK:
         return {"ok": False, "reason": "Use a server on this machine: http://127.0.0.1:<port>/v1."}
     # Accept what a person is likely to paste: a base, a base with /v1, or the full
     # chat-completions URL an OpenAI client config uses.

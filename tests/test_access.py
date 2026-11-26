@@ -68,5 +68,72 @@ class PublicBindTests(unittest.TestCase):
         self.assertFalse(access.public_bind(self.LOCAL, argv))
 
 
+class OriginTests(unittest.TestCase):
+    def _request(self, headers: dict[str, str]):
+        from starlette.datastructures import Headers
+
+        class Fake:
+            method = "POST"
+
+            def __init__(self, values):
+                self.headers = Headers(values)
+
+        return Fake(headers)
+
+    def test_a_cross_site_post_is_refused(self) -> None:
+        for headers in (
+            {"origin": "https://evil.example", "host": "127.0.0.1:8765"},
+            {"sec-fetch-site": "cross-site", "host": "127.0.0.1:8765"},
+            {"sec-fetch-site": "same-site", "host": "127.0.0.1:8765"},
+            {"origin": "null", "host": "127.0.0.1:8765"},
+        ):
+            with self.subTest(headers=headers):
+                self.assertFalse(access.same_origin(self._request(headers)))
+
+    def test_the_apps_own_requests_are_allowed(self) -> None:
+        for headers in (
+            {"origin": "http://127.0.0.1:8765", "host": "127.0.0.1:8765"},
+            {"origin": "http://localhost:8899", "host": "localhost:8899"},
+            {"sec-fetch-site": "same-origin", "host": "127.0.0.1:8765"},
+            {"host": "127.0.0.1:8765"},                      # curl, the test suite
+        ):
+            with self.subTest(headers=headers):
+                self.assertTrue(access.same_origin(self._request(headers)))
+
+    def test_an_origin_on_another_port_is_not_the_same_origin(self) -> None:
+        self.assertFalse(access.same_origin(self._request(
+            {"origin": "http://127.0.0.1:8899", "host": "127.0.0.1:8765"})))
+
+
+class CrossSitePostTests(unittest.TestCase):
+    """The middleware must stop a hostile page before routing, not after."""
+
+    def setUp(self) -> None:
+        from fastapi.testclient import TestClient
+
+        from murmur import server
+
+        self.client = TestClient(server.app)
+
+    def test_a_cross_site_post_never_reaches_a_route(self) -> None:
+        for headers in (
+            {"origin": "https://evil.example"},
+            {"sec-fetch-site": "cross-site"},
+        ):
+            with self.subTest(headers=headers):
+                response = self.client.post("/api/does-not-exist", headers=headers)
+                self.assertEqual(403, response.status_code)
+                self.assertIn("another site", response.json()["detail"])
+
+    def test_a_same_origin_post_reaches_routing(self) -> None:
+        response = self.client.post("/api/does-not-exist",
+                                    headers={"origin": "http://testserver"})
+        self.assertEqual(404, response.status_code, "routing, not the guard, said no")
+
+    def test_a_browserless_post_is_allowed(self) -> None:
+        # curl, Quick Read and the test suite send neither header.
+        self.assertEqual(404, self.client.post("/api/does-not-exist").status_code)
+
+
 if __name__ == "__main__":
     unittest.main()

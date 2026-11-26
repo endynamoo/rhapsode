@@ -33,7 +33,7 @@ arrangement the LGPL is written for: you may replace them in your installation.
 | --- | --- | --- | --- |
 | `libsndfile` (`libsndfile_x64.dll`, inside the `soundfile` wheel) | 1.2.2 | <https://github.com/libsndfile/libsndfile/releases/tag/1.2.2> | [`LGPL-2.1.txt`](LGPL-2.1.txt) |
 | `libheif` (`libheif-*.dll`, inside the `pillow-heif` wheel) | 1.23.6 | <https://github.com/strukturag/libheif/releases/tag/v1.23.6> | [`LGPL-3.0.txt`](LGPL-3.0.txt) (supplement to GPL-3.0, also in this folder) |
-| FFmpeg inside the OpenCV wheel (`opencv_videoio_ffmpeg510_64.dll`) | FFmpeg 5.1 | <https://ffmpeg.org/releases/ffmpeg-5.1.tar.xz> | [`LGPL-2.1.txt`](LGPL-2.1.txt) |
+| FFmpeg inside the OpenCV wheel (`opencv_videoio_ffmpeg510_64.dll`; stripped from built distributions) | FFmpeg 5.1 | <https://ffmpeg.org/releases/ffmpeg-5.1.tar.xz> | [`LGPL-2.1.txt`](LGPL-2.1.txt) |
 
 The OpenCV wheel ships further binaries; its own complete notice is included as
 [`opencv-LICENSE-3RD-PARTY.txt`](opencv-LICENSE-3RD-PARTY.txt). Rhapsode itself

@@ -71,8 +71,39 @@ def matches(value: str, expected: str) -> bool:
         return False
 
 
+def same_origin(request: Request) -> bool:
+    """Whether an unsafe request came from this app, not a page on another site.
+
+    127.0.0.1 is not a CSRF boundary: any web page the reader has open can POST to
+    the loopback server, and a no-body POST needs no CORS preflight. Quit, engine
+    setup and the model downloads are all reachable that way, so every unsafe method
+    must prove it came from this origin. Browsers send `Origin` on cross-site POSTs
+    and `Sec-Fetch-Site` on every request; clients that are not browsers (curl, the
+    test suite, the desktop shell) send neither, and are allowed because running them
+    already requires access to this machine.
+    """
+    site = (request.headers.get("sec-fetch-site") or "").strip().lower()
+    if site and site not in {"same-origin", "none"}:
+        return False
+    origin = (request.headers.get("origin") or "").strip()
+    if not origin:
+        return True
+    if origin == "null":
+        return False
+    try:
+        parts = urlsplit(origin)
+        header = urlsplit(f"//{(request.headers.get('host') or '').strip()}")
+    except ValueError:
+        return False
+    if not parts.hostname or not header.hostname:
+        return False
+    if parts.hostname.lower() != header.hostname.lower():
+        return False
+    return parts.port == header.port
+
+
 __all__ = ["PUBLIC", "TOKEN", "access_urls", "client_host", "is_local", "local_host_ok",
-           "matches", "public_bind"]
+           "matches", "public_bind", "same_origin"]
 
 
 def access_urls() -> list[dict]:

@@ -18,7 +18,10 @@ from murmur import config, ffmpeg
 
 class PinTests(unittest.TestCase):
     def test_the_build_is_pinned_and_permissibly_described(self) -> None:
+        # A versioned artifact, not `/ffmpeg-release-essentials.zip`, which moves with each
+        # upstream release and would fail the pinned checksum on the next one.
         self.assertTrue(ffmpeg.URL.startswith("https://www.gyan.dev/ffmpeg/builds/"))
+        self.assertIn("9.1", ffmpeg.URL)
         self.assertTrue(ffmpeg.URL.endswith(".zip"), "a zip, so no 7-Zip is needed")
         self.assertEqual(64, len(ffmpeg.SHA256))
         self.assertGreaterEqual(ffmpeg.MIN_BYTES, 100 * 1024 * 1024)
