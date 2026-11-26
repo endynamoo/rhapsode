@@ -12,6 +12,10 @@ phrased for a user, not for a diff reader.
 
 ### Fixed
 
+- **A missing voice model is reported before the TTS package is imported.** The engine imported
+  `kokoro_onnx` first, so on a machine without the runtime stack the reader saw a
+  `ModuleNotFoundError` instead of the actionable "Download it again" advice. CI runs the suite
+  without `kokoro-onnx`, which is how this surfaced.
 - **A short paste now says what it needs.** The button disabled below three words while the
   handler silently rejected anything under ten characters, so `a b c` looked ready and then did
   nothing when clicked (issue #148). Both use one rule now, and the hint reads

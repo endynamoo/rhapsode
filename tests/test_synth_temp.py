@@ -11,7 +11,11 @@ import unittest
 from pathlib import Path
 
 import numpy as np
-import soundfile as sf
+
+try:
+    import soundfile as sf
+except ModuleNotFoundError:  # the runtime stack is optional for the test suite
+    sf = None
 
 from murmur import engine
 
@@ -19,6 +23,7 @@ CACHE_WAV = Path("cache") / "abc.wav"
 CACHE_META = Path("cache") / "abc.json"
 
 
+@unittest.skipUnless(sf is not None, "soundfile is part of the app's runtime stack")
 class TempPathTests(unittest.TestCase):
     def test_the_temp_names_keep_a_usable_extension(self) -> None:
         tmp_wav, tmp_meta = engine.TTSEngine._temp_paths(CACHE_WAV, CACHE_META)
