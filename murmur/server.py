@@ -83,6 +83,9 @@ def _matches(value: str, expected: str) -> bool:
 
 @app.middleware("http")
 async def access_guard(request: Request, call_next):
+    if request.method not in {"GET", "HEAD", "OPTIONS"} and not access.same_origin(request):
+        return JSONResponse({"detail": "Refused: this request came from another site."},
+                            status_code=403)
     local = _is_local(request)
     if local and not _local_host_ok(request):
         return JSONResponse({"detail": "Unexpected host header."}, status_code=403)

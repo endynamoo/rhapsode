@@ -23,7 +23,7 @@ from . import config, download
 
 #: gyan.dev "release essentials" (113 MB zip). Essentials is enough: it carries libmp3lame,
 #: libass and libx264 - the MP3 export, the subtitle burn-in and the H.264 encode.
-URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+URL = "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.1-essentials_build.zip"
 VERSION = "9.1"
 SHA256 = "b9bbbb3acece000cbeec994f856649354e52c773807841e78908374b24d658fd"
 MIN_BYTES = 100 * 1024 * 1024

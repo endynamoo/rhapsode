@@ -193,6 +193,11 @@ def film_progress(doc: str, chapter: int = 0) -> dict:
 
 @router.get("/api/film/image/{doc_id}/{chapter}/{index}.png")
 def film_image(doc_id: str, chapter: int, index: int):
+    # The document id is a 12-character hex string the store generated. It is joined into
+    # a path below, so anything else (`..\..\windows`, an absolute path) must be refused
+    # before that happens - and the document must actually exist.
+    if not re.fullmatch(r"[0-9a-f]{12}", doc_id) or not store.get_doc(doc_id):
+        raise HTTPException(status_code=404, detail="Document not found")
     path = film.scene_image_path(doc_id, chapter, index)
     # A placeholder prompt card is a delivered scene: serving it is what lets
     # the reader see why the stills are missing instead of watching a spinner.

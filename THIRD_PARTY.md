@@ -50,7 +50,7 @@ Two honest ways forward, and the maintainer's call:
 | eSpeak NG (`espeak-ng.dll`, `espeak-ng-data/`) | `espeakng-loader` wheel | **GPL-3.0** | The phonemiser engine and its dictionaries |
 | `libsndfile` (`libsndfile_x64.dll`) | inside the `soundfile` wheel | **LGPL-2.1** | Reading and writing the narration WAVs |
 | `libheif` (`libheif-*.dll`) | inside the `pillow-heif` wheel | **LGPL-3.0** | HEIC/HEIF decoding (Windows, Linux; skipped on macOS) |
-| FFmpeg (`opencv_videoio_ffmpeg*.dll`, 41 MB) | inside the `opencv-contrib-python-headless` wheel | **LGPL-2.1-or-later** | Nothing — Rhapsode uses OpenCV only for `FaceDetectorYN` and `resize` |
+| FFmpeg (`opencv_videoio_ffmpeg*.dll`, 41 MB) | inside the `opencv-contrib-python-headless` wheel; **deleted from built distributions** | **LGPL-2.1-or-later** | Nothing — Rhapsode uses OpenCV only for `FaceDetectorYN` and `resize` |
 | `fugashi` / MeCab (`libmecab-*.dll`) | dependency of `misaki`'s Japanese path | MIT wrapper, MeCab triple-licensed (**we take BSD**) | Japanese tokenisation |
 | `certifi`, `tqdm` | PyPI | **MPL-2.0** (file-level copyleft) | CA bundle, progress bars |
 

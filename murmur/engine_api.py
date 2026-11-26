@@ -70,6 +70,16 @@ def main() -> None:
 
     port = int(os.environ.get("MURMUR_ENGINE_PORT", "8931"))
     host = os.environ.get("MURMUR_ENGINE_HOST", "127.0.0.1")
+    # This sidecar has no token guard of its own (the main server's middleware is not
+    # mounted here), and it can paint and delete film files. A non-loopback bind would
+    # put those routes on the LAN unauthenticated, so it is refused rather than warned
+    # about.
+    if host.strip().lower() not in {"127.0.0.1", "localhost", "::1"}:
+        raise SystemExit(
+            "murmur.engine_api only listens on loopback: it has no authentication, "
+            "so binding it to another interface would expose the film routes to the "
+            "network. Use the main app for remote access."
+        )
     uvicorn.run(app, host=host, port=port, log_level="info")
 
 

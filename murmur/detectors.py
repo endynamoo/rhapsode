@@ -2,7 +2,7 @@
 
 Two detectors, both small and both permissively licensed:
 
-* **YuNet** (via OpenCV, MIT weights) for faces — precise boxes, ~10 ms.
+* **YuNet** (via OpenCV, Apache-2.0) for faces — precise boxes, ~10 ms.
 * **RTMDet** (Apache-2.0) for people — a box per person, which the anatomy
   check and the pose model both hang off.
 

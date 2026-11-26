@@ -1,10 +1,9 @@
 # What this build contains, and under which licence
 
-**Rhapsode is MIT licensed.** See `LICENSE`.
-
-That is not the whole story for a *built* copy of Rhapsode, because the narration
-engine phonemises text through eSpeak NG, which is GPL-3.0. This build therefore
-also contains the following, under their own licences:
+**Rhapsode's own source code is MIT licensed.** See `LICENSE`. That is the licence of
+the source: a *built* Rhapsode is distributed as GPL-3.0 as a whole, because the
+narration engine phonemises text through eSpeak NG, which is GPL-3.0. Rhapsode's own
+code stays MIT, and every component keeps its own licence:
 
 | Component | Version | Licence |
 | --- | --- | --- |
@@ -12,7 +11,7 @@ also contains the following, under their own licences:
 | eSpeak NG (library and its data files) | 1.52.0 | GPL-3.0 |
 | `libsndfile` (via `soundfile`) | 1.2.2 | LGPL-2.1 |
 | `libheif` (via `pillow-heif`) | 1.23.6 | LGPL-3.0 |
-| FFmpeg inside the OpenCV wheel (unused by Rhapsode) | 5.1 | LGPL-2.1-or-later |
+| FFmpeg inside the OpenCV wheel (unused, and stripped from built distributions) | 5.1 | LGPL-2.1-or-later |
 | FFmpeg for MP3 export and chapter films (gyan.dev release essentials, downloaded by the app on request, not bundled in the installer) | 9.1 | GPL-3.0 |
 
 The licence texts are in this folder, beside this notice. The source for the GPL
