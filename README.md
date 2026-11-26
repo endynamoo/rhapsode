@@ -59,8 +59,11 @@ whatever you already use:
 - **[reading-sample.mp3](docs/demo/audio/reading-sample.mp3)** (26 s) - the demo book's opening,
   read by one English voice
 
-GitHub renders no audio or video from a repository, so a README cannot play them; docs/demo
-explains the two ways to get a playing player into one.
+GitHub renders no audio or video from a repository, so a README cannot play them. To hear
+them in a browser instead, the portfolio site
+**[Poiesis](https://endynamoo.github.io/poiesis/)** plays a reading clip rendered by this
+engine, with the word timings in step - and it is where the translation clip is being added.
+`docs/demo` explains how every clip is made.
 
 ## What it does
 
