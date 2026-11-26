@@ -5,6 +5,11 @@ PDF, a scanned page, a screenshot or a web page and Rhapsode speaks it in a loca
 voice, follows the words with the voice, and — if you want — paints the scenes it
 reads into manga-style stills. No account, no cloud, no per-word billing, no upload.
 
+**[Download the latest release](https://github.com/endynamoo/rhapsode/releases/latest)** —
+Windows installer (per-user, no admin), macOS DMG for Apple Silicon or Intel (ad-hoc signed),
+or run from source on Linux. The first start downloads a 340 MB voice model; nothing else is
+required, and every larger download is opt-in.
+
 ![tts](https://img.shields.io/badge/TTS-Kokoro--82M-f5a26b) ![license](https://img.shields.io/badge/license-MIT-green) ![status](https://img.shields.io/badge/version-0.3.6--beta-orange) ![platforms](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-6f6a5f) [![windows](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/windows.yml) [![linux](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml/badge.svg)](https://github.com/endynamoo/rhapsode/actions/workflows/linux.yml)
 
 ## In motion
