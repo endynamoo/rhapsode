@@ -10,6 +10,13 @@ phrased for a user, not for a diff reader.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A short paste now says what it needs.** The button disabled below three words while the
+  handler silently rejected anything under ten characters, so `a b c` looked ready and then did
+  nothing when clicked (issue #148). Both use one rule now, and the hint reads
+  "2 of 3 words - a sentence or two is enough".
+
 ## [0.3.6-beta] - 2026-11-26
 
 The first release since 0.3.4-beta: the 23 findings from a full read of the code, on-device

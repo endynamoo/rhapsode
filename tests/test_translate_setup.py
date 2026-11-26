@@ -24,7 +24,8 @@ class StatusTest(unittest.TestCase):
 
     def test_no_server_means_a_reason_not_a_crash(self):
         with mock.patch.object(translate, "_discover", return_value=None), \
-                mock.patch.object(translate, "_saved_url", return_value=""):
+                mock.patch.object(translate, "_saved_url", return_value=""), \
+                mock.patch.object(translate.localmt, "installed", return_value=False):
             status = translate.translator.status()
         self.assertFalse(status["available"])
         self.assertIn("llama.cpp", status["reason"])

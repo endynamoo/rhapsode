@@ -4142,16 +4142,34 @@ function focusSoon(selector) {
   });
 }
 
+// One rule for "is there something to read here". The button used to disable below three
+// words while the handler silently rejected anything under ten characters, so `a b c` looked
+// ready and did nothing at all when clicked (issue #148).
+const PASTE_MIN_WORDS = 3;
+
+function pasteWords(text) {
+  return (text.match(/[A-Za-z0-9\u3040-\u30ff\u4e00-\u9fff]+/g) || []).length;
+}
+
 function updatePasteCount() {
   const text = $('#pasteText').value.trim();
-  const words = (text.match(/[A-Za-z0-9\u3040-\u30ff\u4e00-\u9fff]+/g) || []).length;
-  $('#pasteCount').textContent = `${words.toLocaleString()} words`;
-  $('#pasteAdd').disabled = words < 3;
+  const words = pasteWords(text);
+  const count = $('#pasteCount');
+  if (count) {
+    count.textContent = words >= PASTE_MIN_WORDS
+      ? `${words.toLocaleString()} words`
+      : `${words.toLocaleString()} of ${PASTE_MIN_WORDS} words - a sentence or two is enough`;
+  }
+  $('#pasteAdd').disabled = words < PASTE_MIN_WORDS;
 }
 
 async function addPasted() {
   const text = $('#pasteText').value.trim();
-  if (text.length < 10) return;
+  if (pasteWords(text) < PASTE_MIN_WORDS) {
+    toast(`Add at least ${PASTE_MIN_WORDS} words to read.`);
+    updatePasteCount();
+    return;
+  }
   const title = $('#pasteTitle').value.trim();
   $('#pasteAdd').disabled = true;
   try {
@@ -4169,7 +4187,9 @@ async function addPasted() {
   } catch (err) {
     toast(err.message, 'error');
   } finally {
-    $('#pasteAdd').disabled = false;
+    // Re-derive, do not just re-enable: after a failed request with a short paste the
+    // button must not become clickable while the text is still too short.
+    updatePasteCount();
   }
 }
 

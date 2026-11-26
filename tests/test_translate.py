@@ -153,6 +153,10 @@ class ChainTests(unittest.TestCase):
         chain.swift.available.return_value = False
         chain.http = mock.MagicMock()
         chain.http.available.return_value = False
+        # The third backend reads the real data directory, where a translator may well be
+        # installed; this test is about the chain, not the machine.
+        chain.local = mock.MagicMock()
+        chain.local.available.return_value = False
 
         self.assertFalse(chain.available())
         with self.assertRaises(translate.TranslateUnavailable):
